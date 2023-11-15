@@ -9,9 +9,9 @@ static int next_pid = 1;
 
 void initPcbs() {
     int size = sizeof(pcbTable)/sizeof(pcbTable[0]);
-    
-    // list_add(pcbFree_h, 
-    
+
+    // list_add(pcbFree_h,
+
 }
 
 //Inserisce l'elemento puntato da p sulla lista pcbFree
@@ -23,27 +23,44 @@ pcb_t *allocPcb() {
     if(list_empty(&pcbFree_h) /*== TRUE*/)
         return NULL;
     else
-    {   
-
+    {
         struct list_head *to_del = &pcbFree_h;
-        list_del(to_del);
-        pcb_t *p;
-        
-        container_of(to_del, pcb_t, p);
-        // struct list_head *iter;
-        // list_for_each(iter, pcbFree_h.next){
-        //     iter = NULL;
-        // }
-        
-        // return &(to_del);
+        list_del(to_del->next);
+
+        pcb_t *p = container_of(to_del->next, pcb_t, p_list);
+
+        //coda dei processi
+        INIT_LIST_HEAD(&(p -> p_list));
+        INIT_LIST_HEAD(&(p -> p_child));
+        p->p_parent = NULL;
+
+        //campi albero processi
+        INIT_LIST_HEAD(&(p -> p_sib));
+
+        //informazioni sullo stato dei processi
+        //p->p_s
+        p->p_time=0;
+
+        //primo messaggio della coda dei messaggi
+        INIT_LIST_HEAD(&(p->msg_inbox));
+
+        //puntatore alla struct di supporto
+        p->p_supportStruct = NULL;
+
+        //process ID
+        p->p_pid=0;
+
+        return p;
     }
 }
 
+//inizializza una variable come puntatore alla testa della coda dei processi
 void mkEmptyProcQ(struct list_head *head) {
+    INIT_LIST_HEAD(head);
 }
 
 
-// se la coda la cui testa e' puntata da head e' vuota ritrna TRUE, altrimeti FALSE
+// se la coda la cui testa è puntata da head è vuota ritrna TRUE, altrimeti FALSE
 int emptyProcQ(struct list_head *head) {
     return list_empty(head);
 }
@@ -53,45 +70,39 @@ void insertProcQ(struct list_head *head, pcb_t *p) {
     list_add(head, &(p -> p_list));
 }
 
+//ritorna NULL se la coda dei processi è vuota, altrimenti il PCB in testa
 pcb_t *headProcQ(struct list_head *head) {
-    if(emptyProcQ(head))    
-        return NULL;
-    else
-    {
-        struct list_head *sentinel = head;
-        list_del(sentinel);
-        return //container_of()
-    }
-    
+    return (emptyProcQ(head) ? NULL : container_of(head, pcb_t, p_list));
 }
 
 pcb_t *removeProcQ(struct list_head *head) {
-    if(emptyProcQ(head))    
+    if(emptyProcQ(head))
         return NULL;
     else
     {
-        
+
     }
 }
 
 pcb_t *outProcQ(struct list_head *head, pcb_t *p) {
+
 }
 
 int emptyChild(pcb_t *p) {
     //return list_empty(&(p -> p_child)); --> sbagliato
     if(p -> p_child.next == NULL)
         return TRUE;
-    return FALSE; 
+    return FALSE;
 }
 
 void insertChild(pcb_t *prnt, pcb_t *p) {
     p -> p_parent = prnt;
     if(emptyChild(prnt)) {
         prnt -> p_child.next = &(p -> p_child);
-        //INIT_LIST_HEAD(&(p -> p_sib)); --> da fare nell'inizializzazione del PCB all'inizio
     }
     else {
-        list_add(&(p -> p_sib), &container_of(prnt -> p_child.next, pcb_t, p_child) -> p_sib);
+        pcb_t *first_child = container_of(prnt -> p_child.next, pcb_t, p_child);
+        list_add_tail(&(p -> p_sib), &(first_child) -> p_sib);
     }
 }
 
