@@ -89,10 +89,7 @@ pcb_t *outProcQ(struct list_head *head, pcb_t *p) {
 }
 
 int emptyChild(pcb_t *p) {
-    //return list_empty(&(p -> p_child)); --> sbagliato
-    if(p -> p_child.next == NULL)
-        return TRUE;
-    return FALSE;
+    return list_empty(&(p -> p_child)); 
 }
 
 void insertChild(pcb_t *prnt, pcb_t *p) {
@@ -110,11 +107,25 @@ pcb_t *removeChild(pcb_t *p) {
     if(emptyChild(p))
         return NULL;
     else {
+	pcb_t *first_child = container_of(p -> p_child.next, pcb_t, p_child);
+	if(list_empty(&(first_child -> p_sib))) {
+		list_del(&(first_child -> p_sib));
+		list_del(p -> p_child.next); // rimuovo l'unico figlio
+	} else {
+		pcb_t *second_child = container_of(first_child -> p_sib.next, pcb_t, p_sib);
+		list_del(p -> p_child.next); // rimuovo il primo figlio	
+		p -> p_child.next = &(second_child -> p_child); //setto come primo figlio il secondo
+		second_child -> p_child.prev = &(p -> p_child); 
+		list_del(&(first_child -> p_sib)); 		//rimuovo il figlio dai suoi fratelli
+	}
+	return first_child;
         //puntatore child del padre dovra puntatore non più a quello a cui punta ora, ma al suo next
         //quindi devo fare controllo per un solo figlio, e devo rimuover il primo figlio dalla lista dei sib
         //
     }
 }
-
+//RIVISITARE TUTTE LE IMPLEMENTAZIONI CAPENDO BENE L'USO DELL'ELEMENTO SENTINELLA
+//CHIEDERE AL PROF
 pcb_t *outChild(pcb_t *p) {
+
 }
