@@ -87,6 +87,8 @@ pcb_t *removeProcQ(struct list_head *head) {
 pcb_t *outProcQ(struct list_head *head, pcb_t *p) {
 
 }
+//p_child del padre = sentinella lista p_sib (figli) --> quando iterando la lista incontro l'elemento che è padre degli altri
+//sono arrivato alla testa --> sentinella --> posso effettuare le operazioni (definite in listx.h) che richiedono la testa
 
 int emptyChild(pcb_t *p) {
     return list_empty(&(p -> p_child)); 
@@ -95,11 +97,15 @@ int emptyChild(pcb_t *p) {
 void insertChild(pcb_t *prnt, pcb_t *p) {
     p -> p_parent = prnt;
     if(emptyChild(prnt)) {
-        prnt -> p_child.next = &(p -> p_child);
+        //prnt -> p_child.next = &(p -> p_child);
+    	//primo figlio --> aggiunta in testa
+		list_add(&(p -> p_sib) , &(prnt -> p_child));
     }
     else {
-        pcb_t *first_child = container_of(prnt -> p_child.next, pcb_t, p_child);
-        list_add_tail(&(p -> p_sib), &(first_child) -> p_sib);
+        //pcb_t *first_child = container_of(prnt -> p_child.next, pcb_t, p_child);
+        //list_add_tail(&(p -> p_sib), &(first_child) -> p_sib);
+    	//altri figli --> aggiungo in coda
+		list_add_tail(&(p -> p_sib), &(prnt -> p_child));
     }
 }
 
@@ -107,25 +113,32 @@ pcb_t *removeChild(pcb_t *p) {
     if(emptyChild(p))
         return NULL;
     else {
-	pcb_t *first_child = container_of(p -> p_child.next, pcb_t, p_child);
-	if(list_empty(&(first_child -> p_sib))) {
-		list_del(&(first_child -> p_sib));
-		list_del(p -> p_child.next); // rimuovo l'unico figlio
-	} else {
-		pcb_t *second_child = container_of(first_child -> p_sib.next, pcb_t, p_sib);
-		list_del(p -> p_child.next); // rimuovo il primo figlio	
-		p -> p_child.next = &(second_child -> p_child); //setto come primo figlio il secondo
-		second_child -> p_child.prev = &(p -> p_child); 
-		list_del(&(first_child -> p_sib)); 		//rimuovo il figlio dai suoi fratelli
-	}
-	return first_child;
-        //puntatore child del padre dovra puntatore non più a quello a cui punta ora, ma al suo next
-        //quindi devo fare controllo per un solo figlio, e devo rimuover il primo figlio dalla lista dei sib
-        //
+		pcb_t *first_child = container_of(list_next(&(p -> p_child)), pcb_t, p_sib);
+		list_del(&(first_child -> p_sib)); //rimozione unico figlio
+		first_child -> p_parent = NULL;
+		/*if(list_is_last(&(first_child -> p_sib), &(p -> p_child))) {
+			list_del(&(first_child -> p_sib)); //rimozione unico figlio
+		} else {
+			//list_next(&(first_child -> p_sib))
+			//pcb_t *second_child = container_of(list_next(&(first_child -> p_sib)), pcb_t, p_sib);
+			//list_del(p -> p_child.next); // rimuovo il primo figlio	
+			list_del(&(first_child -> p_sib)); //rimozione primo figlio
+			//p -> p_child.next = &(second_child -> p_child); //setto come primo figlio il secondo
+			//second_child -> p_child.prev = &(p -> p_child); 
+		}*/
+		return first_child;
     }
 }
 //RIVISITARE TUTTE LE IMPLEMENTAZIONI CAPENDO BENE L'USO DELL'ELEMENTO SENTINELLA
-//CHIEDERE AL PROF
-pcb_t *outChild(pcb_t *p) {
 
+//rimuovi p dai figli di suo padre se lo ha e quindi ritornalo, se non ha padre ritorna NULL
+pcb_t *outChild(pcb_t *p) {
+	if(p -> p_parent == NULL) 
+		return NULL;
+	else {
+		//devo rendere p non più figlio di suo padre
+		list_del(&(p -> p_sib));
+		p -> p_parent = NULL;
+		return p;
+	}
 }
