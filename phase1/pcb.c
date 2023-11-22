@@ -1,5 +1,6 @@
 #include "./headers/pcb.h"
 #include "../headers/types.h"
+
 #define TRUE 1
 #define FALSE 0
 
@@ -8,10 +9,10 @@ LIST_HEAD(pcbFree_h);
 static int next_pid = 1;
 
 void initPcbs() {
-    int size = sizeof(pcbTable)/sizeof(pcbTable[0]);
-
-    // list_add(pcbFree_h,
-
+    for (int i = 0; i < MAXPROC; i++)
+    {
+        list_add(&(pcbTable[i].p_list), &pcbFree_h);
+    }
 }
 
 //Inserisce l'elemento puntato da p sulla lista pcbFree
@@ -23,11 +24,16 @@ pcb_t *allocPcb() {
     if(list_empty(&pcbFree_h) /*== TRUE*/)
         return NULL;
     else
-    {
+    {   /*
         struct list_head *to_del = &pcbFree_h;
         list_del(to_del->next);
 
-        pcb_t *p = container_of(to_del->next, pcb_t, p_list);
+        pcb_t *p = container_of(to_del->next, pcb_t, p_list);*/
+
+        //struct list_head *to_del = &((&pcbFree_h) -> next);
+
+        pcb_t *p = container_of((&pcbFree_h)->next, pcb_t, p_list);
+        list_del((&pcbFree_h)->next);
 
         //coda dei processi
         INIT_LIST_HEAD(&(p -> p_list));
@@ -38,7 +44,7 @@ pcb_t *allocPcb() {
         INIT_LIST_HEAD(&(p -> p_sib));
 
         //informazioni sullo stato dei processi
-        //p->p_s
+        // p->p_s = (state_t) {0, 0, 0, 0, {0, 0, 0, 0, 0, 0, 0, 0, 0 ,0 ,0, 0, 0, 0, 0, 0, 0, 0, 0 ,0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, 0, 0};
         p->p_time=0;
 
         //primo messaggio della coda dei messaggi
@@ -67,12 +73,12 @@ int emptyProcQ(struct list_head *head) {
 
 //inserisce il PCB puntato da p nella coda dei processi
 void insertProcQ(struct list_head *head, pcb_t *p) {
-    list_add(head, &(p -> p_list));
+    list_add(&(p -> p_list), head);
 }
 
 //ritorna NULL se la coda dei processi è vuota, altrimenti il PCB in testa
 pcb_t *headProcQ(struct list_head *head) {
-    return (emptyProcQ(head) ? NULL : container_of(head, pcb_t, p_list));
+    return (emptyProcQ(head) ? NULL : container_of(head->next, pcb_t, p_list));
 }
 
 pcb_t *removeProcQ(struct list_head *head) {
@@ -80,12 +86,27 @@ pcb_t *removeProcQ(struct list_head *head) {
         return NULL;
     else
     {
-
+        pcb_t *firs_pcb = container_of(list_next(head), pcb_t, p_list);
+        list_del(&(firs_pcb -> p_list));
+        return firs_pcb;
     }
 }
-
+/*
+Remove the PCB pointed to by p from the process queue whose head pointer is pointed to by head. 
+If the desired entry is not in the indicated queue (an error condition), return NULL; otherwise, 
+return p. Note that p can point to any element of the process queue.
+*/
 pcb_t *outProcQ(struct list_head *head, pcb_t *p) {
-
+    struct list_head* iter; 
+    pcb_t *q;
+    list_for_each(iter, head){
+        q = container_of(iter, pcb_t, p_list);
+        if (q == p){
+            list_del(&(q -> p_list));
+            return p;
+        }
+    }
+    return NULL;
 }
 //p_child del padre = sentinella lista p_sib (figli) --> quando iterando la lista incontro l'elemento che è padre degli altri
 //sono arrivato alla testa --> sentinella --> posso effettuare le operazioni (definite in listx.h) che richiedono la testa
