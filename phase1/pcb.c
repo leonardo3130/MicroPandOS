@@ -11,7 +11,7 @@ static int next_pid = 1;
 void initPcbs() {
     for (int i = 0; i < MAXPROC; i++)
     {
-        list_add(&(pcbTable[i].p_list), &pcbFree_h);
+        list_add_tail(&(pcbTable[i].p_list), &pcbFree_h);
     }
 }
 
@@ -73,7 +73,7 @@ int emptyProcQ(struct list_head *head) {
 
 //inserisce il PCB puntato da p nella coda dei processi
 void insertProcQ(struct list_head *head, pcb_t *p) {
-    list_add(&(p -> p_list), head);
+    list_add_tail(&(p -> p_list), head);
 }
 
 //ritorna NULL se la coda dei processi è vuota, altrimenti il PCB in testa
