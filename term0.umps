@@ -19,4 +19,5 @@ allocMsg ok
 freed 15 entries   
 Inserting...   
 inserted 10 elements   
-headMessage failed   
+headMessage ok   
+popMessage failed with NULL pcb   

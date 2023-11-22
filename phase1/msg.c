@@ -8,12 +8,12 @@ LIST_HEAD(msgFree_h);
 void initMsgs() {
     for(int i=0;i<MAXMESSAGES;i++){
         //Scorro msgTable e aggiungo ogni elemento a msgFree
-        list_add(&(msgTable[i].m_list), &msgFree_h);
+        list_add_tail(&(msgTable[i].m_list), &msgFree_h);
     }
 }
 
 void freeMsg(msg_t *m) {
-    list_add(&(m->m_list), &msgFree_h);
+    list_add_tail(&(m->m_list), &msgFree_h);
 }
 
 msg_t *allocMsg() {
@@ -39,11 +39,11 @@ int emptyMessageQ(struct list_head *head) {
 }
 
 void insertMessage(struct list_head *head, msg_t *m) {
-    list_add(&(m->m_list), head);
+    list_add_tail(&(m->m_list), head);
 }
 
 void pushMessage(struct list_head *head, msg_t *m) {
-    list_add_tail(&(m->m_list), head);
+    list_add(&(m->m_list), head);
 }
 
 msg_t *popMessage(struct list_head *head, pcb_t *p_ptr) {
