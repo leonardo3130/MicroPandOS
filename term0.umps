@@ -20,4 +20,6 @@ freed 15 entries
 Inserting...   
 inserted 10 elements   
 headMessage ok   
-popMessage failed with NULL pcb   
+popMessage with NULL pcb ok   
+pushMessage ok   
+insertMessage ok   
