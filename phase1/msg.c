@@ -7,22 +7,29 @@ LIST_HEAD(msgFree_h);
 
 void initMsgs() {
     for(int i=0;i<MAXMESSAGES;i++){
-        //Scorro msgTable e aggiungo ogni elemento a msgFree
+        //Scorro msgTable e aggiungo ogni elemento in coda a msgFree
         list_add_tail(&(msgTable[i].m_list), &msgFree_h);
     }
 }
 
 void freeMsg(msg_t *m) {
+    //inserisco la list_head puntata da m in coda alla msgFree
     list_add_tail(&(m->m_list), &msgFree_h);
 }
 
 msg_t *allocMsg() {
+
+    //variabile ausiliaria usata per ritornare l'elemento della lista che viene eliminato
     msg_t *tmp;
-    if(list_empty(&msgFree_h) /* == TRUE*/)
+
+    if(list_empty(&msgFree_h))
         return NULL;
+
     else{
-        tmp = container_of((&msgFree_h) -> next, msg_t, m_list);
-        list_del((&msgFree_h) -> next);
+        tmp = container_of((&msgFree_h)->next, msg_t, m_list);
+        list_del((&msgFree_h)->next);
+
+        //scorro la msgTable e metto tutti i payload = 0
         for(int i=0;i<MAXMESSAGES;i++){
             msgTable[i].m_payload = 0;
         }
@@ -39,27 +46,31 @@ int emptyMessageQ(struct list_head *head) {
 }
 
 void insertMessage(struct list_head *head, msg_t *m) {
+    //inserisco la list_head puntata da m in coda alla lista head
     list_add_tail(&(m->m_list), head);
 }
 
 void pushMessage(struct list_head *head, msg_t *m) {
+    //inserisco la list_head puntata da m in testa alla lista head
     list_add(&(m->m_list), head);
 }
 
 msg_t *popMessage(struct list_head *head, pcb_t *p_ptr) { 
 
+    //variabile ausiliaria usata per ritornare l'elemento eliminato dalla lista
+    msg_t *tmp;
+
     if(p_ptr == NULL) {
-		msg_t *msg = container_of(head->next, msg_t, m_list);
+		tmp = container_of(head->next, msg_t, m_list);
 		list_del(head->next);
-        return msg;
+        return tmp;
 	}
     
 	if(list_empty(head))
         return NULL;
-    //struct list_head *pos = head;
-    struct list_head *pos;
-    msg_t *tmp;
+
     int found = FALSE;
+    struct list_head *pos;
     list_for_each(pos, head){
         if(container_of(pos, msg_t, m_list)->m_sender == p_ptr && !found){
             found = TRUE;
@@ -67,17 +78,19 @@ msg_t *popMessage(struct list_head *head, pcb_t *p_ptr) {
             list_del(pos);
         }
     }
+
     if(found == FALSE)
         return NULL;
+
     else 
         return tmp;
 }
 
 msg_t *headMessage(struct list_head *head) {
-    if(head!= NULL){
-        return container_of(head->next, msg_t, m_list);
-    }
-    else{
+    if(head == NULL)
         return NULL;
-    }
+
+    else
+        return container_of(head->next, msg_t, m_list);
+
 }
