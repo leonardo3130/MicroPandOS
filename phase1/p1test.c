@@ -14,7 +14,7 @@
 
 #include "../headers/const.h"
 #include "../headers/types.h"
-
+#include "../klog.c"
 #include <umps/libumps.h>
 #include "./headers/pcb.h"
 #include "./headers/msg.h"
@@ -115,7 +115,8 @@ void adderrbuf(char *strp) {
     PANIC();
 }
 
-
+//debug function
+void bp() {}
 
 int main(void) {
     int i;

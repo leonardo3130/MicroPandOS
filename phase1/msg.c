@@ -46,30 +46,31 @@ void pushMessage(struct list_head *head, msg_t *m) {
     list_add(&(m->m_list), head);
 }
 
-msg_t *popMessage(struct list_head *head, pcb_t *p_ptr) {
+msg_t *popMessage(struct list_head *head, pcb_t *p_ptr) { 
 
-    if(p_ptr == NULL)
-        return container_of(head->next, msg_t, m_list);
- 
-    else if(list_empty(head)) //|| found == FALSE)
+    if(p_ptr == NULL) {
+		msg_t *msg = container_of(head->next, msg_t, m_list);
+		list_del(head->next);
+        return msg;
+	}
+    
+	if(list_empty(head))
         return NULL;
-
-    else {
-        struct list_head *pos = head;
-        msg_t *tmp;
-        int found = FALSE;
-        list_for_each(pos, head){
-            if(container_of(pos, msg_t, m_list)->m_sender == p_ptr && found == FALSE){
-                found = TRUE;
-                tmp = container_of(pos, msg_t, m_list);
-                list_del(pos);
-            }
+    //struct list_head *pos = head;
+    struct list_head *pos;
+    msg_t *tmp;
+    int found = FALSE;
+    list_for_each(pos, head){
+        if(container_of(pos, msg_t, m_list)->m_sender == p_ptr && !found){
+            found = TRUE;
+            tmp = container_of(pos, msg_t, m_list);
+            list_del(pos);
         }
-        if(found == FALSE)
-            return NULL;
-        else 
-            return tmp;
     }
+    if(found == FALSE)
+        return NULL;
+    else 
+        return tmp;
 }
 
 msg_t *headMessage(struct list_head *head) {
