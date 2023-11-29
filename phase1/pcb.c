@@ -112,54 +112,34 @@ pcb_t *outProcQ(struct list_head *head, pcb_t *p) {
 //sono arrivato alla testa --> sentinella --> posso effettuare le operazioni (definite in listx.h) che richiedono la testa
 
 int emptyChild(pcb_t *p) {
-    return list_empty(&(p -> p_child)); 
+    return list_empty(&(p -> p_child)); //controllo che la lista dei figli sia vuota
 }
 
 void insertChild(pcb_t *prnt, pcb_t *p) {
     p -> p_parent = prnt;
-    if(emptyChild(prnt)) {
-        //prnt -> p_child.next = &(p -> p_child);
-    	//primo figlio --> aggiunta in testa
+    if(emptyChild(prnt))
 		list_add(&(p -> p_sib) , &(prnt -> p_child));
-    }
-    else {
-        //pcb_t *first_child = container_of(prnt -> p_child.next, pcb_t, p_child);
-        //list_add_tail(&(p -> p_sib), &(first_child) -> p_sib);
-    	//altri figli --> aggiungo in coda
-		list_add_tail(&(p -> p_sib), &(prnt -> p_child));
-    }
+    else
+		list_add_tail(&(p -> p_sib), &(prnt -> p_child)); //aggiungo in coda per rispettare la condazione FIFO
 }
 
 pcb_t *removeChild(pcb_t *p) {
     if(emptyChild(p))
         return NULL;
     else {
-		pcb_t *first_child = container_of(list_next(&(p -> p_child)), pcb_t, p_sib);
-		list_del(&(first_child -> p_sib)); //rimozione unico figlio
-		first_child -> p_parent = NULL;
-		/*if(list_is_last(&(first_child -> p_sib), &(p -> p_child))) {
-			list_del(&(first_child -> p_sib)); //rimozione unico figlio
-		} else {
-			//list_next(&(first_child -> p_sib))
-			//pcb_t *second_child = container_of(list_next(&(first_child -> p_sib)), pcb_t, p_sib);
-			//list_del(p -> p_child.next); // rimuovo il primo figlio	
-			list_del(&(first_child -> p_sib)); //rimozione primo figlio
-			//p -> p_child.next = &(second_child -> p_child); //setto come primo figlio il secondo
-			//second_child -> p_child.prev = &(p -> p_child); 
-		}*/
+		pcb_t *first_child = container_of(list_next(&(p -> p_child)), pcb_t, p_sib); //ricerca primo figlio
+		list_del(&(first_child -> p_sib)); //rimozione figlio dalla lista dei fratelli
+		first_child -> p_parent = NULL; //rimozione legame padre-figlio
 		return first_child;
     }
 }
-//RIVISITARE TUTTE LE IMPLEMENTAZIONI CAPENDO BENE L'USO DELL'ELEMENTO SENTINELLA
 
-//rimuovi p dai figli di suo padre se lo ha e quindi ritornalo, se non ha padre ritorna NULL
 pcb_t *outChild(pcb_t *p) {
 	if(p -> p_parent == NULL) 
 		return NULL;
 	else {
-		//devo rendere p non più figlio di suo padre
-		list_del(&(p -> p_sib));
-		p -> p_parent = NULL;
+		list_del(&(p -> p_sib)); //rimozione p dalla lista dei fratelli
+		p -> p_parent = NULL; //rimozione legame padre-figlio
 		return p;
 	}
 }
