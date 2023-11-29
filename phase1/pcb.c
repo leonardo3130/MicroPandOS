@@ -108,8 +108,6 @@ pcb_t *outProcQ(struct list_head *head, pcb_t *p) {
     }
     return NULL;
 }
-//p_child del padre = sentinella lista p_sib (figli) --> quando iterando la lista incontro l'elemento che è padre degli altri
-//sono arrivato alla testa --> sentinella --> posso effettuare le operazioni (definite in listx.h) che richiedono la testa
 
 int emptyChild(pcb_t *p) {
     return list_empty(&(p -> p_child)); //controllo che la lista dei figli sia vuota
