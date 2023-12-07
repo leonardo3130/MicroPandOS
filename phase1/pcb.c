@@ -44,7 +44,15 @@ pcb_t *allocPcb() {
         INIT_LIST_HEAD(&(p -> p_sib));
 
         //informazioni sullo stato dei processi
-        // p->p_s = (state_t) {0, 0, 0, 0, {0, 0, 0, 0, 0, 0, 0, 0, 0 ,0 ,0, 0, 0, 0, 0, 0, 0, 0, 0 ,0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, 0, 0};
+        p->p_s.entry_hi = 0; 
+		p->p_s.cause = 0;
+		p->p_s.status = 0; 
+		p->p_s.pc_epc = 0;
+		for(int i = 0 ; i < sizeof(p->p_s.gpr) / sizeof(p->p_s.gpr[0]) ; i++)
+			p->p_s.gpr[i] = 0; 
+		p->p_s.hi = 0; 
+		p->p_s.lo = 0;
+
         p->p_time=0;
 
         //primo messaggio della coda dei messaggi
