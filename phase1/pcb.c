@@ -11,8 +11,9 @@ static int next_pid = 1;
 void initPcbs() {
     for (int i = 0; i < MAXPROC; i++)
     {
-        list_add_tail(&(pcbTable[i].p_list), &pcbFree_h);
-    }
+        //list_add_tail(&(pcbTable[i].p_list), &pcbFree_h);
+		freePcb(&(pcbTable[i]));
+	}
 }
 
 //Inserisce l'elemento puntato da p sulla lista pcbFree
