@@ -124,7 +124,7 @@ void insertChild(pcb_t *prnt, pcb_t *p) {
     if(emptyChild(prnt))
 		list_add(&(p -> p_sib) , &(prnt -> p_child));
     else
-		list_add_tail(&(p -> p_sib), &(prnt -> p_child)); //aggiungo in coda per rispettare la condazione FIFO
+		list_add_tail(&(p -> p_sib), &(prnt -> p_child)); //aggiungo in coda per rispettare la condizione FIFO
 }
 
 pcb_t *removeChild(pcb_t *p) {
@@ -132,8 +132,8 @@ pcb_t *removeChild(pcb_t *p) {
         return NULL;
     else {
 		pcb_t *first_child = container_of(list_next(&(p -> p_child)), pcb_t, p_sib); //ricerca primo figlio
-		list_del(&(first_child -> p_sib)); //rimozione figlio dalla lista dei fratelli
-		first_child -> p_parent = NULL; //rimozione legame padre-figlio
+		list_del(&(first_child -> p_sib));											 //rimozione figlio dalla lista dei fratelli
+		first_child -> p_parent = NULL;												 //rimozione legame padre-figlio
 		return first_child;
     }
 }
@@ -143,7 +143,7 @@ pcb_t *outChild(pcb_t *p) {
 		return NULL;
 	else {
 		list_del(&(p -> p_sib)); //rimozione p dalla lista dei fratelli
-		p -> p_parent = NULL; //rimozione legame padre-figlio
+		p -> p_parent = NULL;    //rimozione legame padre-figlio
 		return p;
 	}
 }
