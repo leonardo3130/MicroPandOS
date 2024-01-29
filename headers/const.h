@@ -26,8 +26,8 @@
 #define TIMESCALEADDR 0x10000024
 
 /* Memory related constants */
-#define KSEG0        0x00000000
-#define KSEG1        0x20000000
+#define KSEG0        0x00000000     //kernel
+#define KSEG1        0x20000000     //RAM
 #define KSEG2        0x40000000
 #define KUSEG        0x80000000
 #define RAMSTART     0x20000000
