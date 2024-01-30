@@ -1,11 +1,10 @@
-#ifndef EXCEPTIONS
-#define EXCEPTIONS
+#ifndef INTERRUPTS
+#define INTERRUPTS
 #include "../../headers/const.h"
 #include "../../headers/types.h"
-#include "include/interrupts.h"
 #include <umps/libumps.h>
 #include <umps/arch.h>
 
-extern void exceptionHandler();
+extern void interruptsHandler(int cause);
 
 #endif
