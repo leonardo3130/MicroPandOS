@@ -44,8 +44,17 @@ static void deviceInterruptHandler(int line, int cause, state_t *exceptionState)
   }
 
 }
-static void localTimerInterruptHandler(state_t *exceptionState) {}
-static void pseudoClockInterruptHandler(state_t* exceptionState) {}
+static void localTimerInterruptHandler(state_t *exceptionState) {
+  setTIMER(TIMESLICE);
+  currentProcess->p_s = exceptionState; 
+  //mettere currentProcess nella ready queue --> funzione da definire
+  //scheduler(); --> non ancora definito
+}
+static void pseudoClockInterruptHandler(state_t* exceptionState) {
+  LDIT(PSECOND);
+  //unblock all PCB waiting for pseudo pseudo pseudo clock 
+  LDST(exceptionState);
+}
 
 void interruptHandler(int cause, state_t *exceptionState) {
 	//riconoscimento interrupt --> in ordine di priorità
