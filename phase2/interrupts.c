@@ -27,23 +27,35 @@ static void deviceInterruptHandler(int line, int cause, state_t *exceptionState)
   devreg_t *deviceRegister = DEV_REG_ADDR(line, deviceNumber);
 
   if(line == IL_TERMINAL){
+    if(deviceRegister->transm_status == 5) {
+      deviceStatus = deviceRegister->transm_status;
+      deviceRegister->transm_command = ACK;
+      //unblock PCB --> come ottenerlo? Vedi punto 4 del capitolo 8.1 specifiche
+      
+    }
+    else {
+      deviceStatus = deviceRegister->recv_status;
+      deviceRegister->recv_command = ACK;
+      //unblock PCB --> come ottenerlo? Vedi punto 4 del capitolo 8.1 specifiche
+    }
   } //va gestito diversamente --> 2 sub-devices
   else{
     pcb_t* unblockedPCB;
     deviceStatus = deviceRegister->status;
     deviceRegister->command = ACK;
     //unblock PCB --> come ottenerlo? Vedi punto 4 del capitolo 8.1 specifiche
-    if(unblockedPCB) {
-      unblockedPCB->p_s.s_v0 = deviceStatus;
-    }
-    if(currentProcess) {
-      LDST(exceptionState);
-    }
-    else {
-      //Scheduler farà WAIT()
-    }
   }
 
+  if(unblockedPCB) {
+    unblockedPCB->p_s.s_v0 = deviceStatus;
+  }
+
+  if(currentProcess) {
+    LDST(exceptionState);
+  }
+  else {
+    //Scheduler farà WAIT()
+  }
 }
 static void localTimerInterruptHandler(state_t *exceptionState) {
   setTIMER(TIMESLICE);
