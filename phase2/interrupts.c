@@ -5,7 +5,7 @@ static void deviceInterruptHandler(int line, int cause, state_t *exceptionState)
 	unsigned int interruptingDevicesBitmap = devicesRegisterArea->interrupt_dev[line - 3];
 	unsigned int deviceStatus;
   unsigned int deviceNumber;
-  	
+
   //ordered by priority
   if(interruptingDevicesBitmap & DEV0ON)
     deviceNumber = 0;
@@ -24,9 +24,10 @@ static void deviceInterruptHandler(int line, int cause, state_t *exceptionState)
   else if(interruptingDevicesBitmap & DEV7ON)
     deviceNumber = 7;
 
-  devreg_t *deviceRegister = DEV_REG_ADDR(line, deviceNumber); 
+  devreg_t *deviceRegister = DEV_REG_ADDR(line, deviceNumber);
 
-  if(line == IL_TERMINAL){} //va gestito diversamente --> 2 sub-devices
+  if(line == IL_TERMINAL){
+  } //va gestito diversamente --> 2 sub-devices
   else{
     pcb_t* unblockedPCB;
     deviceStatus = deviceRegister->status;
@@ -46,13 +47,13 @@ static void deviceInterruptHandler(int line, int cause, state_t *exceptionState)
 }
 static void localTimerInterruptHandler(state_t *exceptionState) {
   setTIMER(TIMESLICE);
-  currentProcess->p_s = exceptionState; 
+  currentProcess->p_s = exceptionState;
   //mettere currentProcess nella ready queue --> funzione da definire
   //scheduler(); --> non ancora definito
 }
 static void pseudoClockInterruptHandler(state_t* exceptionState) {
   LDIT(PSECOND);
-  //unblock all PCB waiting for pseudo pseudo pseudo clock 
+  //unblock all PCB waiting for pseudo pseudo pseudo clock
   LDST(exceptionState);
 }
 
@@ -70,17 +71,17 @@ void interruptHandler(int cause, state_t *exceptionState) {
 		deviceInterruptHandler(IL_ETHERNET, cause, exceptionState);
 	else if (CAUSE_IP_GET(cause, IL_PRINTER))
 		deviceInterruptHandler(IL_PRINTER, cause, exceptionState);
-	else if (CAUSE_IP_GET(cause, IL_TERMINAL)) 
-    deviceInterruptHandler(IL_TERMINAL, cause, exceptionState); 
-} 
-/*Device register type for disks, flash and printers 
-typedef struct dtpreg { 
-unsigned int status; 
-unsigned int command; 
+	else if (CAUSE_IP_GET(cause, IL_TERMINAL))
+    deviceInterruptHandler(IL_TERMINAL, cause, exceptionState);
+}
+/*Device register type for disks, flash and printers
+typedef struct dtpreg {
+unsigned int status;
+unsigned int command;
 unsigned int data0;
 unsigned int data1;
 } dtpreg_t;
- Device register type for terminals 
+ Device register type for terminals
 typedef struct termreg {
 unsigned int recv_status;
 unsigned int recv_command;
@@ -91,7 +92,7 @@ typedef union devreg {
 dtpreg_t dtp;
 termreg_t term;
 } devreg_t;
- Bus register area 
+ Bus register area
 typedef struct devregarea {
 unsigned int rambase;
 unsigned int ramsize;
