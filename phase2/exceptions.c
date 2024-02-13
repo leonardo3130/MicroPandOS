@@ -17,6 +17,16 @@ static void passUpOrDie(int i, state_t *exceptionState) {
   }
 }
 
+static void syscallExceptionHandler(state_t* exceptionState){
+  if((exceptionState->p_s.staus << 30) >> 31) { //not in kernel mode // <<28 ?
+    exceptionState->cause = (exceptionState->cause & CLEAREXECCODE) | (RI << CAUSESHIFT);
+    passUpOrDie(GENERALEXCEPT, exceptionState);
+  }
+  else {
+    //qualcosa con SSI ?
+  }
+}
+
 void exceptionHandler() {
 	state_t *exceptionState = (state_t *)BIOSDATAPAGE;
 	int cause = getCAUSE();
@@ -32,6 +42,7 @@ void exceptionHandler() {
 		case SYSEXCEPTION:
 			//anche qui potrebbe sevire passUpOrDie ma la situa vs gestita
       //diversamente
+      syscallExceptionHandler(exceptionState);
 			break;
 		default: //4-7, 9-12
 			//Program traps --> passo controllo al rispettivo gestore
