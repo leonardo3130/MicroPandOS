@@ -2,36 +2,35 @@
 #include "../headers/types.h"
 #include "../headers/listx.h"
 #include "../phase1/headers/pcb.h"
-#include "../phase1/headers/msg.h"
 
 #include <umps/libumps.h>
 
 /*
-This module implements main() and exports the Nucleus’s global variables (e.g.
+This module implements main() and the Nucleus’s global variables (e.g.
 process count, soft blocked count, blocked PCBs lists/pointers, etc.).
 */
 
 //  1. Declare the Level 3 global variables.
-export unsigned int process_count;
-export unsigned int soft_blocked_count;
+unsigned int process_count;
+unsigned int soft_blocked_count;
+
+LIST_HEAD(Ready_Queue);
+LIST_HEAD(locked_pcbs);
+
+// list_head Locked_disk;
+// list_head Locked_flash;
+// list_head Locked_terminal_in;
+// list_head Locked_terminal_out;
+// list_head Locked_PCBs;
+// list_head Locked_PCBs;
+// list_head Locked_PCBs;
+// list_head Locked_PCBs;
 
 
-export LIST_HEAD(Ready_Queue);
-export LIST_HEAD(locked_pcbs);
+pcb_t *Current_Process;
 
-// export list_head Locked_disk;
-// export list_head Locked_flash;
-// export list_head Locked_terminal_in;
-// export list_head Locked_terminal_out;
-// export list_head Locked_PCBs;
-// export list_head Locked_PCBs;
-// export list_head Locked_PCBs;
-// export list_head Locked_PCBs;
-
-
-export pcb_t Current_Process;
-
-// extern void test();
+extern void test();
+extern void scheduler();
 
 void initNucleus(){
     //  2. Passup Vector
@@ -68,10 +67,12 @@ void initNucleus(){
 
     //  6. Instantiate a first process, place its PCB in the Ready Queue, and increment Process Count.
     pcb_t *toInsert = allocPcb();
+
     toInsert-> p_sib = NULL;
     toInsert-> p_supportStruct = NULL;
     toInsert-> p_time = 0;
 
+    toInsert-> p_s
 
     // IEo & KUo: bits 4-5 - the “previous” settings of the Status.IEp and Status.KUp - denoted the “old” bit settings
     toInsert-> p_s.gpr[4] = toInsert-> p_s.gpr[2];
@@ -116,4 +117,5 @@ void initNucleus(){
     ++process_count;
 
     //  8. Call the Scheduler.
+    scheduler();
 }
