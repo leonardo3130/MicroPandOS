@@ -7,6 +7,7 @@
 #include "../../phase1/headers/msg.h"
 #include "interrupts.h"
 #include "initial.h"
+#include <umps/const.h>
 #include <umps/libumps.h>
 #include <umps/arch.h>
 
