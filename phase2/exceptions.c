@@ -60,7 +60,7 @@ static void syscallExceptionHandler(state_t* exceptionState){
       list_head *msg_inbox = &(((pcb_t *)(exceptionState->reg_v0))->msg_list);
       if(list_empty(msg_inbox) || !popMessage(msg_inbox, (pcb_t *)(exceptionState->reg_v0))) { //se non ci sono messaggi in attesa di essere ricevuti --> bloccante
         insertProcQ(&Locked_Message, Current_Process); //blocco del processo, non sono sicuro di Current_Process
-        Current_Process->p_s = exceptionState;
+        Current_Process->p_s = *exceptionState;
         //update cpu time
         scheduler();
       }

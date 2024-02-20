@@ -25,53 +25,76 @@ static void deviceInterruptHandler(int line, int cause, state_t *exceptionState)
     deviceNumber = 7;
 
   devreg_t *deviceRegister = DEV_REG_ADDR(line, deviceNumber);
+  pcb_t* unblockedPCB;
 
   if(line == IL_TERMINAL){
+    //gestione interrupt terminale --> 2 sub-devices
     if(deviceRegister->transm_status == 5) {
       deviceStatus = deviceRegister->transm_status;
       deviceRegister->transm_command = ACK;
-      //unblock PCB --> come ottenerlo? Vedi punto 4 del capitolo 8.1 specifiche
-      
+      unblockedPCB = removeProcQ(Locked_terminal_in);
     }
     else {
       deviceStatus = deviceRegister->recv_status;
       deviceRegister->recv_command = ACK;
-      //unblock PCB --> come ottenerlo? Vedi punto 4 del capitolo 8.1 specifiche
+      unblockedPCB = removeProcQ(&Locked_terminal_out);
     }
-  } //va gestito diversamente --> 2 sub-devices
+  } 
   else{
-    pcb_t* unblockedPCB;
+    //gestione interrupt di tutti gli altri dispositivi I/O
     deviceStatus = deviceRegister->status;
     deviceRegister->command = ACK;
-    //unblock PCB --> come ottenerlo? Vedi punto 4 del capitolo 8.1 specifiche
+    switch (line) {
+      case IL_DISK:
+        unblockedPCB = removeProcQ(&Locked_disk);
+        break;
+      case IL_FLASH:
+        unblockedPCB = removeProcQ(&Locked_flash);
+        break;
+      case IL_ETHERNET:
+        unblockedPCB = removeProcQ(&Locked_ethernet);
+        break;
+      case IL_PRINTER:
+        unblockedPCB = removeProcQ(&Locked_printer);
+        break;
+      default:
+        unblockedPCB = NULL;
+        break;
+    }
   }
 
   if(unblockedPCB) {
     unblockedPCB->p_s.s_v0 = deviceStatus;
+    insertProcQ(&Ready_Queue, unblockedPCB);
   }
 
-  if(currentProcess) {
+  if(Current_Process) {
     LDST(exceptionState);
   }
   else {
+    scheduler();
     //Scheduler farà WAIT()
   }
 }
 static void localTimerInterruptHandler(state_t *exceptionState) {
   setTIMER(TIMESLICE);
-  currentProcess->p_s = *exceptionState;
-  //mettere currentProcess nella ready queue --> funzione da definire
-  //scheduler(); --> non ancora definito
+  Current_Process->p_s = *exceptionState;
+  insertProcQ(&Ready_Queue, Current_Process);
+  scheduler();
 }
 static void pseudoClockInterruptHandler(state_t* exceptionState) {
   LDIT(PSECOND);
-  //unblock all PCB waiting for pseudo pseudo pseudo clock
+  pcb_t *unblockedPCB = removeProcQ(&Locked_pseudo_clock);
+  while (unblockedPCB) {
+    insertProcQ(&Ready_Queue, unblockedPCB);
+    unblockedPCB = removeProcQ(&Locked_pseudo_clock);
+  }
   LDST(exceptionState);
 }
 
 void interruptHandler(int cause, state_t *exceptionState) {
 	//riconoscimento interrupt --> in ordine di priorità
-	if (CAUSE_IP_GET(cause, IL_CPUTIMER))
+  if (CAUSE_IP_GET(cause, IL_CPUTIMER))
 		localTimerInterruptHandler(exceptionState);
 	else if (CAUSE_IP_GET(cause, IL_TIMER))
 		pseudoClockInterruptHandler(exceptionState);
