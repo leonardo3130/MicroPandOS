@@ -22,6 +22,12 @@ unsigned int getTOD() {
   return tmp;
 }
 
+void updateCPUtime(pcb_t *p) {
+  unsigned int end = getTOD();
+  p->p_time += (end - start);
+  start = end;
+}
+
 void setIntervalTimer(unsigned int t) {
   LDIT(T);
 }

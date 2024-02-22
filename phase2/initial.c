@@ -24,10 +24,11 @@ LIST_HEAD(Locked_terminal_out);
 LIST_HEAD(Locked_ethernet);
 LIST_HEAD(Locked_printer);
 
-LIST_HEAD(Locked_Message)
+LIST_HEAD(Locked_Message);
 
 
 pcb_t *Current_Process;
+unsigned int start;
 
 extern void test();
 extern void scheduler();
@@ -63,7 +64,7 @@ void initNucleus(){
 
 
     //  5. Load the system-wide Interval Timer with 100 milliseconds
-    LDIT(PSECOND);
+    setIntervalTimer(PSECOND);
 
     //  6. Instantiate a first process, place its PCB in the Ready Queue, and increment Process Count.
     pcb_t *toInsert = allocPcb();
