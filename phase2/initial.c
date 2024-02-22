@@ -17,14 +17,14 @@ unsigned int soft_blocked_count;
 LIST_HEAD(Ready_Queue);
 LIST_HEAD(locked_pcbs);
 
-// list_head Locked_disk;
-// list_head Locked_flash;
-// list_head Locked_terminal_in;
-// list_head Locked_terminal_out;
-// list_head Locked_PCBs;
-// list_head Locked_PCBs;
-// list_head Locked_PCBs;
-// list_head Locked_PCBs;
+LIST_HEAD(Locked_disk);
+LIST_HEAD(Locked_flash);
+LIST_HEAD(Locked_terminal_in);
+LIST_HEAD(Locked_terminal_out);
+LIST_HEAD(Locked_ethernet);
+LIST_HEAD(Locked_printer);
+
+LIST_HEAD(Locked_Message)
 
 
 pcb_t *Current_Process;
