@@ -79,7 +79,7 @@ static void deviceInterruptHandler(int line, int cause, state_t *exceptionState)
 static void localTimerInterruptHandler(state_t *exceptionState) {
   setPLT(TIMESLICE);
   Current_Process->p_s = *exceptionState;
-  updateCPUtime(Current_Process, start);
+  updateCPUtime(Current_Process, &start);
   insertProcQ(&Ready_Queue, Current_Process);
   scheduler();
 }
