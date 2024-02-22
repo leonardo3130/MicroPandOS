@@ -18,10 +18,11 @@ void scheduler(){
         Current_Process = removeProcQ(Ready_Queue);
 
         //  2. Load 5 milliseconds on the PLT [Section 4.1.4-pops].
-        setTIMER(TIMESLICE);
+        setPLT(TIMESLICE);
 
         //  3. Perform a Load Processor State (LDST) on the processor state stored in PCB of the
         //     Current Process (p_s).
+        start = getTOD(); //da includere (timers e initial) quando farai i file .h 
         LDST(&(Current_Process->p_s));
     }
     else{

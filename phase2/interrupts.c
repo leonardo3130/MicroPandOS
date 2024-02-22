@@ -77,13 +77,14 @@ static void deviceInterruptHandler(int line, int cause, state_t *exceptionState)
   }
 }
 static void localTimerInterruptHandler(state_t *exceptionState) {
-  setTIMER(TIMESLICE);
+  setPLT(TIMESLICE);
   Current_Process->p_s = *exceptionState;
+  updateCPUtime(Current_Process, &start);
   insertProcQ(&Ready_Queue, Current_Process);
   scheduler();
 }
 static void pseudoClockInterruptHandler(state_t* exceptionState) {
-  LDIT(PSECOND);
+  setIntervalTimer(PSECOND);
   pcb_t *unblockedPCB = removeProcQ(&Locked_pseudo_clock);
   while (unblockedPCB) {
     insertProcQ(&Ready_Queue, unblockedPCB);
