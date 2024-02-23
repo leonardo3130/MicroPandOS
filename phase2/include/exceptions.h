@@ -1,5 +1,6 @@
 #ifndef EXCEPTIONS
 #define EXCEPTIONS
+
 #include "../../headers/const.h"
 #include "../../headers/types.h"
 #include "../../headers/listx.h"
