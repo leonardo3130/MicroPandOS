@@ -12,7 +12,7 @@ static void passUpOrDie(int i, state_t *exceptionState) {
     }
     else {
       //terminate process 
-      //scheduler();
+      scheduler();
     }
   }
 }
@@ -23,7 +23,6 @@ static void syscallExceptionHandler(state_t* exceptionState){
     passUpOrDie(GENERALEXCEPT, exceptionState);
   }
   else {
-    //devo capire se la roba qu sotto viene fatta dalla routine SYSCALL o se devo farla io
     if(exceptionState->reg_a0 == SENDMESSAGE) {
       //SEND is async
       pcb_t *dest = (pcb_t *)(exceptionState->reg_a1);
