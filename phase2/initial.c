@@ -1,37 +1,10 @@
-#include "../headers/const.h"
-#include "../headers/types.h"
-#include "../headers/listx.h"
-#include "../phase1/headers/pcb.h"
-
-#include <umps/libumps.h>
+#include "include/initial.h"
 
 /*
-This module implements main() and the Nucleus’s global variables (e.g.
-process count, soft blocked count, blocked PCBs lists/pointers, etc.).
+    This module implements initNucleus() and the Nucleus’s global variables (e.g.
+    process count, soft blocked count, blocked PCBs lists/pointers, etc.).
 */
 
-//  1. Declare the Level 3 global variables.
-unsigned int process_count;
-unsigned int soft_blocked_count;
-
-LIST_HEAD(Ready_Queue);
-LIST_HEAD(locked_pcbs);
-
-LIST_HEAD(Locked_disk);
-LIST_HEAD(Locked_flash);
-LIST_HEAD(Locked_terminal_in);
-LIST_HEAD(Locked_terminal_out);
-LIST_HEAD(Locked_ethernet);
-LIST_HEAD(Locked_printer);
-
-LIST_HEAD(Locked_Message);
-
-
-pcb_t *Current_Process;
-unsigned int start;
-
-extern void test();
-extern void scheduler();
 
 void initNucleus(){
     //  2. Passup Vector
@@ -60,7 +33,14 @@ void initNucleus(){
     mkEmptyProcQ(Ready_Queue);
 
     //  list of blocked PCBs for each external (sub)device
-    mkEmptyProcQ(locked_pcbs);
+    mkEmptyProcQ(Locked_disk);
+    mkEmptyProcQ(Locked_flash);
+    mkEmptyProcQ(Locked_terminal_in);
+    mkEmptyProcQ(Locked_terminal_out);
+    mkEmptyProcQ(Locked_ethernet);
+    mkEmptyProcQ(Locked_printer);
+
+    mkEmptyProcQ(Locked_Message)
 
 
     //  5. Load the system-wide Interval Timer with 100 milliseconds
@@ -69,52 +49,43 @@ void initNucleus(){
     //  6. Instantiate a first process, place its PCB in the Ready Queue, and increment Process Count.
     pcb_t *toInsert = allocPcb();
 
-    toInsert-> p_sib = NULL;
-    toInsert-> p_supportStruct = NULL;
-    toInsert-> p_time = 0;
-
-    toInsert-> p_s
-
-    // IEo & KUo: bits 4-5 - the “previous” settings of the Status.IEp and Status.KUp - denoted the “old” bit settings
-    toInsert-> p_s.gpr[4] = toInsert-> p_s.gpr[2];
-    toInsert-> p_s.gpr[5] = toInsert-> p_s.gpr[3];
-
-    // IEp & KUp: bits 2-3 - the “previous” settings of the Status.IEc and Status.KUc.
-    toInsert-> p_s.gpr[2] = toInsert-> p_s.gpr[0];
-    toInsert-> p_s.gpr[3] = toInsert-> p_s.gpr[1];
-
     // IEc: The “current” global interrupt enable bit. When 0, regardless
     // of the settings in Status.IM all interrupts are disabled. When 1, interrupt
     // acceptance is controlled by Status.IM.
-    toInsert-> p_s.gpr[0] = 1;
+    toInsert->p_s.status |= (1<<1);
 
     //  KUc: bit 1 - The “current” kernel-mode user-mode control bit. When Status.KUc=0 the processor is in kernel-mode.
-    toInsert-> p_s.gpr[1] = 0;
+    toInsert->p_s.status &= (2<<1);   // Vado in Kernel mode
 
-    // ENABLE INTERRUPT [IM: bits 8-15 - The Interrupt Mask]
-    for(int i=8; i<16; i++)
-        toInsert-> p_s.gpr[i] = 1;
+    // Abilito gli interrupt [IM: bits 8-15 - The Interrupt Mask]
+    toInsert->p_s.status |= (255<<8);
 
     /*
-    MANCANTE
-
-    the SP set to RAMTOP (i.e. use the last RAM frame for its stack), and its PC set to the
-    address of SSI_function_entry_point
-
+        the SP set to RAMTOP (i.e. use the last RAM frame for its stack), and its PC set to the
+        address of SSI_function_entry_point
     */
+    RAMTOP(toInsert->p_s.reg_sp);
+    toInsert->p_s.s_pc = (memaddr) SSI_function_entry_point;
 
-    //  toInsert-> p_s.gpr[24] = toInsert-> p_s.pc_epc;
+    // general purpose register t9
+    toInsert-> p_s.gpr[24] = toInsert-> p_s.pc_epc;
     insertProcQ(Ready_Queue, toInsert);
     ++process_count;
 
+
     //  7.  Instantiate a second process, place its PCB in the Ready Queue, and increment Process Count
-    *toInsert = allocPcb();
+    pcb_t *toTest = allocPcb();
 
+    toTest->p_s.status |= (1<<1);
+    toTest->p_s.status &= (2<<1);   // Vado in Kernel mode
+    toTest->p_s.status |= (255<<8);
 
-    //  DA FINIRE
+    RAMTOP(toTest->p_s.reg_sp);
+    toTest->p_s.reg_sp -= (2 * PAGESIZE);
+    toTest->p_s.s_pc = (memaddr) test;
 
-
-    insertProcQ(Ready_Queue, toInsert);
+    toTest-> p_s.gpr[24] = toTest-> p_s.pc_epc;
+    insertProcQ(Ready_Queue, toTest);
     ++process_count;
 
     //  8. Call the Scheduler.
