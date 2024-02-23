@@ -26,7 +26,11 @@ void scheduler(){
                 a very large value. The first interrupt that occurs after entering a Wait State should not be for the PLT.
 
             */
-
+            unsigned int currentStatus = getSTATUS();
+            // bit or con 0x0000FF00 accende i bit dell'interrupt mask --> interrupt attivi (bit da 15 a 8)
+            // bit and con 0xF7FFFFFF spegne il bit di attivazione del PLT (bit 27) 
+            currentStatus = (currentStatus | 0x0000FF00 ) & 0xF7FFFFFF;
+            setSTATUS(currentStatus);
             WAIT();
         }else if(process_count > 0 && soft_blocked_count == 0){
             PANIC();
