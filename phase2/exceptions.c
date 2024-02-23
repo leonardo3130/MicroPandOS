@@ -28,6 +28,10 @@ static void syscallExceptionHandler(state_t* exceptionState){
       pcb_t *dest = (pcb_t *)(exceptionState->reg_a1);
       
       if(dest = outProcQ(&Locked_Message, dest)) { //Locked_Message not defined yet --> processes waiting for a Locked_Message
+        msg_t *msg = allocMsg();
+        msg->payload = exceptionState->reg_a2;
+        msg->sender = Current_Process; //non sono sicuro
+        insertMessage(&dest->msg_list, msg);
         insertProcQ(&Ready_Queue, dest);
       } 
       else{
@@ -56,15 +60,17 @@ static void syscallExceptionHandler(state_t* exceptionState){
       LDST(exceptionState);
     }
     else if(exceptionState->reg_a0 == RECEIVEMESSAGE) {
-      list_head *msg_inbox = &(((pcb_t *)(exceptionState->reg_v0))->msg_list);
-      if(list_empty(msg_inbox) || !popMessage(msg_inbox, (pcb_t *)(exceptionState->reg_v0))) { //se non ci sono messaggi in attesa di essere ricevuti --> bloccante
-        insertProcQ(&Locked_Message, Current_Process); //blocco del processo, non sono sicuro di Current_Process
+      list_head *msg_inbox = &(((pcb_t *)(exceptionState->reg_a1))->msg_list);
+      msg_t *msg = NULL;
+      if(list_empty(msg_inbox) || !(msg = popMessage(msg_inbox, (pcb_t *)(exceptionState->reg_a1)))) { //bloccante
+        insertProcQ(&Locked_Message, Current_Process); //blocco del processo
         Current_Process->p_s = *exceptionState;
         updateCPUtime(Current_Process, &start); 
         scheduler();
       }
       else {
         exceptionState->pc_epc += WORDLEN;
+        exceptionState->reg_a2 = msg->payload;
         LDST(exceptionState);
       }
     }
