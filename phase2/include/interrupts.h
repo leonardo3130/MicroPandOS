@@ -7,6 +7,6 @@
 #include <umps/libumps.h>
 #include <umps/arch.h>
 
-extern void interruptsHandler(int cause);
+void interruptsHandler(int cause);
 
 #endif

@@ -11,7 +11,7 @@
 #include <umps/libumps.h>
 #include <umps/arch.h>
 
-extern void exceptionHandler();
-extern void uTLB_RefillHandler();
+void exceptionHandler();
+void uTLB_RefillHandler();
 
 #endif
