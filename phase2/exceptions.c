@@ -33,6 +33,7 @@ static void syscallExceptionHandler(state_t* exceptionState){
         msg->sender = Current_Process; //non sono sicuro
         insertMessage(&dest->msg_list, msg);
         insertProcQ(&Ready_Queue, dest);
+        soft_blocked_count--;
       } 
       else{
         int found = 0;
@@ -48,7 +49,7 @@ static void syscallExceptionHandler(state_t* exceptionState){
         else {
           msg_t *msg = allocMsg();
           msg->payload = exceptionState->reg_a2;
-          msg->sender = Current_Process; //non sono sicuro
+          msg->sender = Current_Process; 
           insertMessage(&dest->msg_list, msg);
         }
       }
@@ -64,6 +65,7 @@ static void syscallExceptionHandler(state_t* exceptionState){
       msg_t *msg = NULL;
       if(list_empty(msg_inbox) || !(msg = popMessage(msg_inbox, (pcb_t *)(exceptionState->reg_a1)))) { //bloccante
         insertProcQ(&Locked_Message, Current_Process); //blocco del processo
+        soft_blocked_count++;
         Current_Process->p_s = *exceptionState;
         updateCPUtime(Current_Process, &start); 
         scheduler();
