@@ -1,5 +1,6 @@
 {
     "files.associations": {
-        "initial.h": "c"
+        "initial.h": "c",
+        "ssi.h": "c"
     }
 }

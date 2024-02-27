@@ -4,6 +4,7 @@
 #include "../../headers/const.h"
 #include "../../headers/types.h"
 #include "../../phase1/headers/pcb.h"
+#include "./includes/initial.h"
 #include <umps/libumps.h>
 
 //support stuct for SSIRequest argument passing

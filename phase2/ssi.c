@@ -21,7 +21,7 @@ void* SSIRequest_handler(sys_arg_ptr arg){
     switch(arg->message->m_payload){
         case CREATEPROCESS:
             ssi_create_process_PTR process = new ssi_create_process_t;
-            
+
             //casting to ssi_create_process_t
             //process_info = ssi_create_process_t(arg->body);
 
@@ -45,7 +45,7 @@ void* SSIRequest_handler(sys_arg_ptr arg){
 
         case GETSUPPORTPTR:
             return arg->message->m_sender->p_supportStruct;
-        
+
         case GETPROCESSID:
             if(arg->body == 0){
                 return arg->message->m_sender->p_pid;
@@ -68,8 +68,9 @@ pcb_t* ssi_new_process(ssi_create_process_t p_info, pcb_t* parent){
     //if lack of resources (e.g. no more free PBCs)
     //return NOPROC
 
-    pcb_t* child = new pcb_t;
-
+    pcb_t* child = allocPcb();
+    child->p_pid = pid_counter++;
+    
     child->p_s = p_info->state;
     child->p_supportStruct = p_info->support;
     insertChild(parent, child);
@@ -93,7 +94,7 @@ pcb_t ssi_terminate_process(pcb_t* proc){
 
 
 void SSILoop{
-    
+
     while(!emptyMessageQ(ssi_msg_queue)){
         msg_t service = popMessage(ssi_msg_queue);
 
