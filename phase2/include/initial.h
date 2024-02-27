@@ -12,6 +12,8 @@
 unsigned int process_count;
 unsigned int soft_blocked_count;
 unsigned int start;
+unsigned int pid_counter;
+
 
 LIST_HEAD(Ready_Queue);
 LIST_HEAD(Locked_disk);
@@ -23,7 +25,8 @@ LIST_HEAD(Locked_printer);
 LIST_HEAD(Locked_Message)
 
 
-pcb_t *Current_Process;
+pcb_t *current_process;
+pcb_t *ssi_pcb;
 
 extern void test();
 
