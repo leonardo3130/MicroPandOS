@@ -74,6 +74,10 @@ typedef struct msg_t
 
     /* the payload of the message */
 	unsigned int m_payload;
+
+    /* generic pointer for syscall argument passing */
+    void *m_arg;
+
 } msg_t, *msg_PTR;
 
 typedef struct ssi_payload_t

@@ -8,13 +8,6 @@
 #include "./timers.h"
 #include <umps/libumps.h>
 
-
-//support stuct for SSIRequest argument passing
-struct sys_arg{
-    msg_t* message;
-    void* body;
-} sys_arg, *sys_arg_ptr;
-
 LIST_HEAD(clock_waiting_pcb);
 extern void SSIRequest(pcb_t* sender, int service, msg_t* arg);
 void SSIRequest_handler();

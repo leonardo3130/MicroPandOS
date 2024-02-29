@@ -4,19 +4,15 @@ void SSIRequest(pcb_t* sender, int service, void* arg){
     msg_t* request = allocMsg();
     request->m_sender = sender;
     request->m_payload = service;
-    insertMessage(ssi_pcb->msg_inbox, request);
-
-    sys_arg_ptr tmp = malloc(sizeof(sys_arg_ptr));
-    tmp->message = request;
-    tmp->body = arg;
-
-    sender->p_s->gpr[5] = tmp;
+    request->m_arg = arg;
+    
     //da fare aggiunta del sender ai processi bloccati
-	SYSCALL(RECEIVEMESSAGE, ANYMESSAGE, tmp, 0);
-    //sender->p_s->gpr[1] registro con valore di ritorno della syscall
-    freeMsg(request);
-    free(tmp);
+    insertMessage(ssi_pcb->msg_inbox, request);
+    SYSCALL(SENDMESSAGE, (unsigned int)ssi_pcb, (unsigned int)tmp, 0);
+	SYSCALL(RECEIVEMESSAGE, (unsigned int) ssi_pcb, 0, 0);
     //da fare rimozione del sender dai processi bloccati
+
+    freeMsg(request);
 }
 
 void* SSIRequest_handler(sys_arg_ptr arg){
@@ -60,7 +56,7 @@ void* SSIRequest_handler(sys_arg_ptr arg){
             }
 
         default:
-            return NULL;
+            return MSGNOGOOD;
     }
 }
 
@@ -93,7 +89,7 @@ pcb_t ssi_terminate_process(pcb_t* proc){
 }
 
 void SSILoop(){
-    //SYSCALL(RECEIVEMESSAGE, ...);
+    SYSCALL(RECEIVEMESSAGE, ANYMESSAGE, ssi_pcb->p_s->gpr[5], 0);
     while(!emptyMessageQ(ssi_pcb->msg_inbox)){
         msg_t service = allocMsg();
         service = popMessage(ssi_pcb->msg_inbox);
