@@ -1,117 +1,117 @@
 #include "include/interrupts.h"
 
-static void deviceInterruptHandler(int line, int cause, state_t *exceptionState) {
-	devregarea_t *devicesRegisterArea = (devregarea_t *)BUS_REG_RAM_BASE;
-	unsigned int interruptingDevicesBitmap = devicesRegisterArea->interrupt_dev[line - 3];
-	unsigned int deviceStatus;
-  unsigned int deviceNumber;
+static void deviceInterruptHandler(int line, int cause, state_t *exception_state) {
+	devregarea_t *device_register_area = (devregarea_t *)BUS_REG_RAM_BASE;
+	unsigned int interrupting_devices_bitmap = device_register_area->interrupt_dev[line - 3];
+	unsigned int device_status;
+  unsigned int device_number;
 
   //ordered by priority
-  if(interruptingDevicesBitmap & DEV0ON)
-    deviceNumber = 0;
-  else if(interruptingDevicesBitmap & DEV1ON)
-    deviceNumber = 1;
-  else if(interruptingDevicesBitmap & DEV2ON)
-    deviceNumber = 2;
-  else if(interruptingDevicesBitmap & DEV3ON)
-    deviceNumber = 3;
-  else if(interruptingDevicesBitmap & DEV4ON)
-    deviceNumber = 4;
-  else if(interruptingDevicesBitmap & DEV5ON)
-    deviceNumber = 5;
-  else if(interruptingDevicesBitmap & DEV6ON)
-    deviceNumber = 6;
-  else if(interruptingDevicesBitmap & DEV7ON)
-    deviceNumber = 7;
+  if(interrupting_devices_bitmap & DEV0ON)
+    device_number = 0;
+  else if(interrupting_devices_bitmap & DEV1ON)
+    device_number = 1;
+  else if(interrupting_devices_bitmap & DEV2ON)
+    device_number = 2;
+  else if(interrupting_devices_bitmap & DEV3ON)
+    device_number = 3;
+  else if(interrupting_devices_bitmap & DEV4ON)
+    device_number = 4;
+  else if(interrupting_devices_bitmap & DEV5ON)
+    device_number = 5;
+  else if(interrupting_devices_bitmap & DEV6ON)
+    device_number = 6;
+  else if(interrupting_devices_bitmap & DEV7ON)
+    device_number = 7;
 
-  devreg_t *deviceRegister = DEV_REG_ADDR(line, deviceNumber);
-  pcb_t* unblockedPCB;
+  devreg_t *device_register = DEV_REG_ADDR(line, device_number);
+  pcb_t* unblocked_pcb;
 
   if(line == IL_TERMINAL){
     //gestione interrupt terminale --> 2 sub-devices
-    if(deviceRegister->transm_status == 5) {
-      deviceStatus = deviceRegister->transm_status;
-      deviceRegister->transm_command = ACK;
-      unblockedPCB = removeProcQ(Locked_terminal_in);
+    if(device_register->transm_status == 5) {
+      device_status = device_register->transm_status;
+      device_register->transm_command = ACK;
+      unblocked_pcb = removeProcQ(Locked_terminal_in);
     }
     else {
-      deviceStatus = deviceRegister->recv_status;
-      deviceRegister->recv_command = ACK;
-      unblockedPCB = removeProcQ(&Locked_terminal_out);
+      device_status = device_register->recv_status;
+      device_register->recv_command = ACK;
+      unblocked_pcb = removeProcQ(&Locked_terminal_out);
     }
   } 
   else{
     //gestione interrupt di tutti gli altri dispositivi I/O
-    deviceStatus = deviceRegister->status;
-    deviceRegister->command = ACK;
+    device_status = device_register->status;
+    device_register->command = ACK;
     switch (line) {
       case IL_DISK:
-        unblockedPCB = removeProcQ(&Locked_disk);
+        unblocked_pcb = removeProcQ(&Locked_disk);
         break;
       case IL_FLASH:
-        unblockedPCB = removeProcQ(&Locked_flash);
+        unblocked_pcb = removeProcQ(&Locked_flash);
         break;
       case IL_ETHERNET:
-        unblockedPCB = removeProcQ(&Locked_ethernet);
+        unblocked_pcb = removeProcQ(&Locked_ethernet);
         break;
       case IL_PRINTER:
-        unblockedPCB = removeProcQ(&Locked_printer);
+        unblocked_pcb = removeProcQ(&Locked_printer);
         break;
       default:
-        unblockedPCB = NULL;
+        unblocked_pcb = NULL;
         break;
     }
   }
 
-  if(unblockedPCB) {
-    unblockedPCB->p_s.s_v0 = deviceStatus;
-    insertProcQ(&Ready_Queue, unblockedPCB);
+  if(unblocked_pcb) {
+    unblocked_pcb->p_s.s_v0 = device_status;
+    insertProcQ(&Ready_Queue, unblocked_pcb);
     soft_blocked_count--;
   }
 
-  if(Current_Process) {
-    LDST(exceptionState);
+  if(current_process) {
+    LDST(exception_state);
   }
   else {
     scheduler();
     //Scheduler farà WAIT()
   }
 }
-static void localTimerInterruptHandler(state_t *exceptionState) {
+static void localTimerInterruptHandler(state_t *exception_state) {
   setPLT(TIMESLICE);
-  Current_Process->p_s = *exceptionState;
-  updateCPUtime(Current_Process, &start);
-  insertProcQ(&Ready_Queue, Current_Process);
+  current_process->p_s = *exception_state;
+  updateCPUtime(current_process, &start);
+  insertProcQ(&Ready_Queue, current_process);
   soft_blocked_count--;
   scheduler();
 }
-static void pseudoClockInterruptHandler(state_t* exceptionState) {
+static void pseudoClockInterruptHandler(state_t* exception_state) {
   setIntervalTimer(PSECOND);
-  pcb_t *unblockedPCB = removeProcQ(&Locked_pseudo_clock);
-  while (unblockedPCB) {
-    insertProcQ(&Ready_Queue, unblockedPCB);
+  pcb_t *unblocked_pcb = removeProcQ(&Locked_pseudo_clock);
+  while (unblocked_pcb) {
+    insertProcQ(&Ready_Queue, unblocked_pcb);
     soft_blocked_count--;
-    unblockedPCB = removeProcQ(&Locked_pseudo_clock);
+    unblocked_pcb = removeProcQ(&Locked_pseudo_clock);
   }
-  LDST(exceptionState);
+  LDST(exception_state);
 }
 
-void interruptHandler(int cause, state_t *exceptionState) {
+void interruptHandler(int cause, state_t *exception_state) {
 	//riconoscimento interrupt --> in ordine di priorità
   if (CAUSE_IP_GET(cause, IL_CPUTIMER))
-		localTimerInterruptHandler(exceptionState);
+		localTimerInterruptHandler(exception_state);
 	else if (CAUSE_IP_GET(cause, IL_TIMER))
-		pseudoClockInterruptHandler(exceptionState);
+		pseudoClockInterruptHandler(exception_state);
 	else if (CAUSE_IP_GET(cause, IL_DISK))
-		deviceInterruptHandler(IL_DISK, cause, exceptionState);
+		deviceInterruptHandler(IL_DISK, cause, exception_state);
 	else if (CAUSE_IP_GET(cause, IL_FLASH))
-		deviceInterruptHandler(IL_FLASH, cause, exceptionState);
+		deviceInterruptHandler(IL_FLASH, cause, exception_state);
 	else if (CAUSE_IP_GET(cause, IL_ETHERNET))
-		deviceInterruptHandler(IL_ETHERNET, cause, exceptionState);
+		deviceInterruptHandler(IL_ETHERNET, cause, exception_state);
 	else if (CAUSE_IP_GET(cause, IL_PRINTER))
-		deviceInterruptHandler(IL_PRINTER, cause, exceptionState);
+		deviceInterruptHandler(IL_PRINTER, cause, exception_state);
 	else if (CAUSE_IP_GET(cause, IL_TERMINAL))
-    deviceInterruptHandler(IL_TERMINAL, cause, exceptionState);
+    deviceInterruptHandler(IL_TERMINAL, cause, exception_state);
 }
 /*Device register type for disks, flash and printers
 typedef struct dtpreg {

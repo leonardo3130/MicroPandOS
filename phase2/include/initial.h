@@ -22,7 +22,8 @@ LIST_HEAD(Locked_terminal_in);
 LIST_HEAD(Locked_terminal_out);
 LIST_HEAD(Locked_ethernet);
 LIST_HEAD(Locked_printer);
-LIST_HEAD(Locked_Message)
+LIST_HEAD(Locked_Message);
+LIST_HEAD(Locked_pseudo_clock);
 
 
 pcb_t *current_process;

@@ -36,7 +36,7 @@ void* SSIRequest_handler(sys_arg_ptr arg){
             return arg->message->m_sender->p_time;
 
         case CLOCKWAIT:
-            insertProcQ(clock_waiting_pcb, arg->message->m_sender);
+            insertProcQ(Locked_pseudo_clock, arg->message->m_sender);
             return NULL;
 
         case GETSUPPORTPTR:

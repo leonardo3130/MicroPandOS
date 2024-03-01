@@ -1,13 +1,13 @@
 #include "include/exceptions.h"
 
-static void passUpOrDie(int i, state_t *exceptionState) {
-  if(Current_Process) {
-    if(Current_Process->p_supportStruct) {
-      Current_Process->p_supportStruct->sup_exceptState[i] = *exceptionState;
+static void passUpOrDie(int i, state_t *exception_state) {
+  if(current_process) {
+    if(current_process->p_supportStruct) {
+      current_process->p_supportStruct->sup_exceptState[i] = *exception_state;
       LDCXT(
-        Current_Process->p_supportStruct->sup_exceptContext[i].c_stackPtr,
-        Current_Process->p_supportStruct->sup_exceptContext[i].c_status,
-        Current_Process->p_supportStruct->sup_exceptContext[i].c_pc,
+        current_process->p_supportStruct->sup_exceptContext[i].c_stackPtr,
+        current_process->p_supportStruct->sup_exceptContext[i].c_status,
+        current_process->p_supportStruct->sup_exceptContext[i].c_pc,
       );
     }
     else {
@@ -17,20 +17,20 @@ static void passUpOrDie(int i, state_t *exceptionState) {
   }
 }
 
-static void syscallExceptionHandler(state_t* exceptionState){
-  if((exceptionState->p_s.staus << 30) >> 31) { //not in kernel mode // <<28 ?
-    exceptionState->cause = (exceptionState->cause & CLEAREXECCODE) | (RI << CAUSESHIFT);
-    passUpOrDie(GENERALEXCEPT, exceptionState);
+static void syscallExceptionHandler(state_t* exception_state){
+  if((exception_state->p_s.staus << 30) >> 31) { //not in kernel mode // <<28 ?
+    exception_state->cause = (exception_state->cause & CLEAREXECCODE) | (RI << CAUSESHIFT);
+    passUpOrDie(GENERALEXCEPT, exception_state);
   }
   else {
-    if(exceptionState->reg_a0 == SENDMESSAGE) {
+    if(exception_state->reg_a0 == SENDMESSAGE) {
       //SEND is async
-      pcb_t *dest = (pcb_t *)(exceptionState->reg_a1);
+      pcb_t *dest = (pcb_t *)(exception_state->reg_a1);
       
       if(dest = outProcQ(&Locked_Message, dest)) { //Locked_Message not defined yet --> processes waiting for a Locked_Message
         msg_t *msg = allocMsg();
-        msg->payload = exceptionState->reg_a2;
-        msg->sender = Current_Process; //non sono sicuro
+        msg->payload = exception_state->reg_a2;
+        msg->sender = current_process; //non sono sicuro
         insertMessage(&dest->msg_list, msg);
         insertProcQ(&Ready_Queue, dest);
         soft_blocked_count--;
@@ -48,32 +48,32 @@ static void syscallExceptionHandler(state_t* exceptionState){
           dest = NULL;
         else {
           msg_t *msg = allocMsg();
-          msg->payload = exceptionState->reg_a2;
-          msg->sender = Current_Process; 
+          msg->payload = exception_state->reg_a2;
+          msg->sender = current_process; 
           insertMessage(&dest->msg_list, msg);
         }
       }
       if(!dest) 
-        exceptionState->reg_v0 = DEST_NOT_EXISTS;
+        exception_state->reg_v0 = DEST_NOT_EXISTS;
       else 
-        exceptionState->reg_v0 = 0;
-      exceptionState->pc_epc += WORDLEN;
-      LDST(exceptionState);
+        exception_state->reg_v0 = 0;
+      exception_state->pc_epc += WORDLEN;
+      LDST(exception_state);
     }
-    else if(exceptionState->reg_a0 == RECEIVEMESSAGE) {
-      list_head *msg_inbox = &(((pcb_t *)(exceptionState->reg_a1))->msg_list);
+    else if(exception_state->reg_a0 == RECEIVEMESSAGE) {
+      list_head *msg_inbox = &(((pcb_t *)(exception_state->reg_a1))->msg_list);
       msg_t *msg = NULL;
-      if(list_empty(msg_inbox) || !(msg = popMessage(msg_inbox, (pcb_t *)(exceptionState->reg_a1)))) { //bloccante
-        insertProcQ(&Locked_Message, Current_Process); //blocco del processo
+      if(list_empty(msg_inbox) || !(msg = popMessage(msg_inbox, (pcb_t *)(exception_state->reg_a1)))) { //bloccante
+        insertProcQ(&Locked_Message, current_process); //blocco del processo
         soft_blocked_count++;
-        Current_Process->p_s = *exceptionState;
-        updateCPUtime(Current_Process, &start); 
+        current_process->p_s = *exception_state;
+        updateCPUtime(current_process, &start); 
         scheduler();
       }
       else {
-        exceptionState->pc_epc += WORDLEN;
-        exceptionState->reg_a2 = msg->payload;
-        LDST(exceptionState);
+        exception_state->pc_epc += WORDLEN;
+        exception_state->reg_a2 = msg->payload;
+        LDST(exception_state);
       }
     }
     
@@ -81,23 +81,23 @@ static void syscallExceptionHandler(state_t* exceptionState){
 }
 
 void exceptionHandler() {
-	state_t *exceptionState = (state_t *)BIOSDATAPAGE;
+	state_t *exception_state = (state_t *)BIOSDATAPAGE;
 	int cause = getCAUSE();
 
 	switch ((cause & GETEXECCODE) >> CAUSESHIFT) {
 		case IOINTERRUPTS:
-			interruptHandler(cause, exceptionState);
+			interruptHandler(cause, exception_state);
 			break;
 		case 1 ... 3:
 			//TLB exceptions --> passo controllo al rispettivo gestore
-      passUpOrDie(PGFAULTEXCEPT, exceptionState);
+      passUpOrDie(PGFAULTEXCEPT, exception_state);
 			break;
 		case SYSEXCEPTION:
-      syscallExceptionHandler(exceptionState);
+      syscallExceptionHandler(exception_state);
 			break;
 		default: //4-7, 9-12
 			//Program traps --> passo controllo al rispettivo gestore
-      passUpOrDie(GENERALEXCEPT, exceptionState);
+      passUpOrDie(GENERALEXCEPT, exception_state);
 			break;
  }
 }
