@@ -61,6 +61,10 @@ pcb_t *allocPcb() {
         //process ID
         p->p_pid=0;
 
+        p->service = -1:
+
+        p->dev_no = -1;
+
         return p;
     }
 }
