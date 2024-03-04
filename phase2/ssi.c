@@ -1,63 +1,50 @@
 #include "include/ssi.h"
 
 void SSIRequest(pcb_t* sender, int service, void* arg){
-    msg_t* request = allocMsg();
-    request->m_sender = sender;
-    request->m_payload = service;
-    request->m_arg = arg;
+    msg_t *ret = allocMsg();
+    ret->m_sender = ssi_pcb;
     
-    //da fare aggiunta del sender ai processi bloccati
-    insertMessage(ssi_pcb->msg_inbox, request);
-    SYSCALL(SENDMESSAGE, (unsigned int)ssi_pcb, (unsigned int)tmp, 0);
-	SYSCALL(RECEIVEMESSAGE, (unsigned int) ssi_pcb, 0, 0);
-    //da fare rimozione del sender dai processi bloccati
-
-    freeMsg(request);
-}
-
-void* SSIRequest_handler(sys_arg_ptr arg){
-    switch(arg->message->m_payload){
+    switch(service){
         case CREATEPROCESS:
-            return ssi_new_process(arg->body, arg->message->m_sender);
+            ret->m_payload = (int)ssi_new_process(arg->body, arg->message->m_sender);
+            break;
 
         case TERMPROCESS:
             //terminates the sender process if arg is NULL, otherwise terminates arg
-            if(arg->body == NULL){
-                return ssi_terminate_process(arg->message->m_sender);
+            if(arg == NULL){
+                ret->m_payload = (int)ssi_terminate_process(arg->message->m_sender);
             }
             else{
-                return ssi_terminate_process(arg->body);
+                ret->m_payload = (int)ssi_terminate_process(arg->body);
             }
+            break;
 
         case DOIO:
             break;
 
         case GETTIME:
-            return arg->message->m_sender->p_time;
+            ret->m_payload = (int)sender->p_time;
+            break;
 
         case CLOCKWAIT:
-            insertProcQ(Locked_pseudo_clock, arg->message->m_sender);
-            return NULL;
+            ssi_clockwait(sender);
+            ret->m_payload = NULL;
+            break;
 
         case GETSUPPORTPTR:
-            return arg->message->m_sender->p_supportStruct;
+            ret->m_payload = (int)sender->p_supportStruct;
+            break;
 
         case GETPROCESSID:
-            if(arg->body == 0){
-                return arg->message->m_sender->p_pid;
-            }
-            else{
-                if(arg->message->m_sender->p_parent == NULL){
-                    return 0;
-                }
-                else{
-                    return arg->message->m_sender->p_parent->p_pid;
-                }
-            }
+            ret->m_payload = ssi_getprocessid(sender, arg);
+            break;
 
         default:
-            return MSGNOGOOD;
+            ret->m_payload = MSGNOGOOD;
+            break;
     }
+
+    //syscall con valori di ritorno
 }
 
 pcb_t* ssi_new_process(ssi_create_process_t p_info, pcb_t* parent){
@@ -78,22 +65,25 @@ pcb_t* ssi_new_process(ssi_create_process_t p_info, pcb_t* parent){
 }
 
 pcb_t ssi_terminate_process(pcb_t* proc){
-    /*if(proc == NULL){
+    if(proc == NULL){
         return NULL
     }
     else{
         pcb_t tmp = removeChild(proc);
         removeProcQ(tmp);
         return ssi_terminate_process(head, tmp);
-    }*/
+    }
 }
 
-void SSILoop(){
-    SYSCALL(RECEIVEMESSAGE, ANYMESSAGE, ssi_pcb->p_s->gpr[5], 0);
-    while(!emptyMessageQ(ssi_pcb->msg_inbox)){
-        msg_t service = allocMsg();
-        service = popMessage(ssi_pcb->msg_inbox);
-        service->m_sender->p_s->gpr[5] = SSIRequest_handler();
-        freeMsg(service);
+void ssi_clockwait(pcb_t *sender){
+    insertProcQ(Locked_pseudo_clock, arg->message->m_sender);
+}
+
+int ssi_getprocessid(pcb_t *sender, void *arg){
+    if((int)arg == 0){
+        return sender->p_pid;
     }
+    else{
+        return sender->p_parent->p_pid;
+    }   
 }

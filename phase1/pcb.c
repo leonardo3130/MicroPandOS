@@ -31,7 +31,13 @@ pcb_t *allocPcb() {
     {
         pcb_t *p = container_of((&pcbFree_h)->next, pcb_t, p_list);
         list_del((&pcbFree_h)->next);
+   
+    insertMessage(ssi_pcb->msg_inbox, request);
+    SYSCALL(SENDMESSAGE, (unsigned int)ssi_pcb, (unsigned int)tmp, 0);
+	SYSCALL(RECEIVEMESSAGE, (unsigned int) ssi_pcb, 0, 0);
 
+
+    freeMsg(request);
         //coda dei processi
         INIT_LIST_HEAD(&(p -> p_list));
         INIT_LIST_HEAD(&(p -> p_child));

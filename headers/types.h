@@ -77,10 +77,7 @@ typedef struct msg_t
     struct pcb_t *m_sender;
 
     /* the payload of the message */
-	unsigned int m_payload;
-
-    /* generic pointer for syscall argument passing */
-    void *m_arg;
+	signed int m_payload;
 
 } msg_t, *msg_PTR;
 
