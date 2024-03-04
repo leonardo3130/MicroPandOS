@@ -67,6 +67,7 @@ static void deviceInterruptHandler(int line, int cause, state_t *exception_state
     unblocked_pcb->p_s.s_v0 = device_status;
     insertProcQ(&Ready_Queue, unblocked_pcb);
     soft_blocked_count--;
+    //send message to unblocked_pcb
   }
 
   if(current_process) {
@@ -77,6 +78,7 @@ static void deviceInterruptHandler(int line, int cause, state_t *exception_state
     //Scheduler farà WAIT()
   }
 }
+
 static void localTimerInterruptHandler(state_t *exception_state) {
   setPLT(TIMESLICE);
   current_process->p_s = *exception_state;
@@ -85,6 +87,7 @@ static void localTimerInterruptHandler(state_t *exception_state) {
   soft_blocked_count--;
   scheduler();
 }
+
 static void pseudoClockInterruptHandler(state_t* exception_state) {
   setIntervalTimer(PSECOND);
   pcb_t *unblocked_pcb = removeProcQ(&Locked_pseudo_clock);
@@ -92,6 +95,7 @@ static void pseudoClockInterruptHandler(state_t* exception_state) {
     insertProcQ(&Ready_Queue, unblocked_pcb);
     soft_blocked_count--;
     unblocked_pcb = removeProcQ(&Locked_pseudo_clock);
+    //send message to unblocked_pcb by ssi
   }
   LDST(exception_state);
 }

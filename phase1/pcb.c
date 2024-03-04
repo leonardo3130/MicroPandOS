@@ -63,8 +63,10 @@ pcb_t *allocPcb() {
 
         p->service = -1:
 
+        p->device = -1;
+        
         p->dev_no = -1;
-
+        
         return p;
     }
 }
