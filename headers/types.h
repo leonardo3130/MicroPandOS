@@ -79,6 +79,9 @@ typedef struct msg_t
     /* the payload of the message */
 	signed int m_payload;
 
+    /* payload for messages to ssi*/
+    ssi_payload_t ssi_payload;
+
 } msg_t, *msg_PTR;
 
 typedef struct ssi_payload_t
