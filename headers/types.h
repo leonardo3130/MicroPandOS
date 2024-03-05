@@ -63,6 +63,8 @@ typedef struct pcb_t
     int p_pid;
 
     int service;
+
+    int device;
     
     int dev_no;
 } pcb_t, *pcb_PTR;
