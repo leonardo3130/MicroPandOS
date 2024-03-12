@@ -1,5 +1,5 @@
 #include "include/exceptions.h"
-
+// git commit -m "create macro ADDR_TO_NUM to have device number from the address" 
 static void passUpOrDie(int i, state_t *exception_state) {
   if(current_process) {
     if(current_process->p_supportStruct) {
@@ -31,7 +31,9 @@ static void syscallExceptionHandler(state_t* exception_state){
       if(dest == ssi_pcb) {
         current_process->service = exception_state->reg_a2->payload->service_code;
         current_process->device = //qualcosa tipo sotto
-        current_process->dev_no = //qualche funzione per avere il numero dato l'address: exception_state->reg_a2->payload->arg->commandAddr;
+        
+        //qualche funzione per avere il numero dato l'address: exception_state->reg_a2->payload->arg->commandAddr;
+        current_process->dev_no = ADDR_TO_NUM(exception_state->reg_a2->payload->service_code, LINE);
       }
       
       if(dest = outProcQ(&Locked_Message, dest)) {
@@ -154,8 +156,7 @@ void uTLB_RefillHandler() {
   setENTRYHI(0x80000000);
   setENTRYLO(0x00000000);
   TLBWR();
-  LDST((state_t*) 0x0FFFF000);
-}
+  LDST((state_t*) 0x0FFFF000);\
 
 
 
