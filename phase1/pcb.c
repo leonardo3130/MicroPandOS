@@ -66,6 +66,8 @@ pcb_t *allocPcb() {
         p->device = -1;
         
         p->dev_no = -1;
+
+        p->term = -1;
         
         return p;
     }
@@ -100,9 +102,9 @@ pcb_t *removeProcQ(struct list_head *head) {
         return NULL;
     else
     {
-        pcb_t *firs_pcb = container_of(list_next(head), pcb_t, p_list);     //salvo un puntatore all'elemento in testa
-        list_del(&(firs_pcb -> p_list));                                    //lo rimuovo
-        return firs_pcb;                                                    //ritorno il puntatore preso all'inizio
+        pcb_t *first_pcb = container_of(list_next(head), pcb_t, p_list);     //salvo un puntatore all'elemento in testa
+        list_del(&(first_pcb -> p_list));                                    //lo rimuovo
+        return first_pcb;                                                    //ritorno il puntatore preso all'inizio
     }
 }
 

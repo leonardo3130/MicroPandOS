@@ -1,9 +1,21 @@
 #include "include/exceptions.h"
-// git commit -m "create macro ADDR_TO_NUM to have device number from the address" 
+
+
+void saveState(state_t* dest, state_t* to_copy){
+  dest->entry_hi = to_copy->entry_hi;
+  dest->cause = to_copy->cause;
+  dest->status = to_copy->status;
+  dest->pc_epc = to_copy->pc_epc;
+  for(int i = 0; i < STATE_GPR_LEN; i++) //29, ma registri definiti sono 31 --> ????
+    dest->gpr[i] = to_copy->gpr[i];
+  dest->hi = to_copy->hi;
+  dest->lo = to_copy->lo;
+}
+
 static void passUpOrDie(int i, state_t *exception_state) {
   if(current_process) {
     if(current_process->p_supportStruct) {
-      current_process->p_supportStruct->sup_exceptState[i] = *exception_state;
+      saveState(&(current_process->p_supportStruct->sup_exceptState[i]), exception_state);
       LDCXT(
         current_process->p_supportStruct->sup_exceptContext[i].c_stackPtr,
         current_process->p_supportStruct->sup_exceptContext[i].c_status,
@@ -11,17 +23,51 @@ static void passUpOrDie(int i, state_t *exception_state) {
       );
     }
     else {
-      //terminate process 
+      ssi_terminate_process(current_process);
       scheduler();
     }
   }
 }
 
-//!!! Quando fare free message? !!!
+static void addrToDevice(int *line, int *n_dev, int *term, int *address){
+    for (int i = 0; i < 5; i++)
+    {
+        for (int j = 0; j < 8; j++)
+        {
+            if((memaddr)DEV_REG_ADDR(i + 3, j) + 1 == address){
+                *line = i + 3;
+                *dev = j;
+                *term = 0;
+                break;
+            }
+             else if((memaddr)DEV_REG_ADDR(i + 3, j) + 3 == address){
+                *line = i + 3;
+                *dev = j;
+                if(i == IL_TERMINAL)
+                  *term = 0;
+                else 
+                  *term = -1;
+                break;
+            }
+        }
+    }
+    
+};
+
+static pcb_t *unblockProcessByService(int service, list_head *list) {
+  if(service == -1)
+    return outProcQ(list, ssi_pcb);
+  pcb_t* tmp;
+  list_for_each_entry(tmp, list, p_list) {
+    if(tmp->service == service)
+      return outProcQ(list, tmp);
+  }
+  return NULL;
+}
 
 static void syscallExceptionHandler(state_t* exception_state){
   if((exception_state->p_s.staus << 30) >> 31) { //not in kernel mode // <<28 ?
-    exception_state->cause = (exception_state->cause & CLEAREXECCODE) | (RI << CAUSESHIFT);
+    exception_state->cause = (exception_state->cause & CLEAREXECCODE) | (EXC_RI << CAUSESHIFT);
     passUpOrDie(GENERALEXCEPT, exception_state);
   }
   else {
@@ -29,25 +75,25 @@ static void syscallExceptionHandler(state_t* exception_state){
       //SEND is async
       pcb_t *dest = (pcb_t *)(exception_state->reg_a1);
       if(dest == ssi_pcb) {
-        current_process->service = exception_state->reg_a2->payload->service_code;
-        current_process->device = //qualcosa tipo sotto
-        
-        //qualche funzione per avere il numero dato l'address: exception_state->reg_a2->payload->arg->commandAddr;
-        current_process->dev_no = ADDR_TO_NUM(exception_state->reg_a2->payload->service_code, LINE);
+        current_process->service = exception_state->reg_a2->service;
+        if(current_process->service == DOIO) {
+          int device, device_number, term;
+          addrToDevice(device, device_number, term, exception_state->reg_a2->arg->commandAddr);
+          current_process->device = device; 
+          current_process->dev_no = device_number;
+          current_process->term = term;
+        }
       }
       
-      if(dest = outProcQ(&Locked_Message, dest)) {
-        //processo in attesa di un servizio che non causa intterrupt 
-        msg_t *msg = allocMsg();
-        msg->payload = exception_state->reg_a2;
-        msg->sender = current_process; 
-        insertMessage(&dest->msg_list, msg);
+      int nogood = 0;
+      if(dest = unblockProcessByService(dest->service, &Locked_Message)) { 
         dest->p_s->reg_v0 = current_process;
+        dest->p_s->reg_a2 = exception_state->reg_a2;
         insertProcQ(&Ready_Queue, dest);
         soft_blocked_count--;
       } 
       else{
-        //destinatario già sulla ready queue --> 2 casi: o non in attesa o già sbloccato dall'intterrupt
+        //destinatario già sulla ready queue --> non in attesa 
         int found = 0;
         pcb_t *tmp;
         list_for_each_entry(tmp, Ready_Queue, p_list) {
@@ -59,13 +105,19 @@ static void syscallExceptionHandler(state_t* exception_state){
         if(!found)
           dest = NULL;
         else {
-          msg_t *msg = allocMsg();
-          msg->payload = exception_state->reg_a2;
-          msg->sender = current_process; 
-          insertMessage(&dest->msg_list, msg);
+          msg_t *msg;
+          if(msg = allocMsg()) {
+            msg->payload = exception_state->reg_a2;
+            msg->sender = current_process; 
+            insertMessage(&(dest->msg_list), msg);
+          }
+          else 
+            nogood = 1;
         }
       }
-      if(!dest) 
+      if(nogood) 
+        exception_state->reg_v0 = MSG_NO_GOOD;
+      else if(!dest)
         exception_state->reg_v0 = DEST_NOT_EXISTS;
       else 
         exception_state->reg_v0 = 0;
@@ -73,11 +125,10 @@ static void syscallExceptionHandler(state_t* exception_state){
       LDST(exception_state);
     }
     else if(exception_state->reg_a0 == RECEIVEMESSAGE) {
-      //devo implementare la messa in attesa sulla coda corretta
-      list_head *msg_inbox = &(((pcb_t *)(exception_state->reg_a1))->msg_list);
+      list_head *msg_inbox = &(current_process->msg_list);
       msg_t *msg = NULL;
-      if(list_empty(msg_inbox) || !(msg = popMessage(msg_inbox, (pcb_t *)(exception_state->reg_a1)))) { //bloccante
-        if(current_process->service == 3) {
+      if(list_empty(msg_inbox) || !(msg = popMessage(msg_inbox, (pcb_t *)(exception_state->reg_a1)))) { //bloccante !!!!
+        if(current_process->service == DOIO) {
           switch (current_process->device) {  
             case IL_DISK:
               insertProcQ(&Locked_disk, current_process);
@@ -92,29 +143,32 @@ static void syscallExceptionHandler(state_t* exception_state){
               insertProcQ(&Locked_printer, current_process);
               break;
             case IL_TERMINAL:
-              //ovviamente non si fanno tutti due, devo capire come fare
-              insertProcQ(&Locked_terminal_in, current_process);
-              insertProcQ(&Locked_terminal_out, current_process);
+              if(device->term)
+                insertProcQ(&Locked_terminal_in, current_process);
+              else 
+                insertProcQ(&Locked_terminal_out, current_process);
               break;
             default:
               break;
           }
           soft_blocked_count++;
           current_process->p_s = *exception_state;
+          saveState(&(current_process->p_s), exception_state);
           updateCPUtime(current_process, &start);
           scheduler();
         }
-        else if (current_process->service != CLOCKWAIT) {
+        else if (current_process->service == CLOCKWAIT) {
           //inserimento già fatto da ssi
+          insertProcQ(&Locked_pseudo_clock, current_process); //blocco del processo --> da capire se va fatto qua o in ssi
           soft_blocked_count++;
-          current_process->p_s = *exception_state;
+          saveState(&(current_process->p_s), exception_state);
           updateCPUtime(current_process, &start);
           scheduler();
         }
         else {
           insertProcQ(&Locked_Message, current_process); //blocco del processo
           soft_blocked_count++;
-          current_process->p_s = *exception_state; //fai controlli su correttezza qua
+          saveState(&(current_process->p_s), exception_state);
           updateCPUtime(current_process, &start); 
           scheduler();
         }
@@ -123,6 +177,7 @@ static void syscallExceptionHandler(state_t* exception_state){
         exception_state->pc_epc += WORDLEN;
         exception_state->reg_v0 = (memaddr)msg->sender;
         exception_state->reg_a2 = msg->payload;
+        freeMsg(msg);
         LDST(exception_state);
       }
     }
@@ -156,7 +211,7 @@ void uTLB_RefillHandler() {
   setENTRYHI(0x80000000);
   setENTRYLO(0x00000000);
   TLBWR();
-  LDST((state_t*) 0x0FFFF000);\
-
+  LDST((state_t*) 0x0FFFF000);
+}
 
 

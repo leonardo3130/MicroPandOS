@@ -1,5 +1,14 @@
 #include "include/interrupts.h"
 
+static pcb_t *unblockProcessByDeviceNumber(int device_number, list_head *list) {
+  pcb_t* tmp;
+  list_for_each_entry(tmp, list, p_list) {
+    if(tmp->device_no == device_number)
+      return outProcQ(list, tmp);
+  }
+  return NULL;
+}
+
 static void deviceInterruptHandler(int line, int cause, state_t *exception_state) {
 	devregarea_t *device_register_area = (devregarea_t *)BUS_REG_RAM_BASE;
 	unsigned int interrupting_devices_bitmap = device_register_area->interrupt_dev[line - 3];
@@ -32,12 +41,12 @@ static void deviceInterruptHandler(int line, int cause, state_t *exception_state
     if(device_register->transm_status == 5) {
       device_status = device_register->transm_status;
       device_register->transm_command = ACK;
-      unblocked_pcb = removeProcQ(Locked_terminal_in);
+      unblocked_pcb = unblockProcessByDeviceNumber(device_number, &Locked_terminal_in);
     }
     else {
       device_status = device_register->recv_status;
       device_register->recv_command = ACK;
-      unblocked_pcb = removeProcQ(&Locked_terminal_out);
+      unblocked_pcb = unblockProcessByDeviceNumber(device_number, &Locked_terminal_out);
     }
   } 
   else{
@@ -46,16 +55,16 @@ static void deviceInterruptHandler(int line, int cause, state_t *exception_state
     device_register->command = ACK;
     switch (line) {
       case IL_DISK:
-        unblocked_pcb = removeProcQ(&Locked_disk);
+        unblocked_pcb = unblockProcessByDeviceNumber(device_number, &Locked_disk);
         break;
       case IL_FLASH:
-        unblocked_pcb = removeProcQ(&Locked_flash);
+        unblocked_pcb = unblockProcessByDeviceNUmber(device_number, &Locked_flash);
         break;
       case IL_ETHERNET:
-        unblocked_pcb = removeProcQ(&Locked_ethernet);
+        unblocked_pcb = unblockProcessByDeviceNumber(device_number, &Locked_ethernet);
         break;
       case IL_PRINTER:
-        unblocked_pcb = removeProcQ(&Locked_printer);
+        unblocked_pcb = unblockProcessByDeviceNumber(device_number, &Locked_printer);
         break;
       default:
         unblocked_pcb = NULL;
@@ -64,10 +73,10 @@ static void deviceInterruptHandler(int line, int cause, state_t *exception_state
   }
 
   if(unblocked_pcb) {
-    unblocked_pcb->p_s.s_v0 = device_status;
-    insertProcQ(&Ready_Queue, unblocked_pcb);
     soft_blocked_count--;
-    //send message to unblocked_pcb
+    unblocked_pcb->p_s.reg_v0 = (memaddr)ssi_pcb;
+    unblocked_pcb->p_s.reg_a2 = &device_status;
+    insertProcQ(&Ready_Queue, unblocked_pcb);
   }
 
   if(current_process) {
@@ -75,13 +84,12 @@ static void deviceInterruptHandler(int line, int cause, state_t *exception_state
   }
   else {
     scheduler();
-    //Scheduler farà WAIT()
   }
 }
 
 static void localTimerInterruptHandler(state_t *exception_state) {
   setPLT(TIMESLICE);
-  current_process->p_s = *exception_state;
+  saveState(&(current_process->p_s), exception_state);
   updateCPUtime(current_process, &start);
   insertProcQ(&Ready_Queue, current_process);
   soft_blocked_count--;
@@ -92,10 +100,11 @@ static void pseudoClockInterruptHandler(state_t* exception_state) {
   setIntervalTimer(PSECOND);
   pcb_t *unblocked_pcb = removeProcQ(&Locked_pseudo_clock);
   while (unblocked_pcb) {
-    insertProcQ(&Ready_Queue, unblocked_pcb);
     soft_blocked_count--;
+    unblocked_pcb->p_s.reg_v0 = (memaddr)ssi_pcb;
+    unblocked_pcb->p_s.reg_a2 = NULL;
+    insertProcQ(&Ready_Queue, unblocked_pcb);
     unblocked_pcb = removeProcQ(&Locked_pseudo_clock);
-    //send message to unblocked_pcb by ssi
   }
   LDST(exception_state);
 }
