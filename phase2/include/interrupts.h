@@ -7,6 +7,6 @@
 #include <umps/libumps.h>
 #include <umps/arch.h>
 
-void interruptsHandler(int cause);
+void interruptHandler(int cause, state_t *exception_state);
 
 #endif

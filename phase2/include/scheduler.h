@@ -1,4 +1,4 @@
-#ifndf SCHEDULER
+#ifndef SCHEDULER
 #define SCHEDULER
 
 #include "../../headers/const.h"

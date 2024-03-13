@@ -16,10 +16,9 @@ static void passUpOrDie(int i, state_t *exception_state) {
   if(current_process) {
     if(current_process->p_supportStruct) {
       saveState(&(current_process->p_supportStruct->sup_exceptState[i]), exception_state);
-      LDCXT(
-        current_process->p_supportStruct->sup_exceptContext[i].c_stackPtr,
-        current_process->p_supportStruct->sup_exceptContext[i].c_status,
-        current_process->p_supportStruct->sup_exceptContext[i].c_pc,
+      LDCXT(current_process->p_supportStruct->sup_exceptContext[i].stackPtr, 
+            current_process->p_supportStruct->sup_exceptContext[i].status, 
+            current_process->p_supportStruct->sup_exceptContext[i].pc
       );
     }
     else {
@@ -29,39 +28,40 @@ static void passUpOrDie(int i, state_t *exception_state) {
   }
 }
 
-static void addrToDevice(int *line, int *n_dev, int *term, int *command_address){
+static void addrToDevice(int *line, int *n_dev, int *term, memaddr *command_address){
     for (int i = 0; i < 5; i++)
     {
-        for (int j = 0; j < 8; j++)
-        {   
-            if(i == IL_TERMINAL) {
-              termreg_t *base_address = (termreg_t *)DEV_REG_ADDR(i + 3, j);
-              if(&(base_address->recv_command) == address){
-                  *line = i + 3;
-                  *dev = j;
-                  *term = 0;
-                  break;
-              }
-              else if(&(base_address->transm_command) == address){
-                  *line = i + 3;
-                  *dev = j;
-                  *term = 1;
-                  break;
-              }
-            else {
-              dtpreg_t *base_address = (dtpreg_t *)DEV_REG_ADDR(i + 3, j);
-              if(&(base_address->command) == address){
-                  *line = i + 3;
-                  *dev = j;
-                  *term = -1;
-                  break;
-              }
+      for (int j = 0; j < 8; j++)
+      {   
+        if(i == IL_TERMINAL) {
+          termreg_t *base_address = (termreg_t *)DEV_REG_ADDR(i + 3, j);
+          if(&(base_address->recv_command) == command_address){
+            *line = i + 3;
+            *n_dev = j;
+            *term = 0;
+            break;
+          }
+          else if(&(base_address->transm_command) == command_address){
+            *line = i + 3;
+            *n_dev = j;
+            *term = 1;
+            break;
+          }
+        }
+        else {
+            dtpreg_t *base_address = (dtpreg_t *)DEV_REG_ADDR(i + 3, j);
+            if(&(base_address->command) == command_address){
+              *line = i + 3;
+              *n_dev = j;
+              *term = -1;
+              break;
             }
         }
+      }
     }
-};
+  }
 
-static pcb_t *unblockProcessByService(int service, list_head *list) {
+static pcb_t *unblockProcessByService(int service, struct list_head *list) {
   if(service == -1)
     return outProcQ(list, ssi_pcb);
   pcb_t* tmp;
@@ -73,7 +73,7 @@ static pcb_t *unblockProcessByService(int service, list_head *list) {
 }
 
 static void syscallExceptionHandler(state_t* exception_state){
-  if((exception_state->p_s.staus << 30) >> 31) { //not in kernel mode // <<28 ?
+  if((exception_state->status << 30) >> 31) { //not in kernel mode // <<28 ?
     exception_state->cause = (exception_state->cause & CLEAREXECCODE) | (EXC_RI << CAUSESHIFT);
     passUpOrDie(GENERALEXCEPT, exception_state);
   }
@@ -82,10 +82,11 @@ static void syscallExceptionHandler(state_t* exception_state){
       //SEND is async
       pcb_t *dest = (pcb_t *)(exception_state->reg_a1);
       if(dest == ssi_pcb) {
-        current_process->service = exception_state->reg_a2->service;
+        ssi_payload_t *payload = (ssi_payload_t *)exception_state->reg_a2;
+        current_process->service = payload->service_code;
         if(current_process->service == DOIO) {
           int device, device_number, term;
-          addrToDevice(device, device_number, term, exception_state->reg_a2->arg->commandAddr);
+          addrToDevice(&device, &device_number, &term, ((ssi_do_io_t *)(payload->arg))->commandAddr);
           current_process->device = device; 
           current_process->dev_no = device_number;
           current_process->term = term;
@@ -94,8 +95,8 @@ static void syscallExceptionHandler(state_t* exception_state){
       
       int nogood = 0;
       if(dest = unblockProcessByService(dest->service, &Locked_Message)) { 
-        dest->p_s->reg_v0 = current_process;
-        dest->p_s->reg_a2 = exception_state->reg_a2;
+        dest->p_s.reg_v0 = (memaddr)current_process;
+        dest->p_s.reg_a2 = exception_state->reg_a2;
         insertProcQ(&Ready_Queue, dest);
         soft_blocked_count--;
       } 
@@ -103,7 +104,7 @@ static void syscallExceptionHandler(state_t* exception_state){
         //destinatario già sulla ready queue --> non in attesa 
         int found = 0;
         pcb_t *tmp;
-        list_for_each_entry(tmp, Ready_Queue, p_list) {
+        list_for_each_entry(tmp, &Ready_Queue, p_list) {
           if(tmp == dest) {
             found = 1;
             break;
@@ -114,25 +115,25 @@ static void syscallExceptionHandler(state_t* exception_state){
         else {
           msg_t *msg;
           if(msg = allocMsg()) {
-            msg->payload = exception_state->reg_a2;
-            msg->sender = current_process; 
-            insertMessage(&(dest->msg_list), msg);
+            msg->m_payload = exception_state->reg_a2;
+            msg->m_sender = current_process; 
+            insertMessage(&(dest->msg_inbox), msg);
           }
           else 
             nogood = 1;
         }
       }
       if(nogood) 
-        exception_state->reg_v0 = MSG_NO_GOOD;
+        exception_state->reg_v0 = MSGNOGOOD;
       else if(!dest)
-        exception_state->reg_v0 = DEST_NOT_EXISTS;
+        exception_state->reg_v0 = DEST_NOT_EXIST;
       else 
         exception_state->reg_v0 = 0;
       exception_state->pc_epc += WORDLEN;
       LDST(exception_state);
     }
     else if(exception_state->reg_a0 == RECEIVEMESSAGE) {
-      list_head *msg_inbox = &(current_process->msg_list);
+      struct list_head *msg_inbox = &(current_process->msg_inbox);
       msg_t *msg = NULL;
       if(list_empty(msg_inbox) || !(msg = popMessage(msg_inbox, (pcb_t *)(exception_state->reg_a1)))) { //bloccante !!!!
         if(current_process->service == DOIO) {
@@ -150,7 +151,7 @@ static void syscallExceptionHandler(state_t* exception_state){
               insertProcQ(&Locked_printer, current_process);
               break;
             case IL_TERMINAL:
-              if(device->term)
+              if(current_process->term)
                 insertProcQ(&Locked_terminal_in, current_process);
               else 
                 insertProcQ(&Locked_terminal_out, current_process);
@@ -159,7 +160,6 @@ static void syscallExceptionHandler(state_t* exception_state){
               break;
           }
           soft_blocked_count++;
-          current_process->p_s = *exception_state;
           saveState(&(current_process->p_s), exception_state);
           updateCPUtime(current_process, &start);
           scheduler();
@@ -182,8 +182,8 @@ static void syscallExceptionHandler(state_t* exception_state){
       }
       else {
         exception_state->pc_epc += WORDLEN;
-        exception_state->reg_v0 = (memaddr)msg->sender;
-        exception_state->reg_a2 = msg->payload;
+        exception_state->reg_v0 = (memaddr)msg->m_sender;
+        exception_state->reg_a2 = msg->m_payload;
         freeMsg(msg);
         LDST(exception_state);
       }
