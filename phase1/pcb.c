@@ -5,7 +5,6 @@
 #define FALSE 0
 
 static pcb_t pcbTable[MAXPROC];
-LIST_HEAD(pcbFree_h);
 static int next_pid = 1;
 
 // tramite la funzione freePcb, vengono aggiunti in coda gli elementi
