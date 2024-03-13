@@ -67,6 +67,8 @@ typedef struct pcb_t
     int device;
     
     int dev_no;
+
+    int term;
 } pcb_t, *pcb_PTR;
 
 /* message entry type */
