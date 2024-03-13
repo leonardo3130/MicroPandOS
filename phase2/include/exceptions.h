@@ -8,9 +8,12 @@
 #include "../../phase1/headers/msg.h"
 #include "interrupts.h"
 #include "initial.h"
+#include "scheduler.h"
+#include "ssi.h"
 #include <umps/const.h>
 #include <umps/libumps.h>
 #include <umps/arch.h>
+#include <umps/cp0.h>
 
 void exceptionHandler();
 void uTLB_RefillHandler();

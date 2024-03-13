@@ -71,6 +71,12 @@ typedef struct pcb_t
     int term;
 } pcb_t, *pcb_PTR;
 
+typedef struct ssi_payload_t
+{
+    int service_code;
+    void *arg;
+} ssi_payload_t, *ssi_payload_PTR;
+
 /* message entry type */
 typedef struct msg_t
 {
@@ -87,12 +93,6 @@ typedef struct msg_t
     ssi_payload_t *ssi_payload;
 
 } msg_t, *msg_PTR;
-
-typedef struct ssi_payload_t
-{
-    int service_code;
-    void *arg;
-} ssi_payload_t, *ssi_payload_PTR;
 
 typedef struct ssi_create_process_t
 {

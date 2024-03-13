@@ -11,7 +11,7 @@ void initNucleus(){
     passupvector_t *passupv;
     passupv = (passupvector_t *) PASSUPVECTOR;
 
-    passupv-> tlb_refll_handler  = (memaddr) uTLB_RefillHandler
+    passupv-> tlb_refill_handler  = (memaddr) uTLB_RefillHandler
     passupv.tlb_refill_stackPtr  = (unsigned int *) KERNELSTACK;
     passupv-> exception_handler  = (memaddr) exceptionHandler;
     passupv.exception_stackPtr   = (unsigned int *) KERNELSTACK;
