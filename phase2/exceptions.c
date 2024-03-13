@@ -29,29 +29,36 @@ static void passUpOrDie(int i, state_t *exception_state) {
   }
 }
 
-static void addrToDevice(int *line, int *n_dev, int *term, int *address){
+static void addrToDevice(int *line, int *n_dev, int *term, int *command_address){
     for (int i = 0; i < 5; i++)
     {
         for (int j = 0; j < 8; j++)
-        {
-            if((memaddr)DEV_REG_ADDR(i + 3, j) + 1 == address){
-                *line = i + 3;
-                *dev = j;
-                *term = 0;
-                break;
-            }
-             else if((memaddr)DEV_REG_ADDR(i + 3, j) + 3 == address){
-                *line = i + 3;
-                *dev = j;
-                if(i == IL_TERMINAL)
+        {   
+            if(i == IL_TERMINAL) {
+              termreg_t *base_address = (termreg_t *)DEV_REG_ADDR(i + 3, j);
+              if(&(base_address->recv_command) == address){
+                  *line = i + 3;
+                  *dev = j;
                   *term = 0;
-                else 
+                  break;
+              }
+              else if(&(base_address->transm_command) == address){
+                  *line = i + 3;
+                  *dev = j;
+                  *term = 1;
+                  break;
+              }
+            else {
+              dtpreg_t *base_address = (dtpreg_t *)DEV_REG_ADDR(i + 3, j);
+              if(&(base_address->command) == address){
+                  *line = i + 3;
+                  *dev = j;
                   *term = -1;
-                break;
+                  break;
+              }
             }
         }
     }
-    
 };
 
 static pcb_t *unblockProcessByService(int service, list_head *list) {
