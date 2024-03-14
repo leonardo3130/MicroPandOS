@@ -5,7 +5,8 @@
 #include "../../headers/types.h"
 #include "../../headers/listx.h"
 #include "../../phase1/headers/pcb.h"
-#include "./timers.h"
+#include "exceptions.h"
+#include "timers.h"
 #include <umps/libumps.h>
 
 //  1. Declare the Level 3 global variables.
@@ -32,6 +33,5 @@ pcb_t *ssi_pcb;
 extern void test();
 
 void initNucleus();
-static void insert_ready_proc(pcb_t *toInsert);
 
 #endif
