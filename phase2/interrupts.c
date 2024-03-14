@@ -1,9 +1,9 @@
 #include "include/interrupts.h"
 
-static pcb_t *unblockProcessByDeviceNumber(int device_number, list_head *list) {
+static pcb_t *unblockProcessByDeviceNumber(int device_number, struct list_head *list) {
   pcb_t* tmp;
   list_for_each_entry(tmp, list, p_list) {
-    if(tmp->device_no == device_number)
+    if(tmp->dev_no == device_number)
       return outProcQ(list, tmp);
   }
   return NULL;
@@ -33,10 +33,11 @@ static void deviceInterruptHandler(int line, int cause, state_t *exception_state
   else if(interrupting_devices_bitmap & DEV7ON)
     device_number = 7;
 
-  devreg_t *device_register = DEV_REG_ADDR(line, device_number);
+  devreg_t *device_register = (devreg_t *)DEV_REG_ADDR(line, device_number);
   pcb_t* unblocked_pcb;
 
   if(line == IL_TERMINAL){
+    termreg_t *device_register = (termreg_t *)DEV_REG_ADDR(line, device_number);
     //gestione interrupt terminale --> 2 sub-devices
     if(device_register->transm_status == 5) {
       device_status = device_register->transm_status;
@@ -50,6 +51,7 @@ static void deviceInterruptHandler(int line, int cause, state_t *exception_state
     }
   } 
   else{
+    dtpreg_t *device_register = (dtpreg_t *)DEV_REG_ADDR(line, device_number);
     //gestione interrupt di tutti gli altri dispositivi I/O
     device_status = device_register->status;
     device_register->command = ACK;
@@ -58,7 +60,7 @@ static void deviceInterruptHandler(int line, int cause, state_t *exception_state
         unblocked_pcb = unblockProcessByDeviceNumber(device_number, &Locked_disk);
         break;
       case IL_FLASH:
-        unblocked_pcb = unblockProcessByDeviceNUmber(device_number, &Locked_flash);
+        unblocked_pcb = unblockProcessByDeviceNumber(device_number, &Locked_flash);
         break;
       case IL_ETHERNET:
         unblocked_pcb = unblockProcessByDeviceNumber(device_number, &Locked_ethernet);
@@ -75,7 +77,7 @@ static void deviceInterruptHandler(int line, int cause, state_t *exception_state
   if(unblocked_pcb) {
     soft_blocked_count--;
     unblocked_pcb->p_s.reg_v0 = (memaddr)ssi_pcb;
-    unblocked_pcb->p_s.reg_a2 = &device_status;
+    unblocked_pcb->p_s.reg_a2 = (memaddr)(&device_status);
     insertProcQ(&Ready_Queue, unblocked_pcb);
   }
 
@@ -102,7 +104,7 @@ static void pseudoClockInterruptHandler(state_t* exception_state) {
   while (unblocked_pcb) {
     soft_blocked_count--;
     unblocked_pcb->p_s.reg_v0 = (memaddr)ssi_pcb;
-    unblocked_pcb->p_s.reg_a2 = NULL;
+    unblocked_pcb->p_s.reg_a2 = (memaddr)NULL;
     insertProcQ(&Ready_Queue, unblocked_pcb);
     unblocked_pcb = removeProcQ(&Locked_pseudo_clock);
   }

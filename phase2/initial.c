@@ -11,10 +11,10 @@ void initNucleus(){
     passupvector_t *passupv;
     passupv = (passupvector_t *) PASSUPVECTOR;
 
-    passupv-> tlb_refill_handler  = (memaddr) uTLB_RefillHandler
-    passupv.tlb_refill_stackPtr  = (unsigned int *) KERNELSTACK;
+    passupv-> tlb_refill_handler  = (memaddr) uTLB_RefillHandler;
+    passupv->tlb_refill_stackPtr  = (unsigned int *) KERNELSTACK;
     passupv-> exception_handler  = (memaddr) exceptionHandler;
-    passupv.exception_stackPtr   = (unsigned int *) KERNELSTACK;
+    passupv->exception_stackPtr   = (unsigned int *) KERNELSTACK;
 
 
     //  3. Initialize the Level 2 (Phase 1) data structures:
@@ -32,17 +32,16 @@ void initNucleus(){
     pid_counter = 2;    //pid 0 is SSI, pid 1 is test
 
     //  Tail pointer to a queue of PCBs that are in the “ready” state
-    mkEmptyProcQ(Ready_Queue);
+    mkEmptyProcQ(&Ready_Queue);
 
     //  list of blocked PCBs for each external (sub)device
-    mkEmptyProcQ(Locked_disk);
-    mkEmptyProcQ(Locked_flash);
-    mkEmptyProcQ(Locked_terminal_in);
-    mkEmptyProcQ(Locked_terminal_out);
-    mkEmptyProcQ(Locked_ethernet);
-    mkEmptyProcQ(Locked_printer);
-
-    mkEmptyProcQ(Locked_Message)
+    mkEmptyProcQ(&Locked_disk);
+    mkEmptyProcQ(&Locked_flash);
+    mkEmptyProcQ(&Locked_terminal_in);
+    mkEmptyProcQ(&Locked_terminal_out);
+    mkEmptyProcQ(&Locked_ethernet);
+    mkEmptyProcQ(&Locked_printer);
+    mkEmptyProcQ(&Locked_Message);
 
 
     //  5. Load the system-wide Interval Timer with 100 milliseconds
@@ -68,11 +67,11 @@ void initNucleus(){
         address of SSI_function_entry_point
     */
     RAMTOP(ssi_pcb->p_s.reg_sp);
-    ssi_pcb->p_s.s_pc = (memaddr) SSI_function_entry_point;
+    ssi_pcb->p_s.pc_epc = (memaddr) SSILoop;
 
     // general purpose register t9
     ssi_pcb-> p_s.gpr[24] = ssi_pcb-> p_s.pc_epc;
-    insertProcQ(Ready_Queue, ssi_pcb);
+    insertProcQ(&Ready_Queue, ssi_pcb);
     ++process_count;
 
 
@@ -86,10 +85,10 @@ void initNucleus(){
 
     RAMTOP(toTest->p_s.reg_sp);
     toTest->p_s.reg_sp -= (2 * PAGESIZE);
-    toTest->p_s.s_pc = (memaddr) test;
+    toTest->p_s.pc_epc = (memaddr) test;
 
     toTest-> p_s.gpr[24] = toTest-> p_s.pc_epc;
-    insertProcQ(Ready_Queue, toTest);
+    insertProcQ(&Ready_Queue, toTest);
     ++process_count;
 
     //  8. Call the Scheduler.
