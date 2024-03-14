@@ -5,7 +5,6 @@
 #define FALSE 0
 
 static pcb_t pcbTable[MAXPROC];
-static int next_pid = 1;
 
 // tramite la funzione freePcb, vengono aggiunti in coda gli elementi
 // della pcbTable (da 1 a MAXPROC) nella lista dei processi liberi;
@@ -63,11 +62,11 @@ pcb_t *allocPcb() {
         p->service = -1;
 
         p->device = -1;
-        
+
         p->dev_no = -1;
 
         p->term = -1;
-        
+
         return p;
     }
 }

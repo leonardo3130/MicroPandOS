@@ -12,7 +12,7 @@ void SSILoop(){
             freeMsg(message);
         }
         else{
-            ret = NULL; 
+            ret = NULL;
         }
         //SYSCALL(SENDMESSAGE, , ret, 0);
         SYSCALL(RECEIVEMESSAGE, ANYMESSAGE, NULL, 0);
@@ -23,10 +23,10 @@ void SSILoop(){
 msg_t *SSIRequest(msg_t *message, pcb_t* sender, ssi_payload_t *payload){
     msg_t *ret = allocMsg();
     ret->m_sender = ssi_pcb;
-    
+
     switch(payload->service_code){
         case CREATEPROCESS:
-            ret->m_payload = (int)ssi_new_process(&message, (ssi_create_process_PTR)payload->arg, &sender);
+            ret->m_payload = (int)ssi_new_process(message, (ssi_create_process_PTR)payload->arg, sender);
             break;
 
         case TERMPROCESS:
@@ -79,7 +79,7 @@ pcb_t* ssi_new_process(msg_t *message, ssi_create_process_t *p_info, pcb_t* pare
 
     pcb_t* child = allocPcb();
     child->p_pid = pid_counter++;
-    
+
     child->p_s = *(p_info->state);
     child->p_supportStruct = p_info->support;
     insertChild(parent, child);
@@ -115,7 +115,7 @@ int ssi_getprocessid(pcb_t *sender, void *arg){
     }
     else{
         return sender->p_parent->p_pid;
-    }   
+    }
 }
 
 void ssi_doio(pcb_t *sender, ssi_do_io_t *doio){
@@ -149,4 +149,4 @@ void ssi_doio(pcb_t *sender, ssi_do_io_t *doio){
             break;
     }
     doio->commandValue = doio->commandAddr; //??
-}   
+}
