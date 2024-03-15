@@ -2,6 +2,7 @@
 #define TIMER
 #include <umps/const.h>
 #include <umps/arch.h>
+#include "../../headers/types.h"
 #include <umps/libumps.h>
 
 unsigned int getTOD();
