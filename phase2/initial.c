@@ -72,13 +72,7 @@ void initNucleus(){
     // IEc: The “current” global interrupt enable bit. When 0, regardless
     // of the settings in Status.IM all interrupts are disabled. When 1, interrupt
     // acceptance is controlled by Status.IM.
-    ssi_pcb->p_s.status |= (1<<1);
-
-    //  KUc: bit 1 - The “current” kernel-mode user-mode control bit. When Status.KUc=0 the processor is in kernel-mode.
-    ssi_pcb->p_s.status &= (2<<1);   // Vado in Kernel mode
-
-    // Abilito gli interrupt [IM: bits 8-15 - The Interrupt Mask]
-    ssi_pcb->p_s.status |= (255<<8);
+    ssi_pcb->p_s.status |= (0x4 | 0x8 | 0x0000FE00) /*& 0xFFFFFFF7*/;
 
     /*
         the SP set to RAMTOP (i.e. use the last RAM frame for its stack), and its PC set to the
@@ -97,10 +91,7 @@ void initNucleus(){
     pcb_t *toTest = allocPcb();
     toTest->p_pid = 1;
 
-    toTest->p_s.status |= (1<<1);
-    toTest->p_s.status &= (2<<1);   // Vado in Kernel mode
-    toTest->p_s.status |= (255<<8);
-
+    toTest->p_s.status |= (0x4 | 0x8 | 0x0000FE00) /*& 0xFFFFFFF7*/;
     RAMTOP(toTest->p_s.reg_sp);
     toTest->p_s.reg_sp -= (2 * PAGESIZE);
     toTest->p_s.pc_epc = (memaddr) test;
@@ -111,5 +102,13 @@ void initNucleus(){
 
     //  8. Call the Scheduler.
     scheduler();
+}
+
+
+
+int main(int argc, char const *argv[])
+{
+    initNucleus();
+    return 0;
 }
 
