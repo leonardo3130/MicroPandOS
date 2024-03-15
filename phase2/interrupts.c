@@ -33,7 +33,6 @@ static void deviceInterruptHandler(int line, int cause, state_t *exception_state
   else if(interrupting_devices_bitmap & DEV7ON)
     device_number = 7;
 
-  devreg_t *device_register = (devreg_t *)DEV_REG_ADDR(line, device_number);
   pcb_t* unblocked_pcb;
 
   if(line == IL_TERMINAL){
@@ -92,7 +91,7 @@ static void deviceInterruptHandler(int line, int cause, state_t *exception_state
 static void localTimerInterruptHandler(state_t *exception_state) {
   setPLT(TIMESLICE);
   saveState(&(current_process->p_s), exception_state);
-  updateCPUtime(current_process, &start);
+  updateCPUtime(current_process);
   insertProcQ(&Ready_Queue, current_process);
   soft_blocked_count--;
   scheduler();
