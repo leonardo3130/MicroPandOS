@@ -10,25 +10,26 @@
 #include <umps/libumps.h>
 
 //  1. Declare the Level 3 global variables.
-unsigned int process_count;
-unsigned int soft_blocked_count;
-unsigned int start;
-unsigned int pid_counter;
+extern int process_count;
+extern int soft_blocked_count;
+extern int start;
+extern int pid_counter;
 
 
-LIST_HEAD(Ready_Queue);
-LIST_HEAD(Locked_disk);
-LIST_HEAD(Locked_flash);
-LIST_HEAD(Locked_terminal_in);
-LIST_HEAD(Locked_terminal_out);
-LIST_HEAD(Locked_ethernet);
-LIST_HEAD(Locked_printer);
-LIST_HEAD(Locked_Message);
-LIST_HEAD(Locked_pseudo_clock);
+
+extern struct list_head Ready_Queue;
+extern struct list_head Locked_disk;
+extern struct list_head Locked_flash;
+extern struct list_head Locked_terminal_in;
+extern struct list_head Locked_terminal_out;
+extern struct list_head Locked_ethernet;
+extern struct list_head Locked_printer;
+extern struct list_head Locked_Message;
+extern struct list_head Locked_pseudo_clock;
 
 
-pcb_t *current_process;
-pcb_t *ssi_pcb;
+extern pcb_t *current_process;
+extern pcb_t *ssi_pcb;
 
 extern void test();
 

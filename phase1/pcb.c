@@ -5,7 +5,7 @@
 #define FALSE 0
 
 static pcb_t pcbTable[MAXPROC];
-
+LIST_HEAD(pcbFree_h);
 // tramite la funzione freePcb, vengono aggiunti in coda gli elementi
 // della pcbTable (da 1 a MAXPROC) nella lista dei processi liberi;
 void initPcbs() {

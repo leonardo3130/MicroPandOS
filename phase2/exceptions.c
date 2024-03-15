@@ -161,7 +161,7 @@ static void syscallExceptionHandler(state_t* exception_state){
           }
           soft_blocked_count++;
           saveState(&(current_process->p_s), exception_state);
-          updateCPUtime(current_process, &start);
+          updateCPUtime(current_process);
           scheduler();
         }
         else if (current_process->service == CLOCKWAIT) {
@@ -169,14 +169,14 @@ static void syscallExceptionHandler(state_t* exception_state){
           insertProcQ(&Locked_pseudo_clock, current_process); //blocco del processo --> da capire se va fatto qua o in ssi
           soft_blocked_count++;
           saveState(&(current_process->p_s), exception_state);
-          updateCPUtime(current_process, &start);
+          updateCPUtime(current_process);
           scheduler();
         }
         else {
           insertProcQ(&Locked_Message, current_process); //blocco del processo
           soft_blocked_count++;
           saveState(&(current_process->p_s), exception_state);
-          updateCPUtime(current_process, &start); 
+          updateCPUtime(current_process); 
           scheduler();
         }
       }

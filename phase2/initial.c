@@ -5,6 +5,24 @@
     process count, soft blocked count, blocked PCBs lists/pointers, etc.).
 */
 
+LIST_HEAD(Ready_Queue);
+LIST_HEAD(Locked_disk);
+LIST_HEAD(Locked_flash);
+LIST_HEAD(Locked_terminal_in);
+LIST_HEAD(Locked_terminal_out);
+LIST_HEAD(Locked_ethernet);
+LIST_HEAD(Locked_printer);
+LIST_HEAD(Locked_Message);
+LIST_HEAD(Locked_pseudo_clock);
+
+
+int process_count;
+int soft_blocked_count;
+int start;
+int pid_counter;
+
+pcb_t *current_process;
+pcb_t *ssi_pcb;
 
 void initNucleus(){
     //  2. Passup Vector
@@ -12,9 +30,9 @@ void initNucleus(){
     passupv = (passupvector_t *) PASSUPVECTOR;
 
     passupv-> tlb_refill_handler  = (memaddr) uTLB_RefillHandler;
-    passupv->tlb_refill_stackPtr  = (unsigned int *) KERNELSTACK;
+    passupv->tlb_refill_stackPtr  = (memaddr) KERNELSTACK;
     passupv-> exception_handler  = (memaddr) exceptionHandler;
-    passupv->exception_stackPtr   = (unsigned int *) KERNELSTACK;
+    passupv->exception_stackPtr   = (memaddr) KERNELSTACK;
 
 
     //  3. Initialize the Level 2 (Phase 1) data structures:
