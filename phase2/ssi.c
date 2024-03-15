@@ -2,31 +2,23 @@
 
 void SSILoop(){
     while(TRUE){
-        pcb_t *ret = allocPcb();
-        if(!emptyMessageQ(&(ssi_pcb->msg_inbox))){
-            msg_t *message = allocMsg(); //non sono sicuro di doverlo allocare
-            message = popMessage(&(ssi_pcb->msg_inbox), NULL);
-            pcb_t *sender = message->m_sender;
-            ssi_payload_t *payload = message->ssi_payload;
-            ret = SSIRequest(message, sender, payload);
-            freeMsg(message);
+        ssi_payload_t *payload;
+        pcb_t *sender = (RECEIVEMESSAGE, ANYMESSAGE, payload, 0);
+        
+        //utilizzo la struct ssi payload come ritorno (il dato richiesto sarà salvato in arg)
+        ssi_payload_t *ret = malloc(sizeof(ssi_payload_t));
+        ret = SSIRequest(sender, payload);
+        if(payload->service_code != CLOCKWAIT && payload->service_code != DOIO){
+            SYSCALL(SENDMESSAGE, ssi_pcb, ret, 0);
         }
-        else{
-            ret = NULL;
-        }
-        //SYSCALL(SENDMESSAGE, , ret, 0);
-        SYSCALL(RECEIVEMESSAGE, ANYMESSAGE, NULL, 0);
-        freePcb(ret);
     }
 }
 
-msg_t *SSIRequest(msg_t *message, pcb_t* sender, ssi_payload_t *payload){
-    msg_t *ret = allocMsg();
-    ret->m_sender = ssi_pcb;
-
+ssi_payload_t *SSIRequest(pcb_t* sender, ssi_payload_t *payload){
+    ssi_payload_t *ret;
     switch(payload->service_code){
         case CREATEPROCESS:
-            ret->m_payload = (int)ssi_new_process(message, (ssi_create_process_PTR)payload->arg, sender);
+            ret->arg = ssi_new_process((ssi_create_process_PTR)payload->arg, sender);
             break;
 
         case TERMPROCESS:
@@ -37,43 +29,41 @@ msg_t *SSIRequest(msg_t *message, pcb_t* sender, ssi_payload_t *payload){
             else{
                 ssi_terminate_process(payload->arg);
             }
-            ret->m_payload = NULL;
+            ret->arg = NULL;
             break;
 
         case DOIO:
             ssi_doio(sender, payload->arg);
-            ret->m_payload = NULL;
+            ret->arg = NULL;
             break;
 
         case GETTIME:
-            ret->m_payload = (int)sender->p_time;
+            ret->arg = (int)sender->p_time;
             break;
 
         case CLOCKWAIT:
             ssi_clockwait(sender);
-            ret->m_payload = NULL;
+            ret->arg = NULL;
             break;
 
         case GETSUPPORTPTR:
-            ret->m_payload = (int)sender->p_supportStruct;
+            ret->arg = (int)sender->p_supportStruct;
             break;
 
         case GETPROCESSID:
-            ret->m_payload = ssi_getprocessid(sender, payload->arg);
+            ret->arg = ssi_getprocessid(sender, payload->arg);
             break;
 
         default:
             ssi_terminate_process(sender);
-            ret->m_payload = MSGNOGOOD;
+            ret->arg = MSGNOGOOD;
             break;
     }
     return ret;
 }
 
-pcb_t* ssi_new_process(msg_t *message, ssi_create_process_t *p_info, pcb_t* parent){
+pcb_t* ssi_new_process(ssi_create_process_t *p_info, pcb_t* parent){
     if(emptyProcQ(&pcbFree_h)){
-        //reinserting the message at the end of the inbox
-        insertMessage(&(ssi_pcb->msg_inbox), message);
         return NOPROC;
     }
 
@@ -119,34 +109,5 @@ int ssi_getprocessid(pcb_t *sender, void *arg){
 }
 
 void ssi_doio(pcb_t *sender, ssi_do_io_t *doio){
-    switch((unsigned int)doio->commandAddr){
-        //non so se ogni indirizzo è associato alla lista del device corretto (ho messo le liste in odine di dichiarazione)
-        case DEV0ON:
-            insertProcQ(&Locked_disk, sender);
-        break;
-        case DEV1ON:
-            insertProcQ(&Locked_flash, sender);
-            break;
-        case DEV2ON:
-            insertProcQ(&Locked_terminal_in, sender);
-            break;
-        case DEV3ON:
-            insertProcQ(&Locked_terminal_out, sender);
-            break;
-        case DEV4ON:
-            insertProcQ(&Locked_ethernet, sender);
-            break;
-        case DEV5ON:
-            insertProcQ(&Locked_printer, sender);
-            break;
-        case DEV6ON:
-            insertProcQ(&Locked_Message, sender);
-            break;
-        case DEV7ON:
-            insertProcQ(&Locked_pseudo_clock, sender);
-            break;
-        default:
-            break;
-    }
-    doio->commandValue = doio->commandAddr; //??
+
 }
