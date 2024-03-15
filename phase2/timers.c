@@ -29,7 +29,7 @@ void updateCPUtime(pcb_t *p, unsigned int *start) {
 }
 
 void setIntervalTimer(unsigned int t) {
-  LDIT(T);
+  LDIT(t);
 }
 
 void setPLT(unsigned int t) {

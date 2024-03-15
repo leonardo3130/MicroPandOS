@@ -5,20 +5,19 @@ void SSILoop(){
         ssi_payload_t *payload;
         pcb_t *sender = (RECEIVEMESSAGE, ANYMESSAGE, payload, 0);
         
-        //utilizzo la struct ssi payload come ritorno (il dato richiesto sarà salvato in arg)
-        ssi_payload_t *ret = malloc(sizeof(ssi_payload_t));
-        ret = SSIRequest(sender, payload);
+        //utilizzo la struct ssi payload come ritorno (il dato richiesto sara' salvato in arg)
+        unsigned int *ret = SSIRequest(sender, payload);
         if(payload->service_code != CLOCKWAIT && payload->service_code != DOIO){
             SYSCALL(SENDMESSAGE, ssi_pcb, ret, 0);
         }
     }
 }
 
-ssi_payload_t *SSIRequest(pcb_t* sender, ssi_payload_t *payload){
-    ssi_payload_t *ret;
+unsigned int *SSIRequest(pcb_t* sender, ssi_payload_t *payload){
+    unsigned int *ret;
     switch(payload->service_code){
         case CREATEPROCESS:
-            ret->arg = ssi_new_process((ssi_create_process_PTR)payload->arg, sender);
+            ret = (unsigned int) ssi_new_process((ssi_create_process_PTR)payload->arg, sender);
             break;
 
         case TERMPROCESS:
@@ -29,34 +28,34 @@ ssi_payload_t *SSIRequest(pcb_t* sender, ssi_payload_t *payload){
             else{
                 ssi_terminate_process(payload->arg);
             }
-            ret->arg = NULL;
+            ret = NULL;
             break;
 
         case DOIO:
             ssi_doio(sender, payload->arg);
-            ret->arg = NULL;
+            ret = NULL;
             break;
 
         case GETTIME:
-            ret->arg = (int)sender->p_time;
+            ret = (unsigned int)sender->p_time;
             break;
 
         case CLOCKWAIT:
             ssi_clockwait(sender);
-            ret->arg = NULL;
+            ret =NULL;
             break;
 
         case GETSUPPORTPTR:
-            ret->arg = (int)sender->p_supportStruct;
+            ret = (unsigned int)sender->p_supportStruct;
             break;
 
         case GETPROCESSID:
-            ret->arg = ssi_getprocessid(sender, payload->arg);
+            ret = (unsigned int)ssi_getprocessid(sender, payload->arg);
             break;
 
         default:
             ssi_terminate_process(sender);
-            ret->arg = MSGNOGOOD;
+            ret = MSGNOGOOD;
             break;
     }
     return ret;
