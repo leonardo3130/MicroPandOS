@@ -18,6 +18,7 @@
 #include "../headers/const.h"
 #include "../headers/types.h"
 #include <umps/libumps.h>
+//#include "../klog.c"
 
 typedef unsigned int devregtr;
 
@@ -175,14 +176,24 @@ pcb_t *create_process(state_t *s)
 /*********************************************************************/
 void test()
 {
+    //klog_print("Started test");
     test_pcb = current_process;
 
     // test send and receive
     SYSCALL(SENDMESSAGE, (unsigned int)test_pcb, 0, 0);
+    //klog_print("done send\n");
     pcb_PTR sender = (pcb_PTR)SYSCALL(RECEIVEMESSAGE, ANYMESSAGE, 0, 0);
+    //klog_print("done recv\n");
+
+    //klog_print_hex((memaddr)sender);
+    //klog_print("\n");
+    //klog_print_hex((memaddr)test_pcb);
+    //klog_print("\n");
 
     if (sender != test_pcb)
         PANIC();
+    //else 
+      //klog_print("send and receive ok\n");
 
     // init print process
     STST(&printstate);
