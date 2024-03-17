@@ -68,12 +68,12 @@ void initNucleus(){
     //  6. Instantiate a first process, place its PCB in the Ready Queue, and increment Process Count.
     ssi_pcb = allocPcb();
     ssi_pcb->p_pid = 0;
+    ssi_pcb->p_supportStruct = NULL;
 
     // IEc: The “current” global interrupt enable bit. When 0, regardless
     // of the settings in Status.IM all interrupts are disabled. When 1, interrupt
     // acceptance is controlled by Status.IM.
-    ssi_pcb->p_s.status |= (0x4 | 0x8 | 0x0000FE00) /*& 0xFFFFFFF7*/;
-
+    ssi_pcb->p_s.status = ALLOFF | IEPON | IMON | TEBITON;
     /*
         the SP set to RAMTOP (i.e. use the last RAM frame for its stack), and its PC set to the
         address of SSI_function_entry_point
@@ -90,8 +90,10 @@ void initNucleus(){
     //  7.  Instantiate a second process, place its PCB in the Ready Queue, and increment Process Count
     pcb_t *toTest = allocPcb();
     toTest->p_pid = 1;
+    toTest->p_supportStruct = NULL;
 
-    toTest->p_s.status |= (0x4 | 0x8 | 0x0000FE00) /*& 0xFFFFFFF7*/;
+    
+    toTest->p_s.status = ALLOFF | IEPON | IMON | TEBITON;
     RAMTOP(toTest->p_s.reg_sp);
     toTest->p_s.reg_sp -= (2 * PAGESIZE);
     toTest->p_s.pc_epc = (memaddr) test;
@@ -100,8 +102,6 @@ void initNucleus(){
     insertProcQ(&Ready_Queue, toTest);
     ++process_count;
 
-    //  8. Call the Scheduler.
-    scheduler();
 }
 
 
@@ -109,6 +109,8 @@ void initNucleus(){
 int main(int argc, char const *argv[])
 {
     initNucleus();
-    return 0;
+    //  8. Call the Scheduler.
+    scheduler();
+    return EXIT_SUCCESS;
 }
 

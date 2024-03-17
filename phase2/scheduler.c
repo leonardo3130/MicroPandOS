@@ -1,7 +1,7 @@
 #include "./include/scheduler.h"
 
 void scheduler(){
-    if(!emptyProcQ(&Ready_Queue)){
+    if(emptyProcQ(&Ready_Queue) == 0){
         //  1. Remove the PCB from the head of the Ready Queue and store the pointer to the PCB
         //     in the Current Process field.
         current_process = removeProcQ(&Ready_Queue);
