@@ -2,19 +2,18 @@
 
 void SSILoop(){
     while(TRUE){
-        //ssi_payload_t *payload;
         unsigned int payload;
         unsigned int sender = SYSCALL(RECEIVEMESSAGE, ANYMESSAGE, payload, 0);
-        
-        //utilizzo la struct ssi payload come ritorno (il dato richiesto sara' salvato in arg)
         unsigned int ret = SSIRequest((pcb_t *)sender, (ssi_payload_t *)payload);
-        if(((ssi_payload_t *)payload)->service_code != CLOCKWAIT && ((ssi_payload_t *)payload)->service_code != DOIO){
-            SYSCALL(SENDMESSAGE, (unsigned int)ssi_pcb, ret, 0);
+        if( ((ssi_payload_t *)payload)->service_code != CLOCKWAIT &&
+            ((ssi_payload_t *)payload)->service_code != DOIO &&
+            ((ssi_payload_t *)payload)->service_code != TERMPROCESS ){
+                SYSCALL(SENDMESSAGE, (unsigned int)ssi_pcb, ret, 0);
         }
     }
 }
 
-pcb_t* ssi_new_process(ssi_create_process_t *p_info, pcb_t* parent){
+unsigned int ssi_new_process(ssi_create_process_t *p_info, pcb_t* parent){
     pcb_t* child = allocPcb();
     child->p_pid = pid_counter++;
 
@@ -25,7 +24,7 @@ pcb_t* ssi_new_process(ssi_create_process_t *p_info, pcb_t* parent){
     child->p_time = 0;
 
     process_count++;
-    return child;
+    return (unsigned int)child;
 }
 
 //recursive function which terminates proc and all its progeny
@@ -61,7 +60,7 @@ void ssi_doio(pcb_t *sender, ssi_do_io_t *doio){
 }
 
 unsigned int SSIRequest(pcb_t* sender, ssi_payload_t *payload){
-    unsigned int ret;
+    unsigned int ret = 0;
     switch(payload->service_code){
         case CREATEPROCESS:
             if(emptyProcQ(&pcbFree_h)){
@@ -78,12 +77,10 @@ unsigned int SSIRequest(pcb_t* sender, ssi_payload_t *payload){
             else{
                 ssi_terminate_process(payload->arg);
             }
-            ret = (unsigned int)NULL;
             break;
 
         case DOIO:
             ssi_doio(sender, payload->arg);
-            ret = (unsigned int)NULL;
             break;
 
         case GETTIME:
@@ -92,7 +89,6 @@ unsigned int SSIRequest(pcb_t* sender, ssi_payload_t *payload){
 
         case CLOCKWAIT:
             ssi_clockwait(sender);
-            ret = (unsigned int)NULL;
             break;
 
         case GETSUPPORTPTR:
