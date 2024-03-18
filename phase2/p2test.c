@@ -18,7 +18,7 @@
 #include "../headers/const.h"
 #include "../headers/types.h"
 #include <umps/libumps.h>
-//#include "../klog.c"
+#include "../klog.c"
 
 typedef unsigned int devregtr;
 
@@ -181,31 +181,25 @@ void test()
 
     // test send and receive
     SYSCALL(SENDMESSAGE, (unsigned int)test_pcb, 0, 0);
-    //klog_print("done send\n");
     pcb_PTR sender = (pcb_PTR)SYSCALL(RECEIVEMESSAGE, ANYMESSAGE, 0, 0);
-    //klog_print("done recv\n");
-
-    //klog_print_hex((memaddr)sender);
-    //klog_print("\n");
-    //klog_print_hex((memaddr)test_pcb);
-    //klog_print("\n");
 
     if (sender != test_pcb)
         PANIC();
-    //else 
-      //klog_print("send and receive ok\n");
 
     // init print process
     STST(&printstate);
     printstate.reg_sp = printstate.reg_sp - QPAGE;
     printstate.pc_epc = (memaddr)print;
     printstate.status |= IEPBITON | CAUSEINTMASK | TEBITON;
+    klog_print("qui??");
 
     // create print process
     print_pcb = create_process(&printstate);
+    //klog_print("qui??2");
 
-    if ((int)print_pcb == NOPROC)
+    if ((int)print_pcb == NOPROC) {
         PANIC();
+    }
 
     // test print process
     print_term0("Don't Panic.\n");

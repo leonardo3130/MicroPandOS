@@ -1,6 +1,5 @@
 #include "include/exceptions.h"
-#include "../klog.c"
-
+//#include "../klog.c"
 void saveState(state_t* dest, state_t* to_copy){
   dest->entry_hi = to_copy->entry_hi;
   dest->cause = to_copy->cause;
@@ -89,14 +88,26 @@ static void syscallExceptionHandler(state_t* exception_state){
           current_process->device = device; 
           current_process->dev_no = device_number;
           current_process->term = term;
+          //klog_print_dec(device);
+          //klog_print("\n");
+          //klog_print_dec(device_number);
+          //klog_print("\n");
+          //klog_print_dec(term);
         }
+        //klog_print_dec(current_process->service);
       }
       
       int nogood = 0;
       pcb_t* dest_tmp = unblockProcessByService(dest, dest->service, &Locked_Message);
-      if(dest_tmp != NULL) { 
+      if(dest_tmp != NULL) {
+        /*if(dest_tmp == ssi_pcb)
+          klog_print("\nunblock ssi");
+        if(dest_tmp == dest)
+          klog_print("\nok");*/
         dest->p_s.reg_v0 = (memaddr)current_process;
+        //klog_print_hex((unsigned int)current_process);
         dest->p_s.reg_a2 = exception_state->reg_a2;
+        //klog_print_dec(((ssi_payload_t *)(dest->p_s.reg_a2))->service_code);
         insertProcQ(&Ready_Queue, dest);
         soft_blocked_count--;
       }
@@ -118,8 +129,8 @@ static void syscallExceptionHandler(state_t* exception_state){
           if(msg = allocMsg()) {
             msg->m_payload = exception_state->reg_a2;
             msg->m_sender = current_process; 
-            klog_print("\nsenders\n");
-            klog_print_hex((memaddr)(msg->m_sender));
+            //klog_print("\ncreated addres\n");
+            //klog_print_hex((memaddr)(msg));
             insertMessage(&(dest->msg_inbox), msg);
           }
           else 
@@ -140,15 +151,13 @@ static void syscallExceptionHandler(state_t* exception_state){
       int isEmpty = list_empty(msg_inbox);
       msg_t *msg;
       if(exception_state->reg_a1 == ANYMESSAGE && isEmpty == 0) {
-        msg = popMessage(msg_inbox, NULL);
-        klog_print("here1\n");
+        msg = popMessage(msg_inbox, (pcb_t *)NULL);
+        //klog_print("here1\n");
       }
       else if(isEmpty == 0) {
         msg = popMessage(msg_inbox, (pcb_t *)(exception_state->reg_a1));
-        klog_print("here2\n");
+        //klog_print("here2\n");
       }
-      klog_print("\nsendersr\n");
-      klog_print_hex((memaddr)(msg->m_sender));
       if(isEmpty || msg == NULL) { //bloccante !!!!
         if(current_process->service == DOIO) {
           switch (current_process->device) {  
@@ -188,6 +197,8 @@ static void syscallExceptionHandler(state_t* exception_state){
         }
         else {
           insertProcQ(&Locked_Message, current_process); //blocco del processo
+          //if(current_process == ssi_pcb)
+          //  klog_print("\nok block");
           soft_blocked_count++;
           saveState(&(current_process->p_s), exception_state);
           updateCPUtime(current_process); 
@@ -195,6 +206,8 @@ static void syscallExceptionHandler(state_t* exception_state){
         }
       }
       else {
+        //klog_print("\nreceived address\n");
+        //klog_print_hex((memaddr)(msg));
         exception_state->pc_epc += WORDLEN;
         exception_state->reg_v0 = (memaddr)(msg->m_sender);
         exception_state->reg_a2 = msg->m_payload;
