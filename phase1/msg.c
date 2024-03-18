@@ -1,4 +1,5 @@
 #include "./headers/msg.h"
+//#include "../klog.c"
 #define TRUE 1
 #define FALSE 0
 
@@ -29,6 +30,10 @@ msg_t *allocMsg() {
         tmp = container_of((&msgFree_h)->next, msg_t, m_list);
         list_del((&msgFree_h)->next);
 
+        tmp->m_sender = NULL;
+        tmp->m_payload = 0;
+        INIT_LIST_HEAD(&(tmp->m_list));
+
         //scorro la msgTable e metto tutti i payload = 0
         for(int i=0;i<MAXMESSAGES;i++){
             msgTable[i].m_payload = 0;
@@ -56,34 +61,48 @@ void pushMessage(struct list_head *head, msg_t *m) {
 }
 
 msg_t *popMessage(struct list_head *head, pcb_t *p_ptr) { 
-
+	  if(list_empty(head)){
+        //klog_print("tmp1");
+        return NULL;
+    }
     //variabile ausiliaria usata per ritornare l'elemento eliminato dalla lista
     msg_t *tmp;
-
-    if(p_ptr == NULL) {
-		tmp = container_of(head->next, msg_t, m_list);
-		list_del(head->next);
+    if(!p_ptr) {
+		    tmp = container_of(head->next, msg_t, m_list);
+		    list_del(head->next);
+        //klog_print("tmp2");
         return tmp;
-	}
+	  }
     
-	if(list_empty(head))
-        return NULL;
 
     int found = FALSE;
-    struct list_head *pos;
-    list_for_each(pos, head){
+    //struct list_head *pos;
+    /*list_for_each(pos, head){
         if(container_of(pos, msg_t, m_list)->m_sender == p_ptr && !found){
             found = TRUE;
             tmp = container_of(pos, msg_t, m_list);
             list_del(pos);
         }
+    }*/ 
+    
+    //klog_print_hex((unsigned int)(p_ptr));
+    //klog_print("\n");
+    list_for_each_entry(tmp, head, m_list) {
+        //klog_print_hex((unsigned int)(tmp->m_sender));
+        if(tmp->m_sender == p_ptr && found == FALSE) {
+            found = TRUE;
+        }
     }
 
-    if(found == FALSE)
+    if(found == FALSE){
+        //klog_print("\n");
+        //klog_print("tmp3");
         return NULL;
-
-    else 
+    }
+    else { 
+        //klog_print("tmp4");
         return tmp;
+    }
 }
 
 msg_t *headMessage(struct list_head *head) {

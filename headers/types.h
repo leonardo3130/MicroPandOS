@@ -90,7 +90,7 @@ typedef struct msg_t
 	signed int m_payload;
 
     /* payload for messages to ssi*/
-    ssi_payload_t *ssi_payload;
+    //ssi_payload_t *ssi_payload;
 
 } msg_t, *msg_PTR;
 
