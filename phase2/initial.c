@@ -24,8 +24,7 @@ int pid_counter;
 pcb_t *current_process;
 pcb_t *ssi_pcb;
 
-void initNucleus(){
-    //  2. Passup Vector
+void initPassupVector(){
     passupvector_t *passupv;
     passupv = (passupvector_t *) PASSUPVECTOR;
 
@@ -33,38 +32,9 @@ void initNucleus(){
     passupv->tlb_refill_stackPtr  = (memaddr) KERNELSTACK;
     passupv-> exception_handler  = (memaddr) exceptionHandler;
     passupv->exception_stackPtr   = (memaddr) KERNELSTACK;
+}
 
-
-    //  3. Initialize the Level 2 (Phase 1) data structures:
-    initPcbs();
-    initMsgs();
-
-    // 4
-    //  integer indicating the number of started, but not yet terminated processes
-    process_count = 0;
-
-    //  This integer is the number of started, but not terminated
-    //  processes that in are the “blocked” state due to an I/O or timer request.
-    soft_blocked_count = 0;
-
-    pid_counter = 2;    //pid 0 is SSI, pid 1 is test
-
-    //  Tail pointer to a queue of PCBs that are in the “ready” state
-    mkEmptyProcQ(&Ready_Queue);
-
-    //  list of blocked PCBs for each external (sub)device
-    mkEmptyProcQ(&Locked_disk);
-    mkEmptyProcQ(&Locked_flash);
-    mkEmptyProcQ(&Locked_terminal_in);
-    mkEmptyProcQ(&Locked_terminal_out);
-    mkEmptyProcQ(&Locked_ethernet);
-    mkEmptyProcQ(&Locked_printer);
-    mkEmptyProcQ(&Locked_Message);
-
-
-    //  5. Load the system-wide Interval Timer with 100 milliseconds
-    setIntervalTimer(PSECOND);
-
+void initFirstProcesses(){
     //  6. Instantiate a first process, place its PCB in the Ready Queue, and increment Process Count.
     ssi_pcb = allocPcb();
     ssi_pcb->p_pid = 0;
@@ -92,7 +62,7 @@ void initNucleus(){
     toTest->p_pid = 1;
     toTest->p_supportStruct = NULL;
 
-    
+
     toTest->p_s.status = ALLOFF | IEPON | IMON | TEBITON;
     RAMTOP(toTest->p_s.reg_sp);
     toTest->p_s.reg_sp -= (2 * PAGESIZE);
@@ -108,7 +78,41 @@ void initNucleus(){
 
 int main(int argc, char const *argv[])
 {
-    initNucleus();
+    //  2. Passup Vector
+    initPassupVector();
+
+    //  3. Initialize the Level 2 (Phase 1) data structures:
+    initPcbs();
+    initMsgs();
+
+    //  4
+    //  integer indicating the number of started, but not yet terminated processes
+    process_count = 0;
+
+    //  This integer is the number of started, but not terminated
+    //  processes that in are the “blocked” state due to an I/O or timer request.
+    soft_blocked_count = 0;
+
+    pid_counter = 2;    //pid 0 is SSI, pid 1 is test
+
+    //  Tail pointer to a queue of PCBs that are in the “ready” state
+    mkEmptyProcQ(&Ready_Queue);
+
+    //  list of blocked PCBs for each external (sub)device
+    mkEmptyProcQ(&Locked_disk);
+    mkEmptyProcQ(&Locked_flash);
+    mkEmptyProcQ(&Locked_terminal_in);
+    mkEmptyProcQ(&Locked_terminal_out);
+    mkEmptyProcQ(&Locked_ethernet);
+    mkEmptyProcQ(&Locked_printer);
+    mkEmptyProcQ(&Locked_Message);
+
+
+    //  5. Load the system-wide Interval Timer with 100 milliseconds
+    setIntervalTimer(PSECOND);
+
+    initFirstProcesses();
+
     //  8. Call the Scheduler.
     scheduler();
     return EXIT_SUCCESS;

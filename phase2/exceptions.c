@@ -1,5 +1,6 @@
 #include "include/exceptions.h"
 //#include "../klog.c"
+
 void saveState(state_t* dest, state_t* to_copy){
   dest->entry_hi = to_copy->entry_hi;
   dest->cause = to_copy->cause;
@@ -15,8 +16,8 @@ static void passUpOrDie(int i, state_t *exception_state) {
   if(current_process) {
     if(current_process->p_supportStruct != NULL) {
       saveState(&(current_process->p_supportStruct->sup_exceptState[i]), exception_state);
-      LDCXT(current_process->p_supportStruct->sup_exceptContext[i].stackPtr, 
-            current_process->p_supportStruct->sup_exceptContext[i].status, 
+      LDCXT(current_process->p_supportStruct->sup_exceptContext[i].stackPtr,
+            current_process->p_supportStruct->sup_exceptContext[i].status,
             current_process->p_supportStruct->sup_exceptContext[i].pc
       );
     }
@@ -31,7 +32,7 @@ static void addrToDevice(int *line, int *n_dev, int *term, memaddr *command_addr
     for (int i = 0; i < 5; i++)
     {
       for (int j = 0; j < 8; j++)
-      {   
+      {
         if(i == IL_TERMINAL) {
           termreg_t *base_address = (termreg_t *)DEV_REG_ADDR(i + 3, j);
           if(&(base_address->recv_command) == command_address){
@@ -85,7 +86,7 @@ static void syscallExceptionHandler(state_t* exception_state){
         if(current_process->service == DOIO) {
           int device, device_number, term;
           addrToDevice(&device, &device_number, &term, ((ssi_do_io_t *)(payload->arg))->commandAddr);
-          current_process->device = device; 
+          current_process->device = device;
           current_process->dev_no = device_number;
           current_process->term = term;
           //klog_print_dec(device);
@@ -96,7 +97,7 @@ static void syscallExceptionHandler(state_t* exception_state){
         }
         //klog_print_dec(current_process->service);
       }
-      
+
       int nogood = 0;
       pcb_t* dest_tmp = unblockProcessByService(dest, dest->service, &Locked_Message);
       if(dest_tmp != NULL) {
@@ -112,7 +113,7 @@ static void syscallExceptionHandler(state_t* exception_state){
         soft_blocked_count--;
       }
       else{
-        //destinatario già sulla ready queue --> non in attesa 
+        //destinatario già sulla ready queue --> non in attesa
         int found = 0;
         pcb_t *tmp;
         list_for_each_entry(tmp, &Ready_Queue, p_list) {
@@ -128,20 +129,20 @@ static void syscallExceptionHandler(state_t* exception_state){
           msg_t *msg;
           if(msg = allocMsg()) {
             msg->m_payload = exception_state->reg_a2;
-            msg->m_sender = current_process; 
+            msg->m_sender = current_process;
             //klog_print("\ncreated addres\n");
             //klog_print_hex((memaddr)(msg));
             insertMessage(&(dest->msg_inbox), msg);
           }
-          else 
+          else
             nogood = 1;
         }
       }
-      if(nogood) 
+      if(nogood)
         exception_state->reg_v0 = MSGNOGOOD;
       else if(!dest)
         exception_state->reg_v0 = DEST_NOT_EXIST;
-      else 
+      else
         exception_state->reg_v0 = 0;
       exception_state->pc_epc += WORDLEN;
       LDST(exception_state);
@@ -160,7 +161,7 @@ static void syscallExceptionHandler(state_t* exception_state){
       }
       if(isEmpty || msg == NULL) { //bloccante !!!!
         if(current_process->service == DOIO) {
-          switch (current_process->device) {  
+          switch (current_process->device) {
             case IL_DISK:
               insertProcQ(&Locked_disk, current_process);
               break;
@@ -176,7 +177,7 @@ static void syscallExceptionHandler(state_t* exception_state){
             case IL_TERMINAL:
               if(current_process->term)
                 insertProcQ(&Locked_terminal_in, current_process);
-              else 
+              else
                 insertProcQ(&Locked_terminal_out, current_process);
               break;
             default:
@@ -201,7 +202,7 @@ static void syscallExceptionHandler(state_t* exception_state){
           //  klog_print("\nok block");
           soft_blocked_count++;
           saveState(&(current_process->p_s), exception_state);
-          updateCPUtime(current_process); 
+          updateCPUtime(current_process);
           scheduler();
         }
       }
@@ -215,7 +216,7 @@ static void syscallExceptionHandler(state_t* exception_state){
         LDST(exception_state);
       }
     }
-    
+
   }
 }
 

@@ -33,6 +33,7 @@ extern pcb_t *ssi_pcb;
 
 extern void test();
 
-void initNucleus();
+void initPassupVector();
+void initFirstProcesses();
 
 #endif
