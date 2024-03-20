@@ -1,0 +1,150 @@
+\documentclass{article}
+
+\title{\textmu PandOS}
+\date{}
+\usepackage{geometry}
+\usepackage{hyperref}
+\usepackage{xcolor}
+
+
+% Impostazione dei margini
+\geometry{
+    left=3cm,
+    right=3cm,
+    top=2.5cm,
+    bottom=2.5cm,
+}
+
+\begin{document}
+
+\maketitle
+
+\tableofcontents
+\newpage
+\section{Cos'è?}
+µPandOS è un sistema operativo microkernel sviluppato per fini didattici; in particolare questa implementazione è fatta al fine di svolgere un progetto propedeutico all'esame per il corso \texttt{08574 - Sistemi Operativi} (anno accademico 2023/24) per l'università di Bologna.\\
+
+\section{Fase 1 - Definizione operazioni su liste di pcb e messaggi}
+\subsection{Obiettivi}
+In questa fase andremo a scrivere le basi per quanto riguarda questo progetto, ovvero definiremo i metodi di due strutture fondamentali per quanto riguarda PandOS, ossia i messaggi e i PCB
+
+\subsection{Prototipi delle funzioni}
+\subsubsection{Allocazione e deallocazione dei PCB:}
+\begin{itemize}
+    \item \texttt{void initPcbs():} tramite la funzione \texttt{freePcb}, vengono aggiunti in coda gli elementi della \texttt{pcbTable} (da 1 a MAXPROC) nella lista dei processi liberi;
+    \item \texttt{void freePcb(pcb\_t *p):} mette l'elemento puntato da \texttt{p} nella lista dei processi liberi;
+    \item \texttt{pcb\_t *allocPcb():} rimuove il primo elemento dei processi liberi, inizializza tutti i campi e ritorna un puntatore ad esso.
+\end{itemize}
+
+\subsubsection{PCB Queue:}
+\begin{itemize}
+    \item \texttt{void mkEmptyProcQ(struct list\_head *head):} inizializza una variabile come puntatore alla testa della coda dei processi;
+    \item \texttt{int emptyProcQ(struct list\_head *head):} se la coda la cui testa è puntata da \texttt{head} è vuota ritorna TRUE, altrimenti FALSE;
+    \item \texttt{void insertProcQ(struct list\_head *head, pcb\_t *p):} inserisce il PCB puntato da \texttt{p} in fondo alla coda dei processi puntata da \texttt{*head};
+    \item \texttt{pcb\_t *headProcQ(struct list\_head *head):} ritorna NULL se la coda dei processi è vuota, altrimenti il PCB in testa;
+    \item \texttt{pcb\_t *removeProcQ(struct list\_head *head):} rimuove la testa della coda dei processi puntata da \texttt{*head} e ritorna un puntatore dell'elemento in questione; se la lista è vuota ritorna NULL;
+    \item \texttt{pcb\_t *outProcQ(struct list\_head *head, pcb\_t *p):} cerca mediante un \texttt{for\_each} il PCB \texttt{p} nella lista puntata da \texttt{head} e lo rimuove; se lo trova ritorna \texttt{p} stesso, altrimenti NULL.
+\end{itemize}
+\newpage
+\subsubsection{PCB Trees:}
+\begin{itemize}
+    \item \texttt{int emptyChild(pcb\_t *p):} ritorna l'esito della chiamata alla funzione \texttt{list\_empty}, alla quale viene passato come parametro l'indirizzo del \texttt{list\_head} \texttt{p\_child} di \texttt{p};
+    \item \texttt{void insertChild(pcb\_t *prnt, pcb\_t *p):} si assegna \texttt{prnt} al puntatore \texttt{p\_parent} di \texttt{p}. Dopo si aggiunge \texttt{p} alla lista dei fratelli, tramite \texttt{list\_add} (se non ci sono altri figli) e \texttt{list\_add\_tail} (per rispettare la FIFOness), alle quali viene passato come parametro gli indirizzi del \texttt{list\_head} \texttt{p\_sib} di \texttt{p} e del \texttt{list\_head} \texttt{p\_child} di \texttt{prnt} (\texttt{p} diventa fratello dei figli di \texttt{prnt} e quindi figlio di \texttt{prnt}).
+    \item \texttt{pcb\_t *removeChild(pcb\_t *p):} il controllo sulla presenza o meno di figli avviene con la funzione \texttt{emptyChild}. Se ci sono figli, si sceglie il primo figlio tramite la macro \texttt{container\_of}, chiamata sull'elemento successivo al \texttt{list\_head} \texttt{p\_child}. In seguito il figlio viene eliminato tramite la funzione \texttt{list\_del} e viene troncato il legame con il padre, assegnando il valore NULL al puntatore \texttt{p\_parent} del figlio.
+    \item \texttt{pcb\_t *outChild(pcb\_t *p):} se \texttt{p} ha un padre, rimuovo \texttt{p} dalla lista dei suoi fratelli chiamando \texttt{list\_del} a cui passo come parametro l'indirizzo di \texttt{p\_sib} di \texttt{p}, in seguito rimuovo il legame con il padre assegnando NULL al puntatore \texttt{p\_parent} di \texttt{p}.
+\end{itemize}
+
+\subsubsection{Allocazione e deallocazione dei messaggi:}
+\begin{itemize}
+    \item \texttt{void freeMsg(msg\_t *m):} Inserisce l’elemento puntato da \texttt{m} in testa alla lista dei messaggi.
+    \item \texttt{msg\_t *allocMsg():} Ritorna \texttt{NULL} se la lista dei messaggi è vuota. Altrimenti rimuove un elemento dalla testa, imposta a 0 la variabile \texttt{m\_payload} di ogni messaggio presente nell’array \texttt{msgTable} e ritorna un puntatore all’elemento rimosso.
+    \item \texttt{void initMsgs():} Inserisce gli elementi presenti nell’array \texttt{msgTable} in coda alla lista dei messaggi.
+\end{itemize}
+
+\subsubsection{Message}
+\begin{itemize}
+    \item \texttt{void mkEmptyMessageQ(struct list\_head *head):}  Inizializza una una lista di messaggi vuota.
+    \item \texttt{int emptyMessageQ(struct list_head *head):} Ritorna 1 se la lista puntata da head è vuota, altrimenti 0.
+    
+    \item \texttt{void insertMessage(struct list\_head *head, msg\_t *m):} Inserisce il messaggio puntato da \texttt{m} in coda alla lista puntata da \texttt{head}.
+    \item \texttt{void pushMessage(struct list\_head *head, msg\_t *m):} Inserisce il messaggio puntato da \texttt{m} in testa alla lista puntata da \texttt{head}.
+    \item \texttt{msg\_t *popMessage(struct list\_head *head, pcb\_t *p\_ptr):} Rimuove il primo messaggio trovato nella lista puntata da \texttt{head} che è stato inviato dal thread p\_ptr.\\
+    Se \texttt{p\_ptr} è NULL, ritorna il primo messaggio in coda. \\
+    Se \texttt{head} è vuota o se non viene trovato alcun elemento mandato dal thread \texttt{p\_ptr}, ritorna null.
+    \item \texttt{msg\_t *headMessage(struct list\_head *head):} Se la lista puntata da \texttt{head} è vuota ritorna NULL, altrimenti ritorna il messaggio in testa ad essa.
+\end{itemize}
+
+\newpage
+
+\section{Fase 2 - Definizione del Nucleo, Scheduler, SSI, Interrupt ed eccezioni}
+Di seguito sono riportate le scelte progettuali per quanto riguarda i moduli sviluppati:
+
+\subsection{Utility}
+\subsubsection{\texttt{\textbf{timer.c}}}
+In questo modulo abbiamo delle funzioni/procedure ausiliarie richiamate degli altri moduli:
+\begin{itemize}
+    \item \texttt{\textbf{unsigned int getTOD()}}
+    \item \texttt{\textbf{void updateCPUtime(pcb\_t *p)}}
+    \item \texttt{\textbf{void setIntervalTimer(unsigned int t)}}
+    \item \texttt{\textbf{void setPLT(unsigned int t)}}
+    \item \texttt{\textbf{unsigned int getPLT()}}
+\end{itemize}
+
+\subsection{Inizializzazione nucleo}
+\subsubsection{Dichiarazione e inizializazione variabili globali}
+Nel modulo \texttt{\textbf{initial.c}} viene implementato il \textbf{main()}, la dichiarazione delle variabili globali:
+\begin{itemize}
+    \item \texttt{\textbf{int process\_count}} ossia il contatore dei processi attivi;
+    \item \texttt{\textbf{int soft\_blocked\_count}} ossia il contatore dei processi bloccati;
+    \item \texttt{\textbf{int start}} ...
+    \item \texttt{\textbf{int pid\_counter}}, usato per assegnare in maniera sequenziale i PID ai processi man mano che vengono creati;
+    \item \texttt{\textbf{pcb\_t *current\_process}} ossia il puntatore al PCB del processo corrente;
+    \item \texttt{\textbf{pcb\_t *ssi\_pcb}}, che è il puntatore al PCB del SSI;
+    
+\end{itemize}
+
+\subsubsection{Dichiarazione e inizializazione strutture dati}
+Vengono inoltre implementate le strutture dati principali: 
+\begin{itemize}
+    \item attraverso le funzioni  \texttt{\textbf{initPcbs()}} e \texttt{\textbf{initMsgs()}} vengono inizializzate le strutture della fase 1;
+    \item \texttt{\textbf{Ready\_Queue}}, ossia la lista dei proessi pronti ad essere eseguiti;
+    \item 8 liste per i processi bloccati in attesa dei device o per il terminale (una per input e una per output);
+    \item \texttt{\textbf{void initPassupVector()}} è una procedura che viene richiamata per definire il \texttt{pass up vector}, ossia è la struttura dati a livello hardware che indica a quale funzione passare il controllo quando si verifica un interrupt.
+\end{itemize}
+\subsubsection{Interval timer}
+Viene caricato l'interval timer a 100 ms attraverso la chiamata alla procedura ausiliaria \texttt{\textbf{setIntervalTimer(PSECOND)}} definita in \texttt{\textbf{timers.c}}
+
+\newpage
+
+\subsubsection{Processi SSI e Test}
+Infine, prima di richiamare lo \texttt{Scheduler}, attraverso la procedura \texttt{\textbf{void initFirstProcesses()}} vengono inseriti nella \texttt{Ready Queue} i processi del SSI e del test. Questi avranno lo status settato in modo da avere la maschera dell'interrupt abilitata, l'interval timer abilitato e che siano in modalità kernel. Avranno rispettivamente pid 0 e 1.
+
+
+\subsection{Scheduler}
+Lo Scheduler è il componente che gestisce la coda dei processi pronti ad essere eseguiti (\textbf{Ready Queue}); la procedura principale che svolge tutto ciò è \texttt{\textbf{void scheduler()}}; questa parte con un controllo iniziale sulla \texttt{\textbf{Ready Queue}} vedendo se è vuota (con \texttt{\textbf{emptyProcQ(\&Ready\_Queue)}}):
+\begin{itemize}
+    \item se non è vuota prendo il processo che deve essere preso in carico dalla CPU (\texttt{\textbf{current\_process}}) con la funzione \texttt{\textbf{removeProcQ(\&Ready\_Queue)}}, setto il Timer attraverso la funzione \texttt{\textbf{setPLT()}} a 5 ms (con la costante \textbf{TIMESLICE}) per implementare il Round Robin, e infine viene caricato lo stato del processo corrente nel processore (con \texttt{\textbf{LDST()}});
+    \item altrimenti (se vuota), si effettua la Deadlock detection; in particolare può decidere se effettuare un \texttt{\textbf{HALT()}} quando non ci sono più processi da eseguire; se ci sono altri PCB entrerà in \texttt{\textbf{WAIT()}}; se la ready queue è vuota e ci sono processi bloccati si entra in deadlock invocando \texttt{\textbf{PANIC()}} fermando così l'esecuzione;
+\end{itemize}
+
+
+
+
+\newpage
+
+\section{Fase 3 - ...}
+
+\newpage
+
+\section{Crediti}
+\subsection{Github}
+Il sorgente del progetto è reperibile nella seguente \href{https://github.com/aNdReA9111/PandOS.git}{\textcolor{blue}{repository}} su Github.
+
+\subsection{Autori}
+\begin{itemize}
+    \item Fiorellino Andrea, matricola: 0001089150, \href{mailto:andrea.fiorellino@studio.unibo.it}{\textcolor{blue}{andrea.fiorellino@studio.unibo.it}}
+    \item Po Leonardo, matricola: 0001069156, \href{mailto:leonardo.po@studio.unibo.it}{\textcolor{blue}{leonardo.po@studio.unibo.it}}
+    \item Silvestri Luca, matricola: 0001080369, \href{mailto:luca.silvestri9@studio.unibo.it}{\textcolor{blue}{luca.silvestri9@studio.unibo.it}}
+\end{itemize}
+
+\end{document}
