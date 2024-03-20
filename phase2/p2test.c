@@ -129,8 +129,11 @@ void print()
 
 void print_term0(char *s)
 {
+    klog_print("i want print");
     SYSCALL(SENDMESSAGE, (unsigned int)print_pcb, (unsigned int)s, 0);
+    klog_print("i want print");
     SYSCALL(RECEIVEMESSAGE, (unsigned int)print_pcb, 0, 0);
+    klog_print("i want print");
 }
 
 void clockwait_process()
@@ -191,7 +194,6 @@ void test()
     printstate.reg_sp = printstate.reg_sp - QPAGE;
     printstate.pc_epc = (memaddr)print;
     printstate.status |= IEPBITON | CAUSEINTMASK | TEBITON;
-    klog_print("qui??");
 
     // create print process
     print_pcb = create_process(&printstate);

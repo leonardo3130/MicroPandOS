@@ -3,12 +3,13 @@
 void SSILoop(){
     while(TRUE){
         unsigned int payload;
-        unsigned int sender = SYSCALL(RECEIVEMESSAGE, ANYMESSAGE, payload, 0);
+        unsigned int sender = SYSCALL(RECEIVEMESSAGE, ANYMESSAGE, (unsigned int)(&payload), 0);
+
         unsigned int ret = SSIRequest((pcb_t *)sender, (ssi_payload_t *)payload);
         if( ((ssi_payload_t *)payload)->service_code != CLOCKWAIT &&
             ((ssi_payload_t *)payload)->service_code != DOIO &&
             ((ssi_payload_t *)payload)->service_code != TERMPROCESS ){
-                SYSCALL(SENDMESSAGE, (unsigned int)ssi_pcb, ret, 0);
+                SYSCALL(SENDMESSAGE, (unsigned int)sender, ret, 0);
         }
     }
 }
