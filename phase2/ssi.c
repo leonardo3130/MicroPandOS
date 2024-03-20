@@ -29,9 +29,46 @@ unsigned int ssi_new_process(ssi_create_process_t *p_info, pcb_t* parent){
 }
 
 //recursive function which terminates proc and all its progeny
+// void ssi_terminate_process(pcb_t* proc){
+//     if(emptyChild(proc)){
+//         outChild(proc);
+//         freePcb(proc);
+//     }
+//     else{
+//         struct list_head *iter;
+//         list_for_each(iter, &proc->p_child){
+//             ssi_terminate_process(container_of(iter, pcb_t, p_child));
+//         }
+//         ssi_terminate_process(proc);
+//     }
+// }
+
+
+
 void ssi_terminate_process(pcb_t* proc){
     if(emptyChild(proc)){
         outChild(proc);
+
+        // prima di fare la free controllo che il processo in questione non sia bloccato in nessuna lista dei processi bloccati
+        // e in caso verrà levato e verrà decrementato il contatore dei processi bloccati
+        if(outProcQ(&Locked_disk, proc) != NULL){
+            soft_blocked_count--;            
+        }else if(outProcQ(&Locked_flash, proc) != NULL){
+            soft_blocked_count--;
+        }else if(outProcQ(&Locked_terminal_in, proc) != NULL){
+            soft_blocked_count--;
+        }else if(outProcQ(&Locked_terminal_out, proc) != NULL){
+            soft_blocked_count--;
+        }else if(outProcQ(&Locked_ethernet, proc) != NULL){
+            soft_blocked_count--;
+        }else if(outProcQ(&Locked_printer, proc) != NULL){
+            soft_blocked_count--;
+        }else if(outProcQ(&Locked_Message, proc) != NULL){
+            soft_blocked_count--;
+        }else if(outProcQ(&Locked_pseudo_clock, proc) != NULL){
+            soft_blocked_count--;
+        }
+        
         freePcb(proc);
     }
     else{
@@ -42,6 +79,7 @@ void ssi_terminate_process(pcb_t* proc){
         ssi_terminate_process(proc);
     }
 }
+
 
 void ssi_clockwait(pcb_t *sender){
     insertProcQ(&Locked_pseudo_clock, sender);
@@ -57,7 +95,7 @@ int ssi_getprocessid(pcb_t *sender, void *arg){
 }
 
 void ssi_doio(pcb_t *sender, ssi_do_io_t *doio){
-  *(doio->commandAddr) = doio->commandValue;
+    *(doio->commandAddr) = doio->commandValue;
 }
 
 unsigned int SSIRequest(pcb_t* sender, ssi_payload_t *payload){
@@ -74,8 +112,7 @@ unsigned int SSIRequest(pcb_t* sender, ssi_payload_t *payload){
             //terminates the sender process if arg is NULL, otherwise terminates arg
             if(payload->arg == NULL){
                 ssi_terminate_process(sender);
-            }
-            else{
+            }else{
                 ssi_terminate_process(payload->arg);
             }
             break;

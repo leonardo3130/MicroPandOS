@@ -61,11 +61,22 @@ static void addrToDevice(int *line, int *n_dev, int *term, memaddr *command_addr
     }
   }
 
+/*static pcb_t *unblockProcessByService(pcb_t *from, pcb_t *dest, int service, struct list_head *list) {
+  pcb_t* tmp;
+  list_for_each_entry(tmp, list, p_list) {
+    if(dest == tmp && tmp->service == service && (pcb_t *)dest->from == from) {
+      pcb_t *ret = outProcQ(list, tmp);
+      return ret;
+    }
+  }
+  return NULL;
+}*/
 static pcb_t *unblockProcessByService(pcb_t *dest, int service, struct list_head *list) {
   pcb_t* tmp;
   list_for_each_entry(tmp, list, p_list) {
     if(dest == tmp && tmp->service == service) {
-      return outProcQ(list, tmp);
+      pcb_t *ret = outProcQ(list, tmp);
+      return ret;
     }
   }
   return NULL;
@@ -94,23 +105,36 @@ static void syscallExceptionHandler(state_t* exception_state){
           current_process->device = device;
           current_process->dev_no = device_number;
           current_process->term = term;
-          //klog_print_dec(device);
-          //klog_print("\n");
-          //klog_print_dec(device_number);
-          //klog_print("\n");
-          //klog_print_dec(term);
+          /*klog_print("\ndev\n");
+          klog_print_dec(device);
+          klog_print("\ndevno\n");
+          klog_print_dec(device_number);
+          klog_print("\ntermo\n");
+          klog_print_dec(term);*/
         }
         //klog_print_dec(current_process->service);
       }
      
+      //pcb_t* dest_tmp = unblockProcessByService(current_process, dest, dest->service, &Locked_Message);
       pcb_t* dest_tmp = unblockProcessByService(dest, dest->service, &Locked_Message);
       if(dest_tmp != NULL) {
         msg->m_sender = current_process;
         msg->m_payload = exception_state->reg_a2;
+        /*if(dest->service == 1){
+          klog_print("\nsender\n");
+          klog_print_hex(current_process);
+          klog_print("\npload kid\n");
+          klog_print_hex(msg->m_payload);
+          pcb_t *kid = (pcb_t*)msg->m_payload;
+          klog_print("\npload dad\n");
+          klog_print_hex((memaddr)kid->p_parent);
+        }*/
+        //dest_tmp->service = -1;
+        //dest_tmp->from = (memaddr)NULL;
         insertMessage(&(dest->msg_inbox), msg);
         insertProcQ(&Ready_Queue, dest);
         soft_blocked_count--;
-        klog_print_hex((memaddr)dest);
+        //klog_print_hex((memaddr)dest);
       }
       else{
         //destinatario già sulla ready queue --> non in attesa
@@ -129,7 +153,6 @@ static void syscallExceptionHandler(state_t* exception_state){
           msg->m_sender = current_process;
           msg->m_payload = exception_state->reg_a2;
           insertMessage(&(dest->msg_inbox), msg);
-          klog_print_hex((memaddr)dest);
         }
       }
       if(nogood)
@@ -146,14 +169,16 @@ static void syscallExceptionHandler(state_t* exception_state){
       int isEmpty = list_empty(msg_inbox);
       msg_t *msg;
       if(exception_state->reg_a1 == ANYMESSAGE && isEmpty == 0) {
-        msg = popMessage(msg_inbox, (pcb_t *)NULL);
-        //klog_print("here1\n");
+        //klog_print("\nhere1\n");
+        msg = popMessage(msg_inbox, NULL);
       }
-      else if(isEmpty == 0) {
+      else if(isEmpty == 0) {  
+        //klog_print("\nhere2\n");
         msg = popMessage(msg_inbox, (pcb_t *)(exception_state->reg_a1));
-        //klog_print("here2\n");
       }
       if(isEmpty || msg == NULL) { //bloccante !!!!
+        //if(current_process != ssi_pcb) 
+        //  klog_print("\nhere3\n");
         if(current_process->service == DOIO) {
           switch (current_process->device) {
             case IL_DISK:
@@ -232,6 +257,9 @@ void exceptionHandler() {
       syscallExceptionHandler(exception_state);
 			break;
     case 4 ... 7:
+      //Program traps --> passo controllo al rispettivo gestore
+      passUpOrDie(GENERALEXCEPT, exception_state);
+			break;
     case 9 ... 12:
 			//Program traps --> passo controllo al rispettivo gestore
       passUpOrDie(GENERALEXCEPT, exception_state);

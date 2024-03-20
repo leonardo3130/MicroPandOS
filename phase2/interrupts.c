@@ -38,12 +38,19 @@ static void deviceInterruptHandler(int line, int cause, state_t *exception_state
   if(line == IL_TERMINAL){
     termreg_t *device_register = (termreg_t *)DEV_REG_ADDR(line, device_number);
     //gestione interrupt terminale --> 2 sub-devices
-    if(device_register->transm_status == 5) {
+    if(device_register->transm_status == 5) { 
+      //input terminale
       device_status = device_register->transm_status;
       device_register->transm_command = ACK;
       unblocked_pcb = unblockProcessByDeviceNumber(device_number, &Locked_terminal_in);
     }
     else {
+      /*klog_print("\ninterrupt output\n");
+      klog_print_dec(line);
+      klog_print("\n");
+      klog_print_dec(device_number);
+      klog_print("\n");*/
+      //output terminale
       device_status = device_register->recv_status;
       device_register->recv_command = ACK;
       unblocked_pcb = unblockProcessByDeviceNumber(device_number, &Locked_terminal_out);
@@ -91,9 +98,9 @@ static void deviceInterruptHandler(int line, int cause, state_t *exception_state
 }
 
 static void localTimerInterruptHandler(state_t *exception_state) {
-  setPLT(TIMESLICE);
-  saveState(&(current_process->p_s), exception_state);
+  setPLT(ACK);
   updateCPUtime(current_process);
+  saveState(&(current_process->p_s), exception_state);
   insertProcQ(&Ready_Queue, current_process);
   soft_blocked_count--;
   scheduler();

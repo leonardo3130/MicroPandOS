@@ -103,6 +103,8 @@ void print()
         devregtr *base = (devregtr *)(TERM0ADDR);
         devregtr *command = base + 3;
         devregtr status;
+        
+        klog_print("\nin print");
 
         while (*s != EOS)
         {
@@ -123,17 +125,19 @@ void print()
 
             s++;
         }
+        
+        klog_print("\nout print loop");
         SYSCALL(SENDMESSAGE, (unsigned int)sender, 0, 0);
     }
 }
 
 void print_term0(char *s)
 {
-    klog_print("i want print");
+    klog_print("\ni want print1");
     SYSCALL(SENDMESSAGE, (unsigned int)print_pcb, (unsigned int)s, 0);
-    klog_print("i want print");
+    klog_print("\ni want print2");
     SYSCALL(RECEIVEMESSAGE, (unsigned int)print_pcb, 0, 0);
-    klog_print("i want print");
+    klog_print("\ni want print3");
 }
 
 void clockwait_process()
@@ -197,7 +201,6 @@ void test()
 
     // create print process
     print_pcb = create_process(&printstate);
-    //klog_print("qui??2");
 
     if ((int)print_pcb == NOPROC) {
         PANIC();
