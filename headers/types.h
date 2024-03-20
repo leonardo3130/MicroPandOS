@@ -69,6 +69,8 @@ typedef struct pcb_t
     int dev_no;
 
     int term;
+
+    unsigned int from;
 } pcb_t, *pcb_PTR;
 
 typedef struct ssi_payload_t
@@ -87,7 +89,7 @@ typedef struct msg_t
     struct pcb_t *m_sender;
 
     /* the payload of the message */
-	signed int m_payload;
+	  unsigned int m_payload;
 
     /* payload for messages to ssi*/
     //ssi_payload_t *ssi_payload;

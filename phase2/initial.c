@@ -90,7 +90,7 @@ int main(int argc, char const *argv[])
     process_count = 0;
 
     //  This integer is the number of started, but not terminated
-    //  processes that in are the “blocked” state due to an I/O or timer request.
+    //  processes that in are the "blocked" state due to an I/O or timer request.
     soft_blocked_count = 0;
 
     pid_counter = 2;    //pid 0 is SSI, pid 1 is test

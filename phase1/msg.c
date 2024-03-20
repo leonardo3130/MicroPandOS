@@ -61,50 +61,41 @@ void pushMessage(struct list_head *head, msg_t *m) {
 }
 
 msg_t *popMessage(struct list_head *head, pcb_t *p_ptr) { 
-	  if(list_empty(head)){
-        //klog_print("tmp1");
-        return NULL;
-    }
+
     //variabile ausiliaria usata per ritornare l'elemento eliminato dalla lista
     msg_t *tmp;
+
     if(!p_ptr) {
+        /*klog_print("\ntmp2");
+        klog_print("\nthe truth\n");
+        klog_print_hex((memaddr)tmp->m_payload);
+        klog_print("\nthe truth sender\n");
+        klog_print_hex((memaddr)tmp->m_sender);*/
 		    tmp = container_of(head->next, msg_t, m_list);
 		    list_del(head->next);
-        //klog_print("tmp2");
         return tmp;
 	  }
     
+	  if(list_empty(head))
+        return NULL;
 
     int found = FALSE;
-    //struct list_head *pos;
-    /*list_for_each(pos, head){
+    struct list_head *pos;
+    list_for_each(pos, head){
         if(container_of(pos, msg_t, m_list)->m_sender == p_ptr && !found){
             found = TRUE;
             tmp = container_of(pos, msg_t, m_list);
-            list_del(pos);
-        }
-    }*/ 
-    
-    //klog_print_hex((unsigned int)(p_ptr));
-    //klog_print("\n");
-    list_for_each_entry(tmp, head, m_list) {
-        //klog_print_hex((unsigned int)(tmp->m_sender));
-        if(tmp->m_sender == p_ptr && found == FALSE) {
-            found = TRUE;
         }
     }
 
-    if(found == FALSE){
-        //klog_print("\n");
-        //klog_print("tmp3");
+    if(found == FALSE)
         return NULL;
-    }
+
     else { 
-        //klog_print("tmp4");
+        list_del(&(tmp->m_list));
         return tmp;
     }
 }
-
 msg_t *headMessage(struct list_head *head) {
     if(head == NULL)
         return NULL;
