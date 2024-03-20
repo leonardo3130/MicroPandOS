@@ -78,6 +78,11 @@ static void syscallExceptionHandler(state_t* exception_state){
   }
   else {
     if(exception_state->reg_a0 == SENDMESSAGE) {
+      int nogood = 0;
+      msg_t *msg = allocMsg();
+      if(!msg)
+        nogood = 1;
+
       //SEND is async
       pcb_t *dest = (pcb_t *)(exception_state->reg_a1);
       if(dest == ssi_pcb) {
@@ -97,20 +102,15 @@ static void syscallExceptionHandler(state_t* exception_state){
         }
         //klog_print_dec(current_process->service);
       }
-
-      int nogood = 0;
+     
       pcb_t* dest_tmp = unblockProcessByService(dest, dest->service, &Locked_Message);
       if(dest_tmp != NULL) {
-        /*if(dest_tmp == ssi_pcb)
-          klog_print("\nunblock ssi");
-        if(dest_tmp == dest)
-          klog_print("\nok");*/
-        dest->p_s.reg_v0 = (memaddr)current_process;
-        //klog_print_hex((unsigned int)current_process);
-        dest->p_s.reg_a2 = exception_state->reg_a2;
-        //klog_print_dec(((ssi_payload_t *)(dest->p_s.reg_a2))->service_code);
+        msg->m_sender = current_process;
+        msg->m_payload = exception_state->reg_a2;
+        insertMessage(&(dest->msg_inbox), msg);
         insertProcQ(&Ready_Queue, dest);
         soft_blocked_count--;
+        klog_print_hex((memaddr)dest);
       }
       else{
         //destinatario già sulla ready queue --> non in attesa
@@ -125,17 +125,11 @@ static void syscallExceptionHandler(state_t* exception_state){
         if(!found && dest != current_process) {
           dest = NULL;
         }
-        else {
-          msg_t *msg;
-          if(msg = allocMsg()) {
-            msg->m_payload = exception_state->reg_a2;
-            msg->m_sender = current_process;
-            //klog_print("\ncreated addres\n");
-            //klog_print_hex((memaddr)(msg));
-            insertMessage(&(dest->msg_inbox), msg);
-          }
-          else
-            nogood = 1;
+        else if(nogood == 0){
+          msg->m_sender = current_process;
+          msg->m_payload = exception_state->reg_a2;
+          insertMessage(&(dest->msg_inbox), msg);
+          klog_print_hex((memaddr)dest);
         }
       }
       if(nogood)
@@ -207,11 +201,13 @@ static void syscallExceptionHandler(state_t* exception_state){
         }
       }
       else {
-        //klog_print("\nreceived address\n");
         //klog_print_hex((memaddr)(msg));
         exception_state->pc_epc += WORDLEN;
         exception_state->reg_v0 = (memaddr)(msg->m_sender);
-        exception_state->reg_a2 = msg->m_payload;
+        if(msg->m_payload != (unsigned int)NULL) {
+          unsigned int* a2 = (unsigned int*)exception_state->reg_a2;
+          *a2 = msg->m_payload;
+        }
         freeMsg(msg);
         LDST(exception_state);
       }

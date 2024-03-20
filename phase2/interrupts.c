@@ -74,10 +74,12 @@ static void deviceInterruptHandler(int line, int cause, state_t *exception_state
   }
 
   if(unblocked_pcb) {
-    soft_blocked_count--;
-    unblocked_pcb->p_s.reg_v0 = (memaddr)ssi_pcb;
-    unblocked_pcb->p_s.reg_a2 = (memaddr)(&device_status);
+    msg_t *msg = allocMsg();
+    msg->m_sender = ssi_pcb;
+    msg->m_payload = (memaddr)(&device_status);
+    insertMessage(&(unblocked_pcb->msg_inbox), msg);
     insertProcQ(&Ready_Queue, unblocked_pcb);
+    soft_blocked_count--;
   }
 
   if(current_process) {
@@ -102,8 +104,10 @@ static void pseudoClockInterruptHandler(state_t* exception_state) {
   pcb_t *unblocked_pcb = removeProcQ(&Locked_pseudo_clock);
   while (unblocked_pcb) {
     soft_blocked_count--;
-    unblocked_pcb->p_s.reg_v0 = (memaddr)ssi_pcb;
-    unblocked_pcb->p_s.reg_a2 = (memaddr)NULL;
+    msg_t *msg = allocMsg();
+    msg->m_sender = ssi_pcb;
+    msg->m_payload = (memaddr)NULL;
+    insertMessage(&(unblocked_pcb->msg_inbox), msg);
     insertProcQ(&Ready_Queue, unblocked_pcb);
     unblocked_pcb = removeProcQ(&Locked_pseudo_clock);
   }
