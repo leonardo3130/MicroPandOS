@@ -28,25 +28,14 @@ unsigned int ssi_new_process(ssi_create_process_t *p_info, pcb_t* parent){
     return (unsigned int)child;
 }
 
-//recursive function which terminates proc and all its progeny
-// void ssi_terminate_process(pcb_t* proc){
-//     if(emptyChild(proc)){
-//         outChild(proc);
-//         freePcb(proc);
-//     }
-//     else{
-//         struct list_head *iter;
-//         list_for_each(iter, &proc->p_child){
-//             ssi_terminate_process(container_of(iter, pcb_t, p_child));
-//         }
-//         ssi_terminate_process(proc);
-//     }
-// }
-
-
-
-void ssi_terminate_process(pcb_t* proc){
+/*is_child da passare = 0 (serve per distinguere il pcb passato nella prima chiamata della funzione
+ dai processi figli che vengono passati alle chiamate ricorsive)*/
+void ssi_terminate_process(pcb_t* proc, int is_child){
     if(emptyChild(proc)){
+        if(is_child == 1 && list_next(&proc->p_sib) != NULL){
+            ssi_terminate_process(container_of(list_next(&proc->p_sib), pcb_t, p_sib), 1);
+        }
+
         outChild(proc);
 
         // prima di fare la free controllo che il processo in questione non sia bloccato in nessuna lista dei processi bloccati
@@ -72,13 +61,35 @@ void ssi_terminate_process(pcb_t* proc){
         freePcb(proc);
     }
     else{
-        struct list_head *iter;
-        list_for_each(iter, &proc->p_child){
-            ssi_terminate_process(container_of(iter, pcb_t, p_child));
-        }
-        ssi_terminate_process(proc);
+        ssi_terminate_process((&proc->p_child), 1);
+        ssi_terminate_process(proc, is_child);
     }
 }
+
+/*void term_p(pcb_t *proc){
+    outChild(proc);
+    // prima di fare la free controllo che il processo in questione non sia bloccato in nessuna lista dei processi bloccati
+    // e in caso verrà levato e verrà decrementato il contatore dei processi bloccati
+    if(outProcQ(&Locked_disk, proc) != NULL){
+        soft_blocked_count--;            
+    }else if(outProcQ(&Locked_flash, proc) != NULL){
+        soft_blocked_count--;
+    }else if(outProcQ(&Locked_terminal_in, proc) != NULL){
+        soft_blocked_count--;
+    }else if(outProcQ(&Locked_terminal_out, proc) != NULL){
+        soft_blocked_count--;
+    }else if(outProcQ(&Locked_ethernet, proc) != NULL){
+        soft_blocked_count--;
+    }else if(outProcQ(&Locked_printer, proc) != NULL){
+        soft_blocked_count--;
+    }else if(outProcQ(&Locked_Message, proc) != NULL){
+        soft_blocked_count--;
+    }else if(outProcQ(&Locked_pseudo_clock, proc) != NULL){
+        soft_blocked_count--;
+    }
+    
+    freePcb(proc);
+}*/
 
 
 void ssi_clockwait(pcb_t *sender){
@@ -111,9 +122,9 @@ unsigned int SSIRequest(pcb_t* sender, ssi_payload_t *payload){
         case TERMPROCESS:
             //terminates the sender process if arg is NULL, otherwise terminates arg
             if(payload->arg == NULL){
-                ssi_terminate_process(sender);
+                ssi_terminate_process(sender, 0);
             }else{
-                ssi_terminate_process(payload->arg);
+                ssi_terminate_process(payload->arg, 0);
             }
             break;
 
@@ -138,7 +149,7 @@ unsigned int SSIRequest(pcb_t* sender, ssi_payload_t *payload){
             break;
 
         default:
-            ssi_terminate_process(sender);
+            ssi_terminate_process(sender, 0);
             ret = MSGNOGOOD;
             break;
     }
