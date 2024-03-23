@@ -19,7 +19,7 @@
 
 4. then run <i>umps3</i>  with the following command amd create a new machine with the path of the folder of PandOS:
     ```sh
-    ups3
+    umps3
     ```
 
 5. Use the command palette of <i>umps3</i> to run.
