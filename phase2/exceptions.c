@@ -56,7 +56,6 @@ static void syscallExceptionHandler(state_t* exception_state){
   }
   else {
     if(exception_state->reg_a0 == SENDMESSAGE) {
-      klog_print("s");
       int nogood;
       int ready;
       int not_exists;
@@ -83,7 +82,6 @@ static void syscallExceptionHandler(state_t* exception_state){
     }
     else if(exception_state->reg_a0 == RECEIVEMESSAGE) {
       //receive 
-      klog_print("r");
       struct list_head *msg_inbox = &(current_process->msg_inbox);
       int isEmpty = list_empty(msg_inbox);
       unsigned int from = exception_state->reg_a1; //da chi voglio ricevere
@@ -122,6 +120,8 @@ void exceptionHandler() {
 	state_t *exception_state = (state_t *)BIOSDATAPAGE;
 	int cause = getCAUSE();
 
+  //klog_print_dec((cause & GETEXECCODE) >> CAUSESHIFT);
+
   switch((cause & GETEXECCODE) >> CAUSESHIFT){
 		case IOINTERRUPTS:
 			interruptHandler(cause, exception_state);
@@ -141,7 +141,7 @@ void exceptionHandler() {
 			//Program traps --> passo controllo al rispettivo gestore
       passUpOrDie(GENERALEXCEPT, exception_state);
 			break;
-		default: //4-7, 9-12
+		default: 
       PANIC();
  }
 }

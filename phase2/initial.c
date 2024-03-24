@@ -12,7 +12,6 @@ LIST_HEAD(Locked_terminal_in);
 LIST_HEAD(Locked_terminal_out);
 LIST_HEAD(Locked_ethernet);
 LIST_HEAD(Locked_printer);
-LIST_HEAD(Locked_Message);
 LIST_HEAD(Locked_pseudo_clock);
 
 
@@ -37,7 +36,7 @@ void initPassupVector(){
 void initFirstProcesses(){
     //  6. Instantiate a first process, place its PCB in the Ready Queue, and increment Process Count.
     ssi_pcb = allocPcb();
-    ssi_pcb->p_pid = 0;
+    ssi_pcb->p_pid = 1;
     ssi_pcb->p_supportStruct = NULL;
 
     // IEc: The “current” global interrupt enable bit. When 0, regardless
@@ -59,7 +58,7 @@ void initFirstProcesses(){
 
     //  7.  Instantiate a second process, place its PCB in the Ready Queue, and increment Process Count
     pcb_t *toTest = allocPcb();
-    toTest->p_pid = 1;
+    toTest->p_pid = 2;
     toTest->p_supportStruct = NULL;
 
 
@@ -93,7 +92,7 @@ int main(int argc, char const *argv[])
     //  processes that in are the "blocked" state due to an I/O or timer request.
     soft_blocked_count = 0;
 
-    pid_counter = 2;    //pid 0 is SSI, pid 1 is test
+    pid_counter = 3;    //pid 1 is SSI, pid 2 is test
 
     //  Tail pointer to a queue of PCBs that are in the “ready” state
     mkEmptyProcQ(&Ready_Queue);
@@ -105,7 +104,7 @@ int main(int argc, char const *argv[])
     mkEmptyProcQ(&Locked_terminal_out);
     mkEmptyProcQ(&Locked_ethernet);
     mkEmptyProcQ(&Locked_printer);
-    mkEmptyProcQ(&Locked_Message);
+    mkEmptyProcQ(&Locked_pseudo_clock);
 
 
     //  5. Load the system-wide Interval Timer with 100 milliseconds

@@ -10,6 +10,7 @@ void initMsgs() {
     for(int i=0;i<MAXMESSAGES;i++){
         //Scorro msgTable e aggiungo ogni elemento in coda a msgFree
         list_add_tail(&(msgTable[i].m_list), &msgFree_h);
+        msgTable[i].m_payload = 0;
     }
 }
 
@@ -34,10 +35,11 @@ msg_t *allocMsg() {
         tmp->m_payload = 0;
         INIT_LIST_HEAD(&(tmp->m_list));
 
+        /*
         //scorro la msgTable e metto tutti i payload = 0
         for(int i=0;i<MAXMESSAGES;i++){
             msgTable[i].m_payload = 0;
-        }
+        }*/
         return tmp;
     }
 }

@@ -24,11 +24,7 @@ void scheduler(){
 
             */
             current_process = NULL;
-            unsigned int current_status = getSTATUS();
-            // bit or con 0x0000FF00 accende i bit dell'interrupt mask --> interrupt attivi (bit da 15 a 8)
-            // bit and con 0xF7FFFFFF spegne il bit di attivazione del PLT (bit 27)
-            current_status = (current_status | 0x0000FF00 ) & 0xF7FFFFFF;
-            setSTATUS(current_status);
+            setSTATUS(ALLOFF | IECON | IMON);
             WAIT();
         }else if(process_count > 0 && soft_blocked_count == 0){
             PANIC();
