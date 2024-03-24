@@ -58,14 +58,17 @@ pcb_t *allocPcb() {
 
         //process ID
         p->p_pid=0;
+        
+        //campi aggiuntivi creati da noi
+        //p->service = -1;
 
-        p->service = -1;
-
-        p->device = -1;
+        //p->device = -1;
 
         p->dev_no = -1;
 
-        p->term = -1;
+        //p->term = -1;
+
+        p->from = 0;
 
         return p;
     }

@@ -1,6 +1,7 @@
 #include "include/interrupts.h"
 
 static pcb_t *unblockProcessByDeviceNumber(int device_number, struct list_head *list) {
+  //tramite il campo del device number del pcb, lo rimuovo dalla lista
   pcb_t* tmp;
   list_for_each_entry(tmp, list, p_list) {
     if(tmp->dev_no == device_number)
@@ -40,19 +41,14 @@ static void deviceInterruptHandler(int line, int cause, state_t *exception_state
     //gestione interrupt terminale --> 2 sub-devices
     if(device_register->transm_status == 5) { 
       //input terminale
-      device_status = device_register->transm_status;
-      device_register->transm_command = ACK;
+      device_status = device_register->recv_status;
+      device_register->recv_command = ACK;
       unblocked_pcb = unblockProcessByDeviceNumber(device_number, &Locked_terminal_in);
     }
     else {
-      /*klog_print("\ninterrupt output\n");
-      klog_print_dec(line);
-      klog_print("\n");
-      klog_print_dec(device_number);
-      klog_print("\n");*/
       //output terminale
-      device_status = device_register->recv_status;
-      device_register->recv_command = ACK;
+      device_status = device_register->transm_status;
+      device_register->transm_command = ACK;
       unblocked_pcb = unblockProcessByDeviceNumber(device_number, &Locked_terminal_out);
     }
   } 
@@ -81,28 +77,22 @@ static void deviceInterruptHandler(int line, int cause, state_t *exception_state
   }
 
   if(unblocked_pcb) {
-    msg_t *msg = allocMsg();
-    msg->m_sender = ssi_pcb;
-    msg->m_payload = (memaddr)(&device_status);
-    insertMessage(&(unblocked_pcb->msg_inbox), msg);
-    insertProcQ(&Ready_Queue, unblocked_pcb);
+    send(ssi_pcb, unblocked_pcb, (memaddr)(device_status));
+    insertProcQ(&Ready_Queue, unblocked_pcb); 
     soft_blocked_count--;
   }
 
-  if(current_process) {
-    LDST(exception_state);
-  }
-  else {
+  if(current_process) 
+    LDST(exception_state);  
+  else 
     scheduler();
-  }
 }
 
 static void localTimerInterruptHandler(state_t *exception_state) {
-  setPLT(ACK);
+  setPLT(-1);
   updateCPUtime(current_process);
   saveState(&(current_process->p_s), exception_state);
   insertProcQ(&Ready_Queue, current_process);
-  soft_blocked_count--;
   scheduler();
 }
 
@@ -110,19 +100,17 @@ static void pseudoClockInterruptHandler(state_t* exception_state) {
   setIntervalTimer(PSECOND);
   pcb_t *unblocked_pcb = removeProcQ(&Locked_pseudo_clock);
   while (unblocked_pcb) {
-    soft_blocked_count--;
-    msg_t *msg = allocMsg();
-    msg->m_sender = ssi_pcb;
-    msg->m_payload = (memaddr)NULL;
-    insertMessage(&(unblocked_pcb->msg_inbox), msg);
+    //sblocco tutti i processi in attesa dello pseudoclock
+    send(ssi_pcb, unblocked_pcb, (memaddr)(NULL));
     insertProcQ(&Ready_Queue, unblocked_pcb);
+    soft_blocked_count--;
     unblocked_pcb = removeProcQ(&Locked_pseudo_clock);
   }
   LDST(exception_state);
 }
 
 void interruptHandler(int cause, state_t *exception_state) {
-	//riconoscimento interrupt --> in ordine di priorità
+	//riconoscimento interrupt in ordine di priorità
   if (CAUSE_IP_GET(cause, IL_CPUTIMER))
 		localTimerInterruptHandler(exception_state);
 	else if (CAUSE_IP_GET(cause, IL_TIMER))
