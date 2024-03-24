@@ -18,5 +18,6 @@
 void exceptionHandler();
 void uTLB_RefillHandler();
 void saveState(state_t* new_state, state_t* old_state);
+int send(pcb_t *sender, pcb_t *dest, unsigned int payload); 
 
 #endif

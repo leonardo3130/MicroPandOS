@@ -1,5 +1,60 @@
 #include "include/ssi.h"
 
+static void blockProcessOnDevice(pcb_t* p, int line, int term){
+  switch (line) {
+    case IL_DISK:
+      insertProcQ(&Locked_disk, p);
+      break;
+    case IL_FLASH:
+      insertProcQ(&Locked_flash, p);
+      break;
+    case IL_ETHERNET:
+      insertProcQ(&Locked_ethernet, p);
+      break;
+    case IL_PRINTER:
+      insertProcQ(&Locked_printer, p);
+      break;
+    case IL_TERMINAL: 
+      if(term > 0)
+        insertProcQ(&Locked_terminal_out, p);
+      else 
+        insertProcQ(&Locked_terminal_in, p);
+      break;
+  }
+}
+//funzione che dato l'indirizzo passato alla richiesta DOIO 
+//determina la linea (campo device), il numero del device (campo dev_no)
+//in caso di terminale setta il campo term a 0 per recv, a 1 per transm
+static void addrToDevice(memaddr command_address, pcb_t *p){
+    for (int i = 3; i < 8; i++)
+    {
+        for (int j = 0; j < 8; j++)
+        {
+            if(i == IL_TERMINAL) {
+                termreg_t *base_address = (termreg_t *)DEV_REG_ADDR(i, j);
+                if((memaddr)&(base_address->recv_command) == command_address){
+                    p->dev_no = j;
+                    blockProcessOnDevice(p, i, 0);
+                    break;
+                }
+                else if((memaddr)&(base_address->transm_command) == command_address){
+                    p->dev_no = j;
+                    blockProcessOnDevice(p, i, 1);
+                    break;
+                }
+            }
+            else {
+                dtpreg_t *base_address = (dtpreg_t *)DEV_REG_ADDR(i, j);
+                if((memaddr)&(base_address->command) == command_address){
+                    p->dev_no = j;
+                    blockProcessOnDevice(p, i, -1);
+                    break;
+                }
+            }
+        }
+    }
+}
+
 void SSILoop(){
     while(TRUE){
         unsigned int payload;
@@ -82,6 +137,7 @@ void ssi_terminate_process(pcb_t* proc){
 
 
 void ssi_clockwait(pcb_t *sender){
+    soft_blocked_count++;
     insertProcQ(&Locked_pseudo_clock, sender);
 }
 
@@ -95,6 +151,9 @@ int ssi_getprocessid(pcb_t *sender, void *arg){
 }
 
 void ssi_doio(pcb_t *sender, ssi_do_io_t *doio){
+    soft_blocked_count++;
+    addrToDevice((memaddr)doio->commandAddr, sender);
+    klog_print("\nq\n");
     *(doio->commandAddr) = doio->commandValue;
 }
 

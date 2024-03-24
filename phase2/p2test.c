@@ -104,7 +104,7 @@ void print()
         devregtr *command = base + 3;
         devregtr status;
         
-        klog_print("\nin print");
+        //klog_print("\nin print");
 
         while (*s != EOS)
         {
@@ -126,18 +126,15 @@ void print()
             s++;
         }
         
-        klog_print("\nout print loop");
+        //klog_print("\nout print loop");
         SYSCALL(SENDMESSAGE, (unsigned int)sender, 0, 0);
     }
 }
 
 void print_term0(char *s)
 {
-    klog_print("\ni want print1");
     SYSCALL(SENDMESSAGE, (unsigned int)print_pcb, (unsigned int)s, 0);
-    klog_print("\ni want print2");
     SYSCALL(RECEIVEMESSAGE, (unsigned int)print_pcb, 0, 0);
-    klog_print("\ni want print3");
 }
 
 void clockwait_process()
@@ -183,16 +180,15 @@ pcb_t *create_process(state_t *s)
 /*********************************************************************/
 void test()
 {
-    //klog_print("Started test");
     test_pcb = current_process;
 
     // test send and receive
     SYSCALL(SENDMESSAGE, (unsigned int)test_pcb, 0, 0);
     pcb_PTR sender = (pcb_PTR)SYSCALL(RECEIVEMESSAGE, ANYMESSAGE, 0, 0);
-
+    
     if (sender != test_pcb)
         PANIC();
-
+    
     // init print process
     STST(&printstate);
     printstate.reg_sp = printstate.reg_sp - QPAGE;

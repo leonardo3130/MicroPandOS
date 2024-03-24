@@ -62,13 +62,14 @@ typedef struct pcb_t
     /* process id */
     int p_pid;
 
-    int service;
+    //campi aggiuntivi creati da noi
+    //int service;
 
-    int device;
+    //int device;
     
     int dev_no;
 
-    int term;
+    //int term;
 
     unsigned int from;
 } pcb_t, *pcb_PTR;
