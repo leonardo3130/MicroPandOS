@@ -83,58 +83,50 @@ unsigned int ssi_new_process(ssi_create_process_t *p_info, pcb_t* parent){
     return (unsigned int)child;
 }
 
-//recursive function which terminates proc and all its progeny
-// void ssi_terminate_process(pcb_t* proc){
-//     if(emptyChild(proc)){
-//         outChild(proc);
-//         freePcb(proc);
-//     }
-//     else{
-//         struct list_head *iter;
-//         list_for_each(iter, &proc->p_child){
-//             ssi_terminate_process(container_of(iter, pcb_t, p_child));
-//         }
-//         ssi_terminate_process(proc);
-//     }
-// }
-
-
-
+// funzione che termina un processo e tutti i suoi figli
 void ssi_terminate_process(pcb_t* proc){
-    if(emptyChild(proc)){
-        outChild(proc);
+    if(!(proc == NULL)){
+        // ciclo in cui iterativamente si scorre la lista dei figli e ricorsivamente si guardano i fratelli
+        while (!emptyChild(proc)){    
+            ssi_terminate_process(removeChild(proc));
+        }
+    }  
 
-        // prima di fare la free controllo che il processo in questione non sia bloccato in nessuna lista dei processi bloccati
-        // e in caso verrà levato e verrà decrementato il contatore dei processi bloccati
-        if(outProcQ(&Locked_disk, proc) != NULL){
-            soft_blocked_count--;            
-        }else if(outProcQ(&Locked_flash, proc) != NULL){
-            soft_blocked_count--;
-        }else if(outProcQ(&Locked_terminal_in, proc) != NULL){
-            soft_blocked_count--;
-        }else if(outProcQ(&Locked_terminal_out, proc) != NULL){
-            soft_blocked_count--;
-        }else if(outProcQ(&Locked_ethernet, proc) != NULL){
-            soft_blocked_count--;
-        }else if(outProcQ(&Locked_printer, proc) != NULL){
-            soft_blocked_count--;
-        }else if(outProcQ(&Locked_Message, proc) != NULL){
-            soft_blocked_count--;
-        }else if(outProcQ(&Locked_pseudo_clock, proc) != NULL){
-            soft_blocked_count--;
-        }
-        
-        freePcb(proc);
-    }
-    else{
-        struct list_head *iter;
-        list_for_each(iter, &proc->p_child){
-            ssi_terminate_process(container_of(iter, pcb_t, p_child));
-        }
-        ssi_terminate_process(proc);
-    }
+    --process_count;
+
+    // vedo se il processo si trova nella Ready, nel caso non è li significa che è 
+    // bloccato e dunque decremento il contatore dei processi bloccati
+    if(!outProcQ(&Ready_Queue, proc))
+        --soft_blocked_count;
+    
+    outChild(proc);
+    freePcb(proc);
 }
 
+/*void term_p(pcb_t *proc){
+    outChild(proc);
+    // prima di fare la free controllo che il processo in questione non sia bloccato in nessuna lista dei processi bloccati
+    // e in caso verrà levato e verrà decrementato il contatore dei processi bloccati
+    if(outProcQ(&Locked_disk, proc) != NULL){
+        soft_blocked_count--;            
+    }else if(outProcQ(&Locked_flash, proc) != NULL){
+        soft_blocked_count--;
+    }else if(outProcQ(&Locked_terminal_in, proc) != NULL){
+        soft_blocked_count--;
+    }else if(outProcQ(&Locked_terminal_out, proc) != NULL){
+        soft_blocked_count--;
+    }else if(outProcQ(&Locked_ethernet, proc) != NULL){
+        soft_blocked_count--;
+    }else if(outProcQ(&Locked_printer, proc) != NULL){
+        soft_blocked_count--;
+    }else if(outProcQ(&Locked_Message, proc) != NULL){
+        soft_blocked_count--;
+    }else if(outProcQ(&Locked_pseudo_clock, proc) != NULL){
+        soft_blocked_count--;
+    }
+    
+    freePcb(proc);
+}*/
 
 void ssi_clockwait(pcb_t *sender){
     soft_blocked_count++;
@@ -170,9 +162,9 @@ unsigned int SSIRequest(pcb_t* sender, ssi_payload_t *payload){
         case TERMPROCESS:
             //terminates the sender process if arg is NULL, otherwise terminates arg
             if(payload->arg == NULL){
-                ssi_terminate_process(sender);
+                ssi_terminate_process(sender, 0);
             }else{
-                ssi_terminate_process(payload->arg);
+                ssi_terminate_process(payload->arg, 0);
             }
             break;
 
@@ -197,7 +189,7 @@ unsigned int SSIRequest(pcb_t* sender, ssi_payload_t *payload){
             break;
 
         default:
-            ssi_terminate_process(sender);
+            ssi_terminate_process(sender, 0);
             ret = MSGNOGOOD;
             break;
     }
