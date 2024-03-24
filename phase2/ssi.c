@@ -20,6 +20,8 @@ static void blockProcessOnDevice(pcb_t* p, int line, int term){
       else 
         insertProcQ(&Locked_terminal_in, p);
       break;
+    default:
+        break;
   }
 }
 //funzione che dato l'indirizzo passato alla richiesta DOIO 
@@ -96,8 +98,23 @@ void ssi_terminate_process(pcb_t* proc){
 
     // vedo se il processo si trova nella Ready, nel caso non è li significa che è 
     // bloccato e dunque decremento il contatore dei processi bloccati
-    if(!outProcQ(&Ready_Queue, proc))
-        --soft_blocked_count;
+    //if(!outProcQ(&Ready_Queue, proc))
+    //    --soft_blocked_count;
+    if(outProcQ(&Locked_disk, proc) != NULL){
+        soft_blocked_count--;            
+    }else if(outProcQ(&Locked_flash, proc) != NULL){
+        soft_blocked_count--;
+    }else if(outProcQ(&Locked_terminal_in, proc) != NULL){
+        soft_blocked_count--;
+    }else if(outProcQ(&Locked_terminal_out, proc) != NULL){
+        soft_blocked_count--;
+    }else if(outProcQ(&Locked_ethernet, proc) != NULL){
+        soft_blocked_count--;
+    }else if(outProcQ(&Locked_printer, proc) != NULL){
+        soft_blocked_count--;
+    }else if(outProcQ(&Locked_pseudo_clock, proc) != NULL){
+        soft_blocked_count--;
+    }
     
     outChild(proc);
     freePcb(proc);
@@ -134,7 +151,7 @@ void ssi_clockwait(pcb_t *sender){
 }
 
 int ssi_getprocessid(pcb_t *sender, void *arg){
-    if((int)arg == 0){
+    if(arg == NULL){
         return sender->p_pid;
     }
     else{
@@ -145,7 +162,6 @@ int ssi_getprocessid(pcb_t *sender, void *arg){
 void ssi_doio(pcb_t *sender, ssi_do_io_t *doio){
     soft_blocked_count++;
     addrToDevice((memaddr)doio->commandAddr, sender);
-    klog_print("\nq\n");
     *(doio->commandAddr) = doio->commandValue;
 }
 
@@ -162,9 +178,9 @@ unsigned int SSIRequest(pcb_t* sender, ssi_payload_t *payload){
         case TERMPROCESS:
             //terminates the sender process if arg is NULL, otherwise terminates arg
             if(payload->arg == NULL){
-                ssi_terminate_process(sender, 0);
+                ssi_terminate_process(sender);
             }else{
-                ssi_terminate_process(payload->arg, 0);
+                ssi_terminate_process(payload->arg);
             }
             break;
 
@@ -189,7 +205,7 @@ unsigned int SSIRequest(pcb_t* sender, ssi_payload_t *payload){
             break;
 
         default:
-            ssi_terminate_process(sender, 0);
+            ssi_terminate_process(sender);
             ret = MSGNOGOOD;
             break;
     }

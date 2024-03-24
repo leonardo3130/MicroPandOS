@@ -82,8 +82,11 @@ static void deviceInterruptHandler(int line, int cause, state_t *exception_state
     soft_blocked_count--;
   }
 
+  //klog_print_hex(unblocked_pcb);
+  //klog_print("\n");
+
   if(current_process) 
-    LDST(exception_state);  
+    LDST(exception_state);
   else 
     scheduler();
 }
@@ -97,9 +100,16 @@ static void localTimerInterruptHandler(state_t *exception_state) {
 }
 
 static void pseudoClockInterruptHandler(state_t* exception_state) {
+  //klog_print("p\n");
+  //klog_print_hex((memaddr)((void *)0));
+  //klog_print("p\n");
+
   setIntervalTimer(PSECOND);
   pcb_t *unblocked_pcb = removeProcQ(&Locked_pseudo_clock);
-  while (unblocked_pcb) {
+  //klog_print_hex((memaddr)unblocked_pcb);
+  //klog_print("\n");
+  //klog_print_hex((memaddr)NULL);
+  while (unblocked_pcb != NULL) {
     //sblocco tutti i processi in attesa dello pseudoclock
     send(ssi_pcb, unblocked_pcb, (memaddr)(NULL));
     insertProcQ(&Ready_Queue, unblocked_pcb);

@@ -92,6 +92,8 @@ ssi_payload_t p4_payload = {
     .arg = &p4_ssi_create_process,
 };
 
+void bp() {}
+
 /* a procedure to print on terminal 0 */
 void print()
 {
@@ -119,7 +121,7 @@ void print()
             };
             SYSCALL(SENDMESSAGE, (unsigned int)ssi_pcb, (unsigned int)(&payload), 0);
             SYSCALL(RECEIVEMESSAGE, (unsigned int)ssi_pcb, (unsigned int)(&status), 0);
-
+            
             if ((status & TERMSTATMASK) != RECVD)
                 PANIC();
 
@@ -459,6 +461,9 @@ void p2()
     };
     SYSCALL(SENDMESSAGE, (unsigned int)ssi_pcb, (unsigned int)(&get_process_payload), 0);
     SYSCALL(RECEIVEMESSAGE, (unsigned int)ssi_pcb, (unsigned int)(&pid), 0);
+    klog_print_dec(pid);
+    klog_print("\n");
+    klog_print_dec(p2pid);
     if (pid != p2pid)
         print_term0("Inconsistent process id for p2!\n");
     else
