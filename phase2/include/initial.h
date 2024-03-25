@@ -24,7 +24,6 @@ extern struct list_head Locked_terminal_in;
 extern struct list_head Locked_terminal_out;
 extern struct list_head Locked_ethernet;
 extern struct list_head Locked_printer;
-extern struct list_head Locked_Message;
 extern struct list_head Locked_pseudo_clock;
 
 

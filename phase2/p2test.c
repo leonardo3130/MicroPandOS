@@ -106,7 +106,6 @@ void print()
         devregtr *command = base + 3;
         devregtr status;
         
-        //klog_print("\nin print");
 
         while (*s != EOS)
         {
@@ -128,7 +127,6 @@ void print()
             s++;
         }
         
-        //klog_print("\nout print loop");
         SYSCALL(SENDMESSAGE, (unsigned int)sender, 0, 0);
     }
 }
@@ -183,7 +181,7 @@ pcb_t *create_process(state_t *s)
 void test()
 {
     test_pcb = current_process;
-
+    
     // test send and receive
     SYSCALL(SENDMESSAGE, (unsigned int)test_pcb, 0, 0);
     pcb_PTR sender = (pcb_PTR)SYSCALL(RECEIVEMESSAGE, ANYMESSAGE, 0, 0);
@@ -461,9 +459,6 @@ void p2()
     };
     SYSCALL(SENDMESSAGE, (unsigned int)ssi_pcb, (unsigned int)(&get_process_payload), 0);
     SYSCALL(RECEIVEMESSAGE, (unsigned int)ssi_pcb, (unsigned int)(&pid), 0);
-    klog_print_dec(pid);
-    klog_print("\n");
-    klog_print_dec(p2pid);
     if (pid != p2pid)
         print_term0("Inconsistent process id for p2!\n");
     else
