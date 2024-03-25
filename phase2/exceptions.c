@@ -81,7 +81,7 @@ static void syscallExceptionHandler(state_t* exception_state){
       LDST(exception_state);
     }
     else if(exception_state->reg_a0 == RECEIVEMESSAGE) {
-      //receive 
+      //receive
       struct list_head *msg_inbox = &(current_process->msg_inbox);
       int isEmpty = list_empty(msg_inbox);
       unsigned int from = exception_state->reg_a1; //da chi voglio ricevere
@@ -102,7 +102,7 @@ static void syscallExceptionHandler(state_t* exception_state){
         //receive non bloccante
         exception_state->reg_v0 = (memaddr)(msg->m_sender);
         if(msg->m_payload != (unsigned int)NULL) {
-          unsigned int* a2 = (unsigned int*)exception_state->reg_a2;
+          unsigned int *a2 = (unsigned int *)exception_state->reg_a2;
           *a2 = msg->m_payload;
         }
         freeMsg(msg);
