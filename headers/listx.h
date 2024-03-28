@@ -23,7 +23,7 @@ typedef unsigned int size_tt;
     member: nome della variabile di tipo list_head contenuta come campo nella
         struttura
 
-    return: puntatore alla struttura dati che contiene il list_head puntato da
+    return: puntatoreconta alla struttura dati che contiene il list_head puntato da
         ptr
 */
 #define container_of(ptr, type, member)                                                                                \

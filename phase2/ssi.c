@@ -16,9 +16,9 @@ static void blockProcessOnDevice(pcb_t* p, int line, int term){
       break;
     case IL_TERMINAL: 
       if(term > 0)
-        insertProcQ(&Locked_terminal_out, p);
+        insertProcQ(&Locked_terminal_transm, p);
       else 
-        insertProcQ(&Locked_terminal_in, p);
+        insertProcQ(&Locked_terminal_recv, p);
       break;
     default:
         break;
@@ -62,12 +62,17 @@ void SSILoop(){
         unsigned int payload;
         unsigned int sender = SYSCALL(RECEIVEMESSAGE, ANYMESSAGE, (unsigned int)(&payload), 0);
 
+        //if(((ssi_payload_t *)payload)->service_code == CREATEPROCESS)
+        //  klog_print("\n1");
+
         unsigned int ret = SSIRequest((pcb_t *)sender, (ssi_payload_t *)payload);
         if( ((ssi_payload_t *)payload)->service_code != CLOCKWAIT &&
             ((ssi_payload_t *)payload)->service_code != DOIO &&
             ((ssi_payload_t *)payload)->service_code != TERMPROCESS ){
                 SYSCALL(SENDMESSAGE, (unsigned int)sender, ret, 0);
         }
+        //if(((ssi_payload_t *)payload)->service_code == CREATEPROCESS)
+        //  klog_print("\n3");
     }
 }
 
@@ -82,6 +87,8 @@ unsigned int ssi_new_process(ssi_create_process_t *p_info, pcb_t* parent){
     child->p_time = 0;
 
     process_count++;
+    //klog_print_hex((memaddr)child);
+    //klog_print("\n");
     return (unsigned int)child;
 }
 
@@ -104,9 +111,9 @@ void ssi_terminate_process(pcb_t* proc){
         soft_blocked_count--;            
     }else if(outProcQ(&Locked_flash, proc) != NULL){
         soft_blocked_count--;
-    }else if(outProcQ(&Locked_terminal_in, proc) != NULL){
+    }else if(outProcQ(&Locked_terminal_recv, proc) != NULL){
         soft_blocked_count--;
-    }else if(outProcQ(&Locked_terminal_out, proc) != NULL){
+    }else if(outProcQ(&Locked_terminal_transm, proc) != NULL){
         soft_blocked_count--;
     }else if(outProcQ(&Locked_ethernet, proc) != NULL){
         soft_blocked_count--;
@@ -119,31 +126,6 @@ void ssi_terminate_process(pcb_t* proc){
     outChild(proc);
     freePcb(proc);
 }
-
-/*void term_p(pcb_t *proc){
-    outChild(proc);
-    // prima di fare la free controllo che il processo in questione non sia bloccato in nessuna lista dei processi bloccati
-    // e in caso verrà levato e verrà decrementato il contatore dei processi bloccati
-    if(outProcQ(&Locked_disk, proc) != NULL){
-        soft_blocked_count--;            
-    }else if(outProcQ(&Locked_flash, proc) != NULL){
-        soft_blocked_count--;
-    }else if(outProcQ(&Locked_terminal_in, proc) != NULL){
-        soft_blocked_count--;
-    }else if(outProcQ(&Locked_terminal_out, proc) != NULL){
-        soft_blocked_count--;
-    }else if(outProcQ(&Locked_ethernet, proc) != NULL){
-        soft_blocked_count--;
-    }else if(outProcQ(&Locked_printer, proc) != NULL){
-        soft_blocked_count--;
-    }else if(outProcQ(&Locked_Message, proc) != NULL){
-        soft_blocked_count--;
-    }else if(outProcQ(&Locked_pseudo_clock, proc) != NULL){
-        soft_blocked_count--;
-    }
-    
-    freePcb(proc);
-}*/
 
 void ssi_clockwait(pcb_t *sender){
     soft_blocked_count++;

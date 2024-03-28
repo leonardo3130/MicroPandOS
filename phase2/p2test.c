@@ -92,7 +92,7 @@ ssi_payload_t p4_payload = {
     .arg = &p4_ssi_create_process,
 };
 
-void bp() {}
+// void bp() {}
 
 /* a procedure to print on terminal 0 */
 void print()
@@ -324,8 +324,8 @@ void test()
     print_term0("p1 knows p3 ended\n");
 
     /* create two process without waiting the first to end */
-    create_process(&hp_p1state);
-    create_process(&hp_p2state);
+    create_process(&hp_p1state); //6
+    create_process(&hp_p2state); //7
 
     /* create p4 */
     SYSCALL(SENDMESSAGE, (unsigned int)ssi_pcb, (unsigned int)(&p4_payload), 0);

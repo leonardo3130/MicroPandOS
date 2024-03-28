@@ -1,0 +1,10 @@
+Don't Panic.
+p2 started correctly
+p2 get pid successfully
+p2 is OK
+p1 knows p2 ended
+p3 started correctly
+p3 - CLOCKWAIT OK
+p3 - CPU time correctly maintained
+p1 knows p3 ended
+h

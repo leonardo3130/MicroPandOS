@@ -62,41 +62,47 @@ void pushMessage(struct list_head *head, msg_t *m) {
     list_add(&(m->m_list), head);
 }
 
+static int list_size(struct list_head* list) {
+  msg_t *pos;
+  int i = 0;
+  list_for_each_entry(pos, list, m_list) {
+    i++;
+  }
+  return i; 
+}
+
 msg_t *popMessage(struct list_head *head, pcb_t *p_ptr) { 
 
     //variabile ausiliaria usata per ritornare l'elemento eliminato dalla lista
     msg_t *tmp;
-
-    if(!p_ptr) {
-        /*klog_print("\ntmp2");
-        klog_print("\nthe truth\n");
-        klog_print_hex((memaddr)tmp->m_payload);
-        klog_print("\nthe truth sender\n");
-        klog_print_hex((memaddr)tmp->m_sender);*/
-		    tmp = container_of(head->next, msg_t, m_list);
-		    list_del(head->next);
-        return tmp;
-	  }
-    
-	  if(list_empty(head))
+	if(list_empty(head))
         return NULL;
 
-    int found = FALSE;
+    if(!p_ptr) {
+		tmp = container_of(head->next, msg_t, m_list);
+		list_del(head->next);
+        return tmp;
+	}
+
+    /*klog_print("\n");
+    klog_print_dec(list_size(head));
+    klog_print("!");
+    klog_print_dec(p_ptr->p_pid);
+    klog_print("|");*/
     struct list_head *pos;
     list_for_each(pos, head){
-        if(container_of(pos, msg_t, m_list)->m_sender == p_ptr && !found){
-            found = TRUE;
-            tmp = container_of(pos, msg_t, m_list);
+        tmp = container_of(pos, msg_t, m_list);
+        //klog_print_dec(tmp->m_sender->p_pid);
+
+        if(tmp->m_sender->p_pid == p_ptr->p_pid){
+            list_del(&(tmp->m_list));
+            return tmp;
         }
     }
 
-    if(found == FALSE)
-        return NULL;
+    //klog_print("c");
 
-    else { 
-        list_del(&(tmp->m_list));
-        return tmp;
-    }
+    return NULL;
 }
 msg_t *headMessage(struct list_head *head) {
     if(head == NULL)

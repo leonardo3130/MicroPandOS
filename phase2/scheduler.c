@@ -16,13 +16,6 @@ void scheduler(){
     }
     else{
         if(process_count > 0 && soft_blocked_count > 0 ){
-            /* DA FARE
-
-                Important: Before executing the WAIT instruction, the Scheduler must first set the Status register
-                to enable interrupts and either disable the PLT (also through the Status register), or load it with
-                a very large value. The first interrupt that occurs after entering a Wait State should not be for the PLT.
-
-            */
             current_process = NULL;
             setSTATUS(ALLOFF | IECON | IMON);
             WAIT();

@@ -39,17 +39,18 @@ static void deviceInterruptHandler(int line, int cause, state_t *exception_state
   if(line == IL_TERMINAL){
     termreg_t *device_register = (termreg_t *)DEV_REG_ADDR(line, device_number);
     //gestione interrupt terminale --> 2 sub-devices
-    if(device_register->transm_status == 5) { 
-      //input terminale
-      device_status = device_register->recv_status;
-      device_register->recv_command = ACK;
-      unblocked_pcb = unblockProcessByDeviceNumber(device_number, &Locked_terminal_in);
-    }
-    else {
+    
+    if(((device_register->transm_status) & 0x000000FF) == 5){
       //output terminale
       device_status = device_register->transm_status;
       device_register->transm_command = ACK;
-      unblocked_pcb = unblockProcessByDeviceNumber(device_number, &Locked_terminal_out);
+      unblocked_pcb = unblockProcessByDeviceNumber(device_number, &Locked_terminal_transm);
+    }
+    else{
+      //input terminale
+      device_status = device_register->recv_status;
+      device_register->recv_command = ACK;
+      unblocked_pcb = unblockProcessByDeviceNumber(device_number, &Locked_terminal_recv);
     }
   } 
   else{
@@ -75,9 +76,23 @@ static void deviceInterruptHandler(int line, int cause, state_t *exception_state
         break;
     }
   }
-
   if(unblocked_pcb) {
+    unblocked_pcb->p_s.reg_v0 = device_status; 
+    //klog_print_dec(list_size(&(unblocked_pcb->msg_inbox)));
     send(ssi_pcb, unblocked_pcb, (memaddr)(device_status));
+    //klog_print(" ");
+    // int size = list_size(&(unblocked_pcb->msg_inbox));
+    //klog_print_dec(list_size(&(unblocked_pcb->msg_inbox)));
+    //klog_print("|");
+    //if(size == 2) {
+      /*msg_t *pos;
+      list_for_each_entry(pos, &(unblocked_pcb->msg_inbox), m_list) {
+        klog_print_hex((memaddr)(pos->m_sender));
+        klog_print(" ");
+      }*/
+      //klog_print("\nt\n");
+      //klog_print_hex((memaddr)unblocked_pcb);
+    //}
     insertProcQ(&Ready_Queue, unblocked_pcb); 
     soft_blocked_count--;
   }
@@ -101,6 +116,7 @@ static void pseudoClockInterruptHandler(state_t* exception_state) {
   pcb_t *unblocked_pcb = removeProcQ(&Locked_pseudo_clock);
   while (unblocked_pcb != NULL) {
     //sblocco tutti i processi in attesa dello pseudoclock
+    klog_print_hex((memaddr)unblocked_pcb);
     send(ssi_pcb, unblocked_pcb, 0);
     insertProcQ(&Ready_Queue, unblocked_pcb);
     soft_blocked_count--;
@@ -166,3 +182,7 @@ devreg_t devreg[5][8];
 } devregarea_t;
 */
 
+
+
+
+//89790002 00390002

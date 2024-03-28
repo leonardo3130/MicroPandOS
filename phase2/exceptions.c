@@ -1,5 +1,7 @@
 #include "include/exceptions.h"
 
+void bp() {}
+
 //funzione per copia dello stato
 void saveState(state_t* dest, state_t* to_copy) {
   dest->entry_hi = to_copy->entry_hi;
@@ -60,7 +62,6 @@ static void syscallExceptionHandler(state_t* exception_state){
       int ready;
       int not_exists;
       pcb_t *dest = (pcb_t *)(exception_state->reg_a1);
-
       ready = findPCB(dest, &Ready_Queue);
       not_exists = findPCB(dest, &pcbFree_h);
 
@@ -76,23 +77,26 @@ static void syscallExceptionHandler(state_t* exception_state){
         insertProcQ(&Ready_Queue, dest);
         exception_state->reg_v0 = nogood;
       }
-
       exception_state->pc_epc += WORDLEN;
+
       LDST(exception_state);
     }
     else if(exception_state->reg_a0 == RECEIVEMESSAGE) {
       //receive
       struct list_head *msg_inbox = &(current_process->msg_inbox);
-      int isEmpty = list_empty(msg_inbox);
+      //int isEmpty = list_empty(msg_inbox);
       unsigned int from = exception_state->reg_a1; //da chi voglio ricevere
       msg_t *msg;
 
-      if(from == ANYMESSAGE && isEmpty == 0)
+      if(from == ANYMESSAGE) //&& isEmpty == 0)
         msg = popMessage(msg_inbox, NULL);
-      else if(isEmpty == 0)   
+      else { //if(isEmpty == 0)   
         msg = popMessage(msg_inbox, (pcb_t *)(from));
+        //klog_print("h");
+      }
       
-      if(isEmpty || msg == NULL) {  
+      //if(isEmpty || msg == NULL) { 
+      if(msg == NULL) { 
         //la receive è bloccante
         saveState(&(current_process->p_s), exception_state);
         updateCPUtime(current_process);
@@ -153,4 +157,4 @@ void uTLB_RefillHandler() {
   LDST((state_t*) 0x0FFFF000);
 }
 
-
+//20009488

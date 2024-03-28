@@ -8,8 +8,8 @@
 LIST_HEAD(Ready_Queue);
 LIST_HEAD(Locked_disk);
 LIST_HEAD(Locked_flash);
-LIST_HEAD(Locked_terminal_in);
-LIST_HEAD(Locked_terminal_out);
+LIST_HEAD(Locked_terminal_recv);
+LIST_HEAD(Locked_terminal_transm);
 LIST_HEAD(Locked_ethernet);
 LIST_HEAD(Locked_printer);
 LIST_HEAD(Locked_pseudo_clock);
@@ -100,8 +100,8 @@ int main(int argc, char const *argv[])
     //  list of blocked PCBs for each external (sub)device
     mkEmptyProcQ(&Locked_disk);
     mkEmptyProcQ(&Locked_flash);
-    mkEmptyProcQ(&Locked_terminal_in);
-    mkEmptyProcQ(&Locked_terminal_out);
+    mkEmptyProcQ(&Locked_terminal_recv);
+    mkEmptyProcQ(&Locked_terminal_transm);
     mkEmptyProcQ(&Locked_ethernet);
     mkEmptyProcQ(&Locked_printer);
     mkEmptyProcQ(&Locked_pseudo_clock);
