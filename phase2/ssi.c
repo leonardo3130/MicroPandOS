@@ -3,23 +3,24 @@
 static void blockProcessOnDevice(pcb_t* p, int line, int term){
   switch (line) {
     case IL_DISK:
-      insertProcQ(&Locked_disk, p);
-      break;
+        insertProcQ(&Locked_disk, p);
+        break;
     case IL_FLASH:
-      insertProcQ(&Locked_flash, p);
-      break;
+        insertProcQ(&Locked_flash, p);
+        break;
     case IL_ETHERNET:
-      insertProcQ(&Locked_ethernet, p);
-      break;
+        insertProcQ(&Locked_ethernet, p);
+        break;
     case IL_PRINTER:
-      insertProcQ(&Locked_printer, p);
-      break;
+        insertProcQ(&Locked_printer, p);
+        break;
     case IL_TERMINAL: 
-      if(term > 0)
-        insertProcQ(&Locked_terminal_transm, p);
-      else 
-        insertProcQ(&Locked_terminal_recv, p);
-      break;
+        outProcQ(&Ready_Queue, p);
+        if(term > 0)
+            insertProcQ(&Locked_terminal_transm, p);
+        else 
+            insertProcQ(&Locked_terminal_recv, p);
+        break;
     default:
         break;
   }
@@ -164,12 +165,7 @@ void ssi_clockwait(pcb_t *sender){
 }
 
 int ssi_getprocessid(pcb_t *sender, void *arg){
-    if(arg == NULL){
-        return sender->p_pid;
-    }
-    else{
-        return sender->p_parent->p_pid;
-    }
+    return (arg == NULL ? sender->p_pid : sender->p_parent->p_pid);
 }
 
 void ssi_doio(pcb_t *sender, ssi_do_io_t *doio){

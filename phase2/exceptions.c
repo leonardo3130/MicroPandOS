@@ -87,15 +87,8 @@ static void syscallExceptionHandler(state_t* exception_state){
       //int isEmpty = list_empty(msg_inbox);
       unsigned int from = exception_state->reg_a1; //da chi voglio ricevere
       msg_t *msg;
-
-      if(from == ANYMESSAGE) //&& isEmpty == 0)
-        msg = popMessage(msg_inbox, NULL);
-      else { //if(isEmpty == 0)   
-        msg = popMessage(msg_inbox, (pcb_t *)(from));
-        //klog_print("h");
-      }
+      msg = popMessage(msg_inbox, (from == ANYMESSAGE ? NULL : (pcb_t *)(from)));
       
-      //if(isEmpty || msg == NULL) { 
       if(msg == NULL) { 
         //la receive è bloccante
         saveState(&(current_process->p_s), exception_state);
@@ -156,5 +149,3 @@ void uTLB_RefillHandler() {
   TLBWR();
   LDST((state_t*) 0x0FFFF000);
 }
-
-//20009488
