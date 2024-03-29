@@ -27,6 +27,7 @@ static void blockProcessOnDevice(pcb_t* p, int line, int term){
 //funzione che dato l'indirizzo passato alla richiesta DOIO 
 //determina la linea (campo device), il numero del device (campo dev_no)
 //in caso di terminale setta il campo term a 0 per recv, a 1 per transm
+/*
 static void addrToDevice(memaddr command_address, pcb_t *p){
     for (int i = 3; i < 8; i++)
     {
@@ -55,6 +56,36 @@ static void addrToDevice(memaddr command_address, pcb_t *p){
             }
         }
     }
+}*/
+
+static void addrToDevice(memaddr command_address, pcb_t *p){
+    for (int j = 0; j < 8; j++){ 
+        termreg_t *base_address = (termreg_t *)DEV_REG_ADDR(7, j);
+        if((memaddr)&(base_address->recv_command) == command_address){
+            p->dev_no = j;
+            blockProcessOnDevice(p, 7, 0);
+            return;
+        }
+        else if((memaddr)&(base_address->transm_command) == command_address){
+            p->dev_no = j;
+            blockProcessOnDevice(p, 7, 1);
+            return;
+        }
+    }
+    for (int i = 3; i < 7; i++)
+    {
+        for (int j = 0; j < 8; j++)
+        { 
+            dtpreg_t *base_address = (dtpreg_t *)DEV_REG_ADDR(i, j);
+            if((memaddr)&(base_address->command) == command_address){
+                p->dev_no = j;
+                blockProcessOnDevice(p, i, -1);
+                return;
+            }
+        }  
+    }
+
+    
 }
 
 void SSILoop(){
