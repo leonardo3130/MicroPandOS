@@ -15,14 +15,16 @@ void scheduler(){
         LDST(&(current_process->p_s));
     }
     else{
-        if(process_count > 0 && soft_blocked_count > 0 ){
+        if(process_count == 1) {
+            HALT();
+        }
+        else if(process_count > 0 && soft_blocked_count > 0 ){
             current_process = NULL;
             setSTATUS(ALLOFF | IECON | IMON);
             WAIT();
-        }else if(process_count > 0 && soft_blocked_count == 0){
+        }
+        else if(process_count > 0 && soft_blocked_count == 0){
             PANIC();
-        }else if(process_count == 1){
-            HALT();
         }
     }
 }
