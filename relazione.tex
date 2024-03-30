@@ -64,7 +64,7 @@ In questa fase andremo a scrivere le basi per quanto riguarda questo progetto, o
 \subsubsection{Message}
 \begin{itemize}
     \item \texttt{void mkEmptyMessageQ(struct list\_head *head):}  Inizializza una una lista di messaggi vuota.
-    \item \texttt{int emptyMessageQ(struct list_head *head):} Ritorna 1 se la lista puntata da head è vuota, altrimenti 0.
+    \item \texttt{int emptyMessageQ(struct list\_head *head):} Ritorna 1 se la lista puntata da head è vuota, altrimenti 0.
     
     \item \texttt{void insertMessage(struct list\_head *head, msg\_t *m):} Inserisce il messaggio puntato da \texttt{m} in coda alla lista puntata da \texttt{head}.
     \item \texttt{void pushMessage(struct list\_head *head, msg\_t *m):} Inserisce il messaggio puntato da \texttt{m} in testa alla lista puntata da \texttt{head}.
@@ -117,7 +117,7 @@ Viene caricato l'interval timer a 100 ms attraverso la chiamata alla procedura a
 \newpage
 
 \subsubsection{Processi SSI e Test}
-Infine, prima di richiamare lo \texttt{Scheduler}, attraverso la procedura \texttt{\textbf{void initFirstProcesses()}} vengono inseriti nella \texttt{Ready Queue} i processi del SSI e del test. Questi avranno lo status settato in modo da avere la maschera dell'interrupt abilitata, l'interval timer abilitato e che siano in modalità kernel. Avranno rispettivamente pid 0 e 1.
+Infine, prima di richiamare lo \texttt{Scheduler}, attraverso la procedura \texttt{\textbf{void initFirstProcesses()}} vengono inseriti nella \texttt{Ready Queue} i processi del SSI e del test. Questi avranno lo status settato in modo da avere la maschera dell'interrupt abilitata, l'interval timer abilitato e che siano in modalità kernel. Avranno rispettivamente pid 1 e 2.
 
 
 \subsection{Scheduler}
@@ -126,6 +126,44 @@ Lo Scheduler è il componente che gestisce la coda dei processi pronti ad essere
     \item se non è vuota prendo il processo che deve essere preso in carico dalla CPU (\texttt{\textbf{current\_process}}) con la funzione \texttt{\textbf{removeProcQ(\&Ready\_Queue)}}, setto il Timer attraverso la funzione \texttt{\textbf{setPLT()}} a 5 ms (con la costante \textbf{TIMESLICE}) per implementare il Round Robin, e infine viene caricato lo stato del processo corrente nel processore (con \texttt{\textbf{LDST()}});
     \item altrimenti (se vuota), si effettua la Deadlock detection; in particolare può decidere se effettuare un \texttt{\textbf{HALT()}} quando non ci sono più processi da eseguire; se ci sono altri PCB entrerà in \texttt{\textbf{WAIT()}}; se la ready queue è vuota e ci sono processi bloccati si entra in deadlock invocando \texttt{\textbf{PANIC()}} fermando così l'esecuzione;
 \end{itemize}
+
+\subsection{SSI}
+Essendo che \textmu PandOS è un microkernel, le uniche syscall implementate sono la Send e la Receive; queste vengono usate dai processi per chiedere al processo SSI risorse; quanto detto è implementato nell'apposito modulo \texttt{\textbf{ssi.c}}, in particolare nella funzione \texttt{\textbf{SSILoop()}}, che implementa il polling del processo SSI: questa è eternamente in attesa di ricevere un messaggio da un qualsiasi processo che necessità una risorsa, prova a soddisfarlo attraverso l'apposita funzione \texttt{\textbf{unsigned int SSIRequest(pcb\_t* sender, ssi\_payload\_t *payload)}} e se riesce viene inviato un riscontro al processo che ha effettuato la richiesta tramite la syscall send. Di seguito si forniranno maggiori dettagli riguardo quest'ultima funzione;
+
+\newpage
+
+\subsubsection{SSIRequest}
+All'interno di questa funzione vengono analizzati i parametri \texttt{\textbf{pcb\_t* sender, ssi\_payload\_t *payload}} che contengono rispettivamente il processo che ha richiesto il servizio e il messaggio mandato col servizio richiesto; in particolare nel messaggio è determinante il \texttt{\textbf{payload->service\_code}}, che serve a stabilire cosa serve al sender. Se vale:
+\begin{itemize}
+    \item 1 (\texttt{\textbf{CREATEPROCESS}}): viene richiesta la creazione di un processo; questa richiesta viene soddisfatta solo se c'è spazio nella tabella dei processi liberi; in caso affermativo viene invocata la funzione \texttt{\textbf{ssi\_new\_proces()}} con parametro il sender che fungerà da parent e i dettagli del processo da creare;
+
+    \item 2 (\texttt{\textbf{TERMPROCESS}}), che richiama l'apposita procedura \texttt{\textbf{ssi\_terminate\_process()}} passando parametro il processo da terminare, che è il sender se l'argomento (sempre passato fra i parametri) del messaggio è NULL, altrimenti quest'ultimo che è proprio il processo da terminare;
+
+    \item 3 (\texttt{\textbf{DOIO}}), ...
+
+    \item 4 (\texttt{\textbf{GETTIME}}), ...
+
+    \item 5 (\texttt{\textbf{CLOCKWAIT}}), ...
+
+    \item 6 (\texttt{\textbf{GETSUPPORTPTR}}), ...
+
+    \item 7 (\texttt{\textbf{GETPROCESSID}}), che invoca la funzione \texttt{\textbf{int ssi\_getprocessid}}; questa prende come parametro il sender e un argomento e ritorna il pid del sender se l'argomento è NULL, altrimenti il pid del processo padre del chiamante; 
+
+    \item Se il service code non contiene nessuno dei seguenti codici viene terminato il sender con la funzione \texttt{\textbf{ssi\_terminate\_process()}}.
+\end{itemize} 
+
+
+
+
+
+\subsection{Interrupt Handler}
+
+
+
+
+
+\subsection{Interrupt Handler}
+
 
 
 
