@@ -435,7 +435,6 @@ void test()
     print_term0("A towel, it says, is about the most massively useful thing an interstellar hitchhiker can have.\n");
 
     terminate_process(SELF);
-    //klog_print_dec(10);
 
     /* should not reach this point, since p1 just got a program trap */
     print_term0("ERROR: p1 still alive after terminate\n");
