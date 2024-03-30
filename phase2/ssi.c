@@ -1,6 +1,7 @@
 #include "include/ssi.h"
 
 static void blockProcessOnDevice(pcb_t* p, int line, int term){
+  outProcQ(&Ready_Queue, p);
   switch (line) {
     case IL_DISK:
         insertProcQ(&Locked_disk, p);
@@ -15,7 +16,6 @@ static void blockProcessOnDevice(pcb_t* p, int line, int term){
         insertProcQ(&Locked_printer, p);
         break;
     case IL_TERMINAL: 
-        outProcQ(&Ready_Queue, p);
         if(term > 0)
             insertProcQ(&Locked_terminal_transm, p);
         else 
@@ -94,17 +94,14 @@ void SSILoop(){
         unsigned int payload;
         unsigned int sender = SYSCALL(RECEIVEMESSAGE, ANYMESSAGE, (unsigned int)(&payload), 0);
 
-        //if(((ssi_payload_t *)payload)->service_code == CREATEPROCESS)
-        //  klog_print("\n1");
-
         unsigned int ret = SSIRequest((pcb_t *)sender, (ssi_payload_t *)payload);
-        if( ((ssi_payload_t *)payload)->service_code != CLOCKWAIT &&
+        /*if( ((ssi_payload_t *)payload)->service_code != CLOCKWAIT &&
             ((ssi_payload_t *)payload)->service_code != DOIO &&
             ((ssi_payload_t *)payload)->service_code != TERMPROCESS ){
                 SYSCALL(SENDMESSAGE, (unsigned int)sender, ret, 0);
-        }
-        //if(((ssi_payload_t *)payload)->service_code == CREATEPROCESS)
-        //  klog_print("\n3");
+        }*/
+        if(ret != -1)
+          SYSCALL(SENDMESSAGE, (unsigned int)sender, ret, 0);
     }
 }
 
@@ -119,8 +116,6 @@ unsigned int ssi_new_process(ssi_create_process_t *p_info, pcb_t* parent){
     child->p_time = 0;
 
     process_count++;
-    //klog_print_hex((memaddr)child);
-    //klog_print("\n");
     return (unsigned int)child;
 }
 
@@ -186,15 +181,19 @@ unsigned int SSIRequest(pcb_t* sender, ssi_payload_t *payload){
 
         case TERMPROCESS:
             //terminates the sender process if arg is NULL, otherwise terminates arg
-            if(payload->arg == NULL){
+            if(payload->arg == NULL) {
                 ssi_terminate_process(sender);
-            }else{
+                ret = -1;
+            }
+            else {
                 ssi_terminate_process(payload->arg);
+                ret = 0; 
             }
             break;
 
         case DOIO:
             ssi_doio(sender, payload->arg);
+            ret = -1;
             break;
 
         case GETTIME:
@@ -203,6 +202,7 @@ unsigned int SSIRequest(pcb_t* sender, ssi_payload_t *payload){
 
         case CLOCKWAIT:
             ssi_clockwait(sender);
+            ret = -1;
             break;
 
         case GETSUPPORTPTR:

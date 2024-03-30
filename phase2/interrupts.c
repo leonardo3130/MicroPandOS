@@ -78,21 +78,7 @@ static void deviceInterruptHandler(int line, int cause, state_t *exception_state
   }
   if(unblocked_pcb) {
     unblocked_pcb->p_s.reg_v0 = device_status; 
-    //klog_print_dec(list_size(&(unblocked_pcb->msg_inbox)));
     send(ssi_pcb, unblocked_pcb, (memaddr)(device_status));
-    //klog_print(" ");
-    // int size = list_size(&(unblocked_pcb->msg_inbox));
-    //klog_print_dec(list_size(&(unblocked_pcb->msg_inbox)));
-    //klog_print("|");
-    //if(size == 2) {
-      /*msg_t *pos;
-      list_for_each_entry(pos, &(unblocked_pcb->msg_inbox), m_list) {
-        klog_print_hex((memaddr)(pos->m_sender));
-        klog_print(" ");
-      }*/
-      //klog_print("\nt\n");
-      //klog_print_hex((memaddr)unblocked_pcb);
-    //}
     insertProcQ(&Ready_Queue, unblocked_pcb); 
     soft_blocked_count--;
   }
@@ -116,7 +102,6 @@ static void pseudoClockInterruptHandler(state_t* exception_state) {
   pcb_t *unblocked_pcb = removeProcQ(&Locked_pseudo_clock);
   while (unblocked_pcb != NULL) {
     //sblocco tutti i processi in attesa dello pseudoclock
-    klog_print_hex((memaddr)unblocked_pcb);
     send(ssi_pcb, unblocked_pcb, 0);
     insertProcQ(&Ready_Queue, unblocked_pcb);
     soft_blocked_count--;

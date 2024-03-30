@@ -1,7 +1,5 @@
 #include "include/exceptions.h"
 
-void bp() {}
-
 //funzione per copia dello stato
 void saveState(state_t* dest, state_t* to_copy) {
   dest->entry_hi = to_copy->entry_hi;
@@ -84,7 +82,6 @@ static void syscallExceptionHandler(state_t* exception_state){
     else if(exception_state->reg_a0 == RECEIVEMESSAGE) {
       //receive
       struct list_head *msg_inbox = &(current_process->msg_inbox);
-      //int isEmpty = list_empty(msg_inbox);
       unsigned int from = exception_state->reg_a1; //da chi voglio ricevere
       msg_t *msg;
       msg = popMessage(msg_inbox, (from == ANYMESSAGE ? NULL : (pcb_t *)(from)));
@@ -116,8 +113,6 @@ static void syscallExceptionHandler(state_t* exception_state){
 void exceptionHandler() {
 	state_t *exception_state = (state_t *)BIOSDATAPAGE;
 	int cause = getCAUSE();
-
-  //klog_print_dec((cause & GETEXECCODE) >> CAUSESHIFT);
 
   switch((cause & GETEXECCODE) >> CAUSESHIFT){
 		case IOINTERRUPTS:

@@ -35,11 +35,6 @@ msg_t *allocMsg() {
         tmp->m_payload = 0;
         INIT_LIST_HEAD(&(tmp->m_list));
 
-        /*
-        //scorro la msgTable e metto tutti i payload = 0
-        for(int i=0;i<MAXMESSAGES;i++){
-            msgTable[i].m_payload = 0;
-        }*/
         return tmp;
     }
 }
@@ -84,23 +79,15 @@ msg_t *popMessage(struct list_head *head, pcb_t *p_ptr) {
         return tmp;
 	}
 
-    /*klog_print("\n");
-    klog_print_dec(list_size(head));
-    klog_print("!");
-    klog_print_dec(p_ptr->p_pid);
-    klog_print("|");*/
     struct list_head *pos;
     list_for_each(pos, head){
         tmp = container_of(pos, msg_t, m_list);
-        //klog_print_dec(tmp->m_sender->p_pid);
 
         if(tmp->m_sender->p_pid == p_ptr->p_pid){
             list_del(&(tmp->m_list));
             return tmp;
         }
     }
-
-    //klog_print("c");
 
     return NULL;
 }
