@@ -15,50 +15,17 @@ static void blockProcessOnDevice(pcb_t* p, int line, int term){
     case IL_PRINTER:
         insertProcQ(&Locked_printer, p);
         break;
-    case IL_TERMINAL: 
-        if(term > 0)
-            insertProcQ(&Locked_terminal_transm, p);
-        else 
-            insertProcQ(&Locked_terminal_recv, p);
+    case IL_TERMINAL:
+        insertProcQ(((term > 0) ? &Locked_terminal_transm : &Locked_terminal_recv ), p);
         break;
     default:
         break;
   }
 }
+
 //funzione che dato l'indirizzo passato alla richiesta DOIO 
 //determina la linea (campo device), il numero del device (campo dev_no)
 //in caso di terminale setta il campo term a 0 per recv, a 1 per transm
-/*
-static void addrToDevice(memaddr command_address, pcb_t *p){
-    for (int i = 3; i < 8; i++)
-    {
-        for (int j = 0; j < 8; j++)
-        {
-            if(i == IL_TERMINAL) {
-                termreg_t *base_address = (termreg_t *)DEV_REG_ADDR(i, j);
-                if((memaddr)&(base_address->recv_command) == command_address){
-                    p->dev_no = j;
-                    blockProcessOnDevice(p, i, 0);
-                    break;
-                }
-                else if((memaddr)&(base_address->transm_command) == command_address){
-                    p->dev_no = j;
-                    blockProcessOnDevice(p, i, 1);
-                    break;
-                }
-            }
-            else {
-                dtpreg_t *base_address = (dtpreg_t *)DEV_REG_ADDR(i, j);
-                if((memaddr)&(base_address->command) == command_address){
-                    p->dev_no = j;
-                    blockProcessOnDevice(p, i, -1);
-                    break;
-                }
-            }
-        }
-    }
-}*/
-
 static void addrToDevice(memaddr command_address, pcb_t *p){
     for (int j = 0; j < 8; j++){ 
         termreg_t *base_address = (termreg_t *)DEV_REG_ADDR(7, j);
@@ -92,14 +59,14 @@ static void addrToDevice(memaddr command_address, pcb_t *p){
 void SSILoop(){
     while(TRUE){
         unsigned int payload;
+
+        // attendo una richiesta da parte di un client
         unsigned int sender = SYSCALL(RECEIVEMESSAGE, ANYMESSAGE, (unsigned int)(&payload), 0);
 
+        // provo a soddisfare la richiesta
         unsigned int ret = SSIRequest((pcb_t *)sender, (ssi_payload_t *)payload);
-        /*if( ((ssi_payload_t *)payload)->service_code != CLOCKWAIT &&
-            ((ssi_payload_t *)payload)->service_code != DOIO &&
-            ((ssi_payload_t *)payload)->service_code != TERMPROCESS ){
-                SYSCALL(SENDMESSAGE, (unsigned int)sender, ret, 0);
-        }*/
+
+        // se necessario messaggio di ritorno e/o l'operazione richiesta e' andata a buon fine
         if(ret != -1)
           SYSCALL(SENDMESSAGE, (unsigned int)sender, ret, 0);
     }
@@ -132,8 +99,6 @@ void ssi_terminate_process(pcb_t* proc){
 
     // vedo se il processo si trova nella Ready, nel caso non è li significa che è 
     // bloccato e dunque decremento il contatore dei processi bloccati
-    //if(!outProcQ(&Ready_Queue, proc))
-    //    --soft_blocked_count;
     if(outProcQ(&Locked_disk, proc) != NULL){
         soft_blocked_count--;            
     }else if(outProcQ(&Locked_flash, proc) != NULL){
@@ -159,6 +124,7 @@ void ssi_clockwait(pcb_t *sender){
     insertProcQ(&Locked_pseudo_clock, sender);
 }
 
+// funzione che ritorna il pid del sender se arg == NULL altrimenti pid del parent
 int ssi_getprocessid(pcb_t *sender, void *arg){
     return (arg == NULL ? sender->p_pid : sender->p_parent->p_pid);
 }
@@ -169,14 +135,12 @@ void ssi_doio(pcb_t *sender, ssi_do_io_t *doio){
     *(doio->commandAddr) = doio->commandValue;
 }
 
+// funzione che gestisce mediante il payload ricevuto dal sender la richiesta di un servizio
 unsigned int SSIRequest(pcb_t* sender, ssi_payload_t *payload){
     unsigned int ret = 0;
     switch(payload->service_code){
         case CREATEPROCESS:
-            if(emptyProcQ(&pcbFree_h)){
-                return NOPROC;
-            }
-            ret = (unsigned int) ssi_new_process((ssi_create_process_PTR)payload->arg, sender);
+            ret = (emptyProcQ(&pcbFree_h) ? NOPROC : (unsigned int) ssi_new_process((ssi_create_process_PTR)payload->arg, sender));
             break;
 
         case TERMPROCESS:
