@@ -145,8 +145,10 @@ Si distinguono in particolare i casi:
     In questa funzione avviene ricorsivamente la terminazione di tutti i processi figli del sender e dei realtivi fratelli.
 
     \item 3 (\texttt{\textbf{DOIO}}), viene chiamata la procedura \texttt{\textbf{ssi\_doio}} con parametri il puntatore al pcb del sender e un puntatore a una variabile di tipo \texttt{\textbf{ssi\_do\_io\_t}} contenente i dati necessari a tale richiesta.
-    Viene successivamente chiamata la procedura \texttt{\textbf{addrToDevice()}} che, dato l'indirizzo del device passato con la richiesta di DOIO, ne determina il corrispondente campo device, per poi chiamare la funzione \texttt{\textbf{blockProcessOnDevice}}.
-    Quest'ultima, passati come argomenti il pcb del sender, il campo device e un intero che indica se si sta facendo una lettura o una scrittura, rimuove il sender dalla \texttt{\textbf{ready queue}} e lo inserisce nella lista di processi bloccati del relativo device.
+    Viene successivamente chiamata la procedura \texttt{\textbf{addrToDevice()}} che, dato l'indirizzo del device passato con la richiesta di DOIO, ne determina i rispettivi numero di device e riga, per poi chiamare la funzione \texttt{\textbf{blockProcessOnDevice}}.
+    Quest'ultima, passati come argomenti il pcb del sender, il numero del device e un intero che indica se si sta facendo una lettura o una scrittura, rimuove il sender dalla \texttt{\textbf{ready queue}} e lo inserisce nella lista di processi bloccati del relativo device.
+    La funzione \texttt{\textbf{addrToDevice()}} invidua la corretta riga e il corretto numero di device confrontando il command\_address passato come argomento con tutti i campi di DEV_REG_ADDR[][]. Per una maggiore efficienza, il command\_address viene prima confrontato con i campi di DEV_REG_ADDR[][] del terminale e successivamente, attraverso un ciclo for annidato, con i campi degli altri device.
+
 
     \item 4 (\texttt{\textbf{GETTIME}}), viene restituito come \texttt{\textbf{unsigned int}} un puntatore alla variabile \texttt{\textbf{p\_time}} del processo sender.
 	
