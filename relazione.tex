@@ -133,25 +133,37 @@ Essendo che \textmu PandOS è un microkernel, le uniche syscall implementate son
 \newpage
 
 \subsubsection{SSIRequest}
-All'interno di questa funzione vengono analizzati i parametri \texttt{\textbf{pcb\_t* sender, ssi\_payload\_t *payload}} che contengono rispettivamente il processo che ha richiesto il servizio e il messaggio mandato col servizio richiesto; in particolare nel messaggio è determinante il \texttt{\textbf{payload->service\_code}}, che serve a stabilire cosa serve al sender. Se vale:
+All'interno di questa funzione vengono analizzati i parametri \texttt{\textbf{pcb\_t* sender, ssi\_payload\_t *payload}} che contengono rispettivamente il processo che ha richiesto il servizio e il messaggio mandato col servizio richiesto; in particolare nel messaggio è determinante il \texttt{\textbf{service\_code}}, che stabilisce l'oggetto della richiesta del sender. Attraverso l'utilizzo di uno switch su quest'ultimo parametro, la ssi fornisce il servizio richiesto.
+Si distinguono in particolare i casi:
 \begin{itemize}
-    \item 1 (\texttt{\textbf{CREATEPROCESS}}): viene richiesta la creazione di un processo; questa richiesta viene soddisfatta solo se c'è spazio nella tabella dei processi liberi; in caso affermativo viene invocata la funzione \texttt{\textbf{ssi\_new\_proces()}} con parametro il sender che fungerà da parent e i dettagli del processo da creare;
+	\item 1 (\texttt{\textbf{CREATEPROCESS}}): viene richiesta la creazione di un processo; questa richiesta viene soddisfatta solo se c'è spazio nella tabella dei processi liberi; in caso affermativo viene invocata la funzione \texttt{\textbf{ssi\_new\_process()}} con parametri il sender, che fungerà da parent, e un puntatore a una variabile di tipo \texttt{\textbf{ssi\_create\_process}}, contenete i dati necessari alla creazione del nuovo processo; 
+   Nella funzione \texttt{\textbf{ssi\_new\_process}} viene chiamata \texttt{\textbf{allocPcb()}} per l'allocazione in memoria del nuovo processo e successivamente questo viene inserito nelle \texttt{\textbf{ready queue}} e nella lista child del pcb sender.
+   
 
-    \item 2 (\texttt{\textbf{TERMPROCESS}}), che richiama l'apposita procedura \texttt{\textbf{ssi\_terminate\_process()}} passando parametro il processo da terminare, che è il sender se l'argomento (sempre passato fra i parametri) del messaggio è NULL, altrimenti quest'ultimo che è proprio il processo da terminare;
+    \item 2 (\texttt{\textbf{TERMPROCESS}}), viene chiamata la procedura \texttt{\textbf{ssi\_terminate\_process()}} passando come parametro il processo da terminare.
+    In questa funzione avviene ricorsivamente la terminazione di tutti i processi figli del sender e dei realtivi fratelli.
 
-    \item 3 (\texttt{\textbf{DOIO}}), ...
+    \item 3 (\texttt{\textbf{DOIO}}), viene chiamata la procedura \texttt{\textbf{ssi\_doio}} con parametri il puntatore al pcb del sender e un puntatore a una variabile di tipo \texttt{\textbf{ssi\_do\_io\_t}} contenente i dati necessari a tale richiesta.
+    Viene successivamente chiamata la procedura \texttt{\textbf{addrToDevice()}} che, dato l'indirizzo del device passato con la richiesta di DOIO, ne determina il corrispondente campo device, per poi chiamare la funzione \texttt{\textbf{blockProcessOnDevice}}.
+    Quest'ultima, passati come argomenti il pcb del sender, il campo device e un intero che indica se si sta facendo una lettura o una scrittura, rimuove il sender dalla \texttt{\textbf{ready queue}} e lo inserisce nella lista di processi bloccati del relativo device.
 
-    \item 4 (\texttt{\textbf{GETTIME}}), ...
+    \item 4 (\texttt{\textbf{GETTIME}}), viene restituito come \texttt{\textbf{unsigned int}} un puntatore alla variabile \texttt{\textbf{p\_time}} del processo sender.
+	
+    \item 5 (\texttt{\textbf{CLOCKWAIT}}), viene chiamata la funzione \texttt{\textbf{ssi\_clockwait}} con argomento il puntatore alla struct \texttt{\textbf{pcb\_t}} del processo sender.
+    Quest'ultima inserisce il sender nella lista dei processi bloccati da pseudo clock.
+    La procedura \texttt{\textbf{pseudoClockInterruptHandler()}} definita in \texttt{\textbf{interrupts.c}} si occupa della gestione di questa lista.
 
-    \item 5 (\texttt{\textbf{CLOCKWAIT}}), ...
+    \item 6 (\texttt{\textbf{GETSUPPORTPTR}}), viene restituito come \texttt{\textbf{unsigned int}} un puntatore alla variabile \texttt{\textbf{p\_supportstruct}} del processo sender.
 
-    \item 6 (\texttt{\textbf{GETSUPPORTPTR}}), ...
-
-    \item 7 (\texttt{\textbf{GETPROCESSID}}), che invoca la funzione \texttt{\textbf{int ssi\_getprocessid}}; questa prende come parametro il sender e un argomento e ritorna il pid del sender se l'argomento è NULL, altrimenti il pid del processo padre del chiamante; 
+    \item 7 (\texttt{\textbf{GETPROCESSID}}), viene invocata la funzione \texttt{\textbf{int ssi\_getprocessid}}. Quest'ultima prende come parametri il puntatore al pcb del sender e un puntatore generico arg, e ritorna il pid del sender se l'argomento è NULL, altrimenti il pid del processo padre del chiamante.
 
     \item Se il service code non contiene nessuno dei seguenti codici viene terminato il sender con la funzione \texttt{\textbf{ssi\_terminate\_process()}}.
 \end{itemize} 
 
+In alcune delle funzioni menzionate vengono inoltre modificati i valori di variabili globali quali:
+\begin{itemize}
+	\item \texttt{\textbf{soft\_blocked\_count}}  : viene decrementata in \texttt{\textbf{ssi\_terminate\_process()}} se il processo viene rimosso da una delle liste di processi bloccati dei device, o incrementata in \texttt{\textbf{ssi\_clockwait()}} quando viene aggiunto.
+	\item \texttt{\textbf{process\_count}} : viene incrementata alla creazione di un nuovo processo in \texttt{\textbf{ssi\_create\_process}} e decrementata quando un processo viene terminato in \texttt{\textbf{ssi\_terminate\_process()}}. 
 
 
 
