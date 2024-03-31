@@ -133,44 +133,4 @@ void interruptHandler(int cause, state_t *exception_state) {
 	else if (CAUSE_IP_GET(cause, IL_TERMINAL))
     deviceInterruptHandler(IL_TERMINAL, cause, exception_state);
 }
-/*Device register type for disks, flash and printers
-typedef struct dtpreg {
-unsigned int status;
-unsigned int command;
-unsigned int data0;
-unsigned int data1;
-} dtpreg_t;
- Device register type for terminals
-typedef struct termreg {
-unsigned int recv_status;
-unsigned int recv_command;
-unsigned int transm_status;
-unsigned int transm_command;
-} termreg_t;
-typedef union devreg {
-dtpreg_t dtp;
-termreg_t term;
-} devreg_t;
- Bus register area
-typedef struct devregarea {
-unsigned int rambase;
-unsigned int ramsize;
-unsigned int execbase;
-unsigned int execsize;
-unsigned int bootbase;
-unsigned int bootsize;
-unsigned int todhi;
-unsigned int todlo;
-unsigned int intervaltimer;
-unsigned int timescale;
-unsigned int TLBFloorAddr;
-unsigned int inst_dev[5];
-unsigned int interrupt_dev[5];
-devreg_t devreg[5][8];
-} devregarea_t;
-*/
 
-
-
-
-//89790002 00390002
