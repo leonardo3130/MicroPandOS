@@ -12,7 +12,7 @@ void saveState(state_t* dest, state_t* to_copy) {
   dest->lo = to_copy->lo;
 }
 
-//codice per la send
+//codice per l'invio di messaggi
 int send(pcb_t *sender, pcb_t *dest, unsigned int payload) {
   msg_t *msg = allocMsg();
   if(!msg)
@@ -24,8 +24,9 @@ int send(pcb_t *sender, pcb_t *dest, unsigned int payload) {
   return 0;
 }
 
+//codice che implementa il Pass Up or Die
 static void passUpOrDie(int i, state_t *exception_state) {
-  if(current_process) {
+  if(current_process) { //per sicurezzza
     if(current_process->p_supportStruct != NULL) {
       saveState(&(current_process->p_supportStruct->sup_exceptState[i]), exception_state);
       LDCXT(current_process->p_supportStruct->sup_exceptContext[i].stackPtr,
@@ -40,32 +41,33 @@ static void passUpOrDie(int i, state_t *exception_state) {
   }
 }
 
+//funzione che ricerca un PCB all'interno di una lista 
 static int findPCB(pcb_t* p, struct list_head *list) {
   pcb_t *tmp;
   list_for_each_entry(tmp, list, p_list){
     if(p == tmp)
-      return 1;
+      return 1; //trovato
   }
-  return 0;
+  return 0; //non trovato
 }
 
-static void syscallExceptionHandler(state_t* exception_state){
-  if((exception_state->status << 30) >> 31) { //not in kernel mode // <<28 ?
+static void syscallExceptionHandler(state_t *exception_state){
+  if((exception_state->status << 30) >> 31) { //controllo che il processo non sia in kernel-mode
     exception_state->cause = (exception_state->cause & CLEAREXECCODE) | (EXC_RI << CAUSESHIFT);
     passUpOrDie(GENERALEXCEPT, exception_state);
   }
   else {
     if(exception_state->reg_a0 == SENDMESSAGE) {
-      int nogood;
-      int ready;
-      int not_exists;
+      //SYS1
+      int nogood;     //valore di ritorno da inserire in reg_v0
+      int ready;      //se uguale a 1 il destinatario è nella ready queue, 0 altrimenti
+      int not_exists; //se uguale a 1 il destinatario è nella lista pcbFree_h
       pcb_t *dest = (pcb_t *)(exception_state->reg_a1);
       ready = findPCB(dest, &Ready_Queue);
       not_exists = findPCB(dest, &pcbFree_h);
 
-      if(not_exists) {
+      if(not_exists) 
         exception_state->reg_v0 = DEST_NOT_EXIST;
-      }
       else if(ready || dest == current_process) {
         nogood = send(current_process, dest, exception_state->reg_a2);
         exception_state->reg_v0 = nogood;
@@ -75,19 +77,19 @@ static void syscallExceptionHandler(state_t* exception_state){
         insertProcQ(&Ready_Queue, dest);
         exception_state->reg_v0 = nogood;
       }
-      exception_state->pc_epc += WORDLEN;
 
+      exception_state->pc_epc += WORDLEN; //non bloccante
       LDST(exception_state);
     }
     else if(exception_state->reg_a0 == RECEIVEMESSAGE) {
-      //receive
-      struct list_head *msg_inbox = &(current_process->msg_inbox);
-      unsigned int from = exception_state->reg_a1; //da chi voglio ricevere
-      msg_t *msg;
-      msg = popMessage(msg_inbox, (from == ANYMESSAGE ? NULL : (pcb_t *)(from)));
+      //SYS2
+      struct list_head *msg_inbox = &(current_process->msg_inbox);  //inbox del ricevente
+      unsigned int from = exception_state->reg_a1;                  //da chi voglio ricevere
+      //rimozione messaggio dalla inbox del ricevente
+      msg_t *msg = popMessage(msg_inbox, (from == ANYMESSAGE ? NULL : (pcb_t *)(from)));
       
-      if(msg == NULL) { 
-        //la receive è bloccante
+      if(!msg) { 
+        //receive bloccante
         saveState(&(current_process->p_s), exception_state);
         updateCPUtime(current_process);
         scheduler();
@@ -96,15 +98,16 @@ static void syscallExceptionHandler(state_t* exception_state){
         //receive non bloccante
         exception_state->reg_v0 = (memaddr)(msg->m_sender);
         if(msg->m_payload != (unsigned int)NULL) {
+          //accedo all'area di memoria in cui andare a caricare il payload del messaggio
           unsigned int *a2 = (unsigned int *)exception_state->reg_a2;
           *a2 = msg->m_payload;
         }
-        freeMsg(msg);
-        exception_state->pc_epc += WORDLEN;
+        freeMsg(msg); //il messaggio non serve più, lo libero
+        exception_state->pc_epc += WORDLEN; //non bloccante
         LDST(exception_state);
       }
     }
-    else if(exception_state->reg_a0 >= 1) {
+    else if(exception_state->reg_a0 >= 1) { //valore registro a0 non corretto
       passUpOrDie(GENERALEXCEPT, exception_state);
     }
   }
