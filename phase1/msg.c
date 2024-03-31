@@ -57,15 +57,6 @@ void pushMessage(struct list_head *head, msg_t *m) {
     list_add(&(m->m_list), head);
 }
 
-static int list_size(struct list_head* list) {
-  msg_t *pos;
-  int i = 0;
-  list_for_each_entry(pos, list, m_list) {
-    i++;
-  }
-  return i; 
-}
-
 msg_t *popMessage(struct list_head *head, pcb_t *p_ptr) { 
 
     //variabile ausiliaria usata per ritornare l'elemento eliminato dalla lista

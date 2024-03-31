@@ -165,7 +165,7 @@ In alcune delle funzioni menzionate vengono inoltre modificati i valori di varia
 \begin{itemize}
 	\item \texttt{\textbf{soft\_blocked\_count}}  : viene decrementata in \texttt{\textbf{ssi\_terminate\_process()}} se il processo viene rimosso da una delle liste di processi bloccati dei device, o incrementata in \texttt{\textbf{ssi\_clockwait()}} quando viene aggiunto.
 	\item \texttt{\textbf{process\_count}} : viene incrementata alla creazione di un nuovo processo in \texttt{\textbf{ssi\_create\_process}} e decrementata quando un processo viene terminato in \texttt{\textbf{ssi\_terminate\_process()}}. 
-
+\end{itemize}
 
 
 \newpage
@@ -203,7 +203,6 @@ quando viene bloccato il processo in attesa di interrupt durante il servizio DOI
 dispositivo terminale verifichiamo che il codice dell'operazione di trasmissione sia uguale a 5 (interrupt in attesa di 
 essere riconosciuto), se così è allora significa che l'operazione è un'operazione di trasmissione di un carattere, altrimenti 
 si tratta di un'operazione di ricezione.
-\newpage
 Per accedere al registro del device usiamo la macro \texttt{\textbf{DEV\_REG\_ADDR}} nel modo seguente: \\
 \texttt{\textbf{dtpreg\_t *device\_register = (dtpreg\_t *)DEV\_REG\_ADDR(line, device\_number);}} \\
 In caso di dispositivi terminali, l'operazione è analoga: \\
@@ -245,7 +244,30 @@ In caso di puntatore nullo, chiamiamo la funzione per la terminazione dei proces
 \end{itemize}
 \newpage
 \subsection{Eccezioni causate da SYSCALL}
-
+L'eccezioni da SYSCALL sono quelle il cui codice ha valore \texttt{\textbf{SYSEXCEPTION}}. Quando queste si verificano, viene chiamata la 
+funzione \texttt{\textbf{static void syscallExceptionHandler(state\_t *exception\_state)}}. \\In primis la funzione controlla il valore 
+del bit KUc, se questo è 1 (user-mode) viene generata una trap generica, in cui il valore del codice dell'eccezione viene settato a 
+\texttt{\textbf{EXC\_RI}} (istruzione riservata).
+Se il processo è in kernel-mode allora si continua e si controlla il registro a0 per capire quale servizio è stato richiesto:
+\begin{itemize}
+  \item \texttt{\textbf{reg\_a0 = SENDMESSAGE}}: il processo corrente vuole eseguire una \texttt{\textbf{SYS1}}, dal registro a1 viene 
+    estratto l'indirizzo del PCB al quale si vuole inviare un messaggio, si controlla se il destinatario è nella ready queue o se è il 
+    processo corrente, in entrambi questi casi si inserisce il messaggio nell'inbox del destinatario. Se il destinatario è sulla lista dei 
+    processi liberi, allora esso è inesistente e si aggiorna solamente il registro v0 al valore \texttt{\textbf{DEST\_NOT\_EXISTS}}. 
+    Se il processo destinatario non si trova sulla ready e queue e nemmeno nella lista dei processi liberi, allora dopo l'invio del messaggio,    lo si inserisce nella ready queue (se il messaggio inviato non è quello per cui era in attesa, il processo si bloccherà di nuovo).
+    La funzione che invia i messaggi è \texttt{\textbf{int send(pcb\_t *sender, pcb\_t *dest, unsigned int payload)}}. In questo caso come 
+    payload viene passato il valore del registro a2. Infine si incrementa il \texttt{\textbf{PC}} e si esegue 
+    \texttt{\textbf{LDST(exception\_state)}}.
+  \item \texttt{\textbf{reg\_a0 = RECEIVEMESSAGE}}: il processo corrente vuole eseguire una \texttt{\textbf{SYS2}}, dal registro a1 si 
+    accede all'indirizzo del PCB dal quale il processo richiedente vuole ricevere un messaggio, questo valore viene passato, insieme
+    alla inbox del processo corrente, alla funzione \texttt{\textbf{popMessage}}, la quale restituirà il messaggio o \texttt{\textbf{NULL}} 
+    se non lo trova. Nel primo caso la SYS2 non è bloccante, quindi si assegna al registro v0 l'indirizzo di chi ha inviato il messaggio, 
+    e si mette nell'aria di memoria puntata dal registro a2 il payload del messaggio. Si incrementa il \texttt{\textbf{PC}} e si esegue 
+    \texttt{\textbf{LDST(exception\_state)}}, poiché non è una syscall bloccante. Se invece la \texttt{\textbf{popMessage}} ha restituito 
+    \texttt{\textbf{NULL}}, allora la syscall sarà bloccante, lo stato dell'eccezione viene salvato nello stato del processo corrente, 
+    si aggiorna il CPU time del processo corrente ed infine si chiama lo scheduler. 
+  \item \texttt{\textbf{reg\_a0 >= 1}}: viene generata una trap generica.
+\end{itemize}
 
 
 \newpage
