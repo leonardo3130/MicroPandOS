@@ -81,13 +81,14 @@ Di seguito sono riportate le scelte progettuali per quanto riguarda i moduli svi
 
 \subsection{Utility}
 \subsubsection{\texttt{\textbf{timer.c}}}
-In questo modulo abbiamo delle funzioni/procedure ausiliarie richiamate degli altri moduli:
+In questo modulo abbiamo delle funzioni/procedure ausiliarie richiamate degli altri moduli per la gestione dei vari timer:
 \begin{itemize}
-    \item \texttt{\textbf{unsigned int getTOD()}}
-    \item \texttt{\textbf{void updateCPUtime(pcb\_t *p)}}
-    \item \texttt{\textbf{void setIntervalTimer(unsigned int t)}}
-    \item \texttt{\textbf{void setPLT(unsigned int t)}}
-    \item \texttt{\textbf{unsigned int getPLT()}}
+  \item \texttt{\textbf{unsigned int getTOD()}}: ritorna il valore del time of day clock, che viene nel nostro caso salvato nella variabile globale \texttt{\textbf{start}}: utilizzata per il calcolo del CPU time.
+    \item \texttt{\textbf{void updateCPUtime(pcb\_t *p)}}: chiama la funzione qui sopra descritta per aggiornare il valore 
+      del campo \texttt{\textbf{p\_time}} del processo passato alla funzione.
+    \item \texttt{\textbf{void setIntervalTimer(unsigned int t)}}: funzione che imposta il valore dell'interval timer. 
+    \item \texttt{\textbf{void setPLT(unsigned int t)}}: funzione che imposta il valore del processor local timer.
+    \item \texttt{\textbf{unsigned int getPLT()}}: funzione che permette di ottenere il valore del processor local timer.
 \end{itemize}
 
 \subsection{Inizializzazione nucleo}
@@ -155,16 +156,83 @@ All'interno di questa funzione vengono analizzati i parametri \texttt{\textbf{pc
 
 
 
-
+\newpage
+\section{Gestore delle eccezioni}
+La funzione che si occupa della gestione delle eccezioni è la funzione \texttt{\textbf{void exceptionHandler()}} dichiarata 
+nel file phase2/include/exceptions.h e definita nel file phase2/exceptions.c. Questa funzione salva lo stato al tempo dell'eccezione dalla \texttt{\textbf{BIOSDATAPAGE}} ed in seguito trova il codice dell'eccezione eseguendo operazioni di manipolazione dei bit sul registro cause, ottenuto con la funzione \texttt{\textbf{getCAUSE}}. In particolare si esegue l'operazione 
+\texttt{\textbf{cause \& GETEXECCODE}} che permette di mantenere solo i bit che definiscono il codice dell'eccezione, i quali vengono shiftati a destra di 2 posizioni (costante \texttt{\textbf{CAUSESHIFT}}). 
 \subsection{Interrupt Handler}
+Nel caso il codice dell'eccezione abbia valore 0 (costante \texttt{\textbf{IOINTERRUPTS}}) viene invocata la funzione per la 
+gestione degli interrupt \texttt{\textbf{void interruptHandler(int cause, state\_t* exception\_state)}}. Qui viene 
+utilizzata la macro \texttt{\textbf{CAUSE\_IP\_GET(cause, line)}}, grazie alla quale, passando il cause register e il 
+valore di una linea di interrupt, è possibile sapere se c'è un interrupt su quella linea. Il controllo viene fatto per tutte 
+le linee, seguendo l'ordine di priorità che va dall'interrupt causato dal processor local timer, all'interrupt causato da un 
+dispositivo terminale. In base alla linea su cui avviene l'interrupt viene invocato un'opportuna funzione per la gestione 
+di quello specifico interrupt.
+\subsubsection{Gestione Interrupt Processor Local Timer}
+L'interrupt causato dal processor local timer si verifica quando il tempo nella CPU per il processo corrente si esaurisce. 
+Per un'opportuna gestione di questo interrupt usiamo la funzione \texttt{\textbf{static void localTimerInterruptHandler(state\_t *exception\_state)}}. In questa routine viene riconosciuto l'interrupt con la chiamata \texttt{\textbf{setPLT(-1)}}, 
+in seguito si aggiorna il CPU time del processo corrente, si copia lo stato dell'eccezione nello stato del processo corrente, il quale infine viene inserito sulla ready queue. Dopo queste operazioni viene chiamato lo scheduler.
+\subsubsection{Gestione Interrupt Interval Timer}
+In questo caso l'ACK  dell'interrupt è eseguito con la chiamata \texttt{\textbf{setIntervalTimer(PSECOND)}}. Dopodiché avvienelo sblocco di tutti i processi che erano in attesa dell'interrupt, rimuovendo ciascuno di essi dalla lista \texttt{\textbf{Locked\_pseudo\_clock}}, inserendoli sulla ready queue, dopo aver inviato loro un messaggio che consentirà ai processi 
+interessati di sbloccarsi, quando rieseguiranno la SYS2 su cui si erano precedentemente bloccati. Ogni volta che viene rimossoun processo dalla lista dei processi in attesa dello pseudoclock tick, viene decrementata la variabile globale 
+\texttt{\textbf{soft\_blocked\_count}}. Infine se il processo corrente è diverso da NULL, si esegue una LDST con lo stato 
+dell'eccezione, altrimente viene chiamato lo scheduler.
+\subsubsection{Gestione Interrupt Device}
+La gestione degli interrupt legati a tutti gli altri device viene affidata alla funzione \texttt{\textbf{static void deviceInterruptHandler(int line, int cause, state\_t *exception\_state)}}, 
+la quale ricava la bitmap degli interrupt per i dispositivi della linea d'interesse. Questo viene realizzato accedendo 
+all'area di memoria riservata ai device, all'inidirizzo \texttt{\textbf{BUS\_REG\_RAM\_BASE}}.
+In seguito si esegue l'and sui bit della bitmap con le costanti \texttt{\textbf{DEVXON}} con X $\in \{0, \ldots, 7\}$, 
+con questa operazione si ottiene il numero del device sulla line che ha causato l'interrupt, per l'ordine con cui queste 
+operazioni sono effettuate,il numero del device calcolato sarà sempre quello a priorità maggiore. 
+Calcolato il numero, data la linea si sblocca il processo dalla lista associata alla linea cercandolo tramite il device 
+number, grazie al campo aggiuntivo \texttt{\textbf{dev\_no}} che abbiamo messo ai pcb. Questo campo viene settato dall'ssi 
+quando viene bloccato il processo in attesa di interrupt durante il servizio DOIO. In caso di interrupt causato da un 
+dispositivo terminale verifichiamo che il codice dell'operazione di trasmissione sia uguale a 5 (interrupt in attesa di 
+essere riconosciuto), se così è allora significa che l'operazione è un'operazione di trasmissione di un carattere, altrimenti 
+si tratta di un'operazione di ricezione.
+\newpage
+Per accedere al registro del device usiamo la macro \texttt{\textbf{DEV\_REG\_ADDR}} nel modo seguente: \\
+\texttt{\textbf{dtpreg\_t *device\_register = (dtpreg\_t *)DEV\_REG\_ADDR(line, device\_number);}} \\
+In caso di dispositivi terminali, l'operazione è analoga: \\
+\texttt{\textbf{termreg\_t *device\_register = (termreg\_t *)DEV\_REG\_ADDR(line, device\_number);}} \\
+L'operazione di riconoscimento dell'interrupt avviene con l'istruzione\\ \texttt{\textbf{device\_register->command = ACK;}}, 
+\\per i terminali a seconda di quale subdevice ha generato l'interrupt: \\ \texttt{\textbf{device\_register->transm\_command = ACK;}} \\ oppure \\ \texttt{\textbf{device\_register->recv\_command = ACK;}}.
 
+L'accesso allo status avviene con l'operazione seguente: 
+\texttt{\textbf{device\_register->status}}. \\
+Per i terminali: \\
+\texttt{\textbf{device\_register->recv\_status}}. \\
+\texttt{\textbf{device\_register->transm\_status}}.
 
+Infine se il processo sbloccato è diverso da NULL, si mette lo status nel suo registro v0, gli viene inviato un messaggio 
+avente la ssi come mittente e come payload lo status del device, si inserisce il processo sulla ready queue e si diminuisce di un'unità \texttt{\textbf{soft\_blocked\_count}}.
+In seguito se il processso corrente è diverso da NULL si chiama lo scheduler, altrimenti si esegue una LDST dello stato 
+ottenuto dalla \texttt{\textbf{BIOSDATAPAGE}}. 
+\subsection{Pass Up or Die}
+Tramite Pass Up or Die il kernel gestisce tutte le eccezione che non sono syscall o interrupt, abbiamo quindi implementato 
+un'apposita funzione \texttt{\textbf{static void passUpOrDie(int i, state\_t *exception\_state)}} che controlla che la 
+support struct del processo corrente sia diversa da NULL, se ciò è vero allora si salva lo stato dell'eccezione nello stato 
+corretto della struttura di supporto: \\ 
+\texttt{\textbf{saveState(\&(current\_process->p\_supportStruct->sup\_exceptState[i]), exception\_state);}}
+\\ ed in seguito si esegue LDCTX, passando come parametri i valori del giusto constesto 
+della struttura di supporto: \\ 
+\texttt{\textbf{
+      LDCXT(current\_process->p\_supportStruct->sup\_exceptContext[i].stackPtr, \\
+            current\_process->p\_supportStruct->sup\_exceptContext[i].status, \\
+            current\_process->p\_supportStruct->sup\_exceptContext[i].pc \\
+      );
+ }} \\
+ L'indice i, parametro della funzione, può assumere due valori a seconda del tipo di eccezione:
+ \begin{itemize}
+    \item \texttt{\textbf{GENERALEXCEPT}}: per trap generiche, con codici 4...7 e 9...12;
+    \item \texttt{\textbf{PGFAULTEXCEPT}}: per eccezioni TLB, con codici 1...3;
 
-
-
-\subsection{Interrupt Handler}
-
-
+In caso di puntatore nullo, chiamiamo la funzione per la terminazione dei processi, che viene utilizzata dall'ssi per 
+     fornire il servizio \texttt{\textbf{TERMINATEPROCESS}}.
+\end{itemize}
+\newpage
+\subsection{Eccezioni causate da SYSCALL}
 
 
 

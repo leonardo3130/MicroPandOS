@@ -25,7 +25,7 @@ int send(pcb_t *sender, pcb_t *dest, unsigned int payload) {
 }
 
 static void passUpOrDie(int i, state_t *exception_state) {
-  if(current_process) {
+  if(current_process) { //per sicurezzza
     if(current_process->p_supportStruct != NULL) {
       saveState(&(current_process->p_supportStruct->sup_exceptState[i]), exception_state);
       LDCXT(current_process->p_supportStruct->sup_exceptContext[i].stackPtr,
