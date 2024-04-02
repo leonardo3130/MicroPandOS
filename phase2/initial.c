@@ -1,10 +1,5 @@
 #include "include/initial.h"
 
-/*
-    This module implements initNucleus() and the Nucleus’s global variables (e.g.
-    process count, soft blocked count, blocked PCBs lists/pointers, etc.).
-*/
-
 LIST_HEAD(Ready_Queue);
 LIST_HEAD(Locked_disk);
 LIST_HEAD(Locked_flash);
@@ -23,6 +18,8 @@ int pid_counter;
 pcb_t *current_process;
 pcb_t *ssi_pcb;
 
+// funzione che si occupa di inizializzare il passupvector ad un indirizzo specifico e 
+// memorizza uTLB_RefillHandler e del exceptionHandler.
 void initPassupVector(){
     passupvector_t *passupv;
     passupv = (passupvector_t *) PASSUPVECTOR;
@@ -33,71 +30,86 @@ void initPassupVector(){
     passupv->exception_stackPtr   = (memaddr) KERNELSTACK;
 }
 
+
+
+// Funzione che inserisce nella Ready Queue i processi del SSI e del test. Questi avranno lo status settato 
+// in modo da avere la maschera dell'interrupt abilitata, l'interval timer abilitato e che siano in 
+// modalita' kernel. Avranno rispettivamente pid 1 e 2.
 void initFirstProcesses(){
     //  6. Instantiate a first process, place its PCB in the Ready Queue, and increment Process Count.
     ssi_pcb = allocPcb();
     ssi_pcb->p_pid = 1;
     ssi_pcb->p_supportStruct = NULL;
 
-    // IEc: The “current” global interrupt enable bit. When 0, regardless
-    // of the settings in Status.IM all interrupts are disabled. When 1, interrupt
-    // acceptance is controlled by Status.IM.
+    // pongo tutti i Bit della maschera a 0 (ALLOFF) e accendo quelli descritti a inizio funzione
     ssi_pcb->p_s.status = ALLOFF | IEPON | IMON | TEBITON;
-    /*
-        the SP set to RAMTOP (i.e. use the last RAM frame for its stack), and its PC set to the
-        address of SSI_function_entry_point
-    */
+
+    // setto SP in modo da porre sull'ultimo frame della RAM il processo SSI attraverso RAMTOP
     RAMTOP(ssi_pcb->p_s.reg_sp);
     ssi_pcb->p_s.pc_epc = (memaddr) SSILoop;
 
     // general purpose register t9
     ssi_pcb-> p_s.gpr[24] = ssi_pcb-> p_s.pc_epc;
+    
+    // inserisco il processo nella ReadyQueue
     insertProcQ(&Ready_Queue, ssi_pcb);
+    
+    // incremento il Process Counter
     ++process_count;
 
 
-    //  7.  Instantiate a second process, place its PCB in the Ready Queue, and increment Process Count
+    //  7.  
+    // Creo un nuovo processo, lo inserisco nella Ready Queue, e  incremento il Process Counter
     pcb_t *toTest = allocPcb();
     toTest->p_pid = 2;
     toTest->p_supportStruct = NULL;
 
-
+    // pongo tutti i Bit della maschera a 0 (ALLOFF) e accendo quelli descritti a inizio funzione
     toTest->p_s.status = ALLOFF | IEPON | IMON | TEBITON;
+
+    // setto SP in modo da porre sull'ultimo frame della RAM il processo test attraverso RAMTOP - 2 FRAME
     RAMTOP(toTest->p_s.reg_sp);
     toTest->p_s.reg_sp -= (2 * PAGESIZE);
     toTest->p_s.pc_epc = (memaddr) test;
 
+    // general purpose register t9
     toTest-> p_s.gpr[24] = toTest-> p_s.pc_epc;
+
+    // inserisco il processo nella ReadyQueue
     insertProcQ(&Ready_Queue, toTest);
+
+    // incremento il Process Counter
     ++process_count;
 
 }
 
 
-// main
+/* 
+ *main 
+*/
 int main(int argc, char const *argv[])
 {
     //  2. Passup Vector
     initPassupVector();
 
-    //  3. Initialize the Level 2 (Phase 1) data structures:
+    //  3. Inizzializzo le data structures del livello 2 (Phase 1):
     initPcbs();
     initMsgs();
 
-    //  4
-    //  integer indicating the number of started, but not yet terminated processes
+    //  4. 
+    //  intero che indica il numero dei processi totali
     process_count = 0;
 
-    //  This integer is the number of started, but not terminated
-    //  processes that in are the "blocked" state due to an I/O or timer request.
+    //  numero dei processi bloccati non ancora terminati
     soft_blocked_count = 0;
 
+    // variabile globale che viene usata per creare nuovi processi; viene incrementata per ogni processo in modo da assegnarli tutti in maniera diversa
     pid_counter = 3;    //pid 1 is SSI, pid 2 is test
 
-    //  Tail pointer to a queue of PCBs that are in the “ready” state
+    //  Lista dei processi in "ready" state
     mkEmptyProcQ(&Ready_Queue);
 
-    //  list of blocked PCBs for each external (sub)device
+    //  liste dei processi bloccati per ogni external (sub)device
     mkEmptyProcQ(&Locked_disk);
     mkEmptyProcQ(&Locked_flash);
     mkEmptyProcQ(&Locked_terminal_recv);
@@ -107,12 +119,13 @@ int main(int argc, char const *argv[])
     mkEmptyProcQ(&Locked_pseudo_clock);
 
 
-    //  5. Load the system-wide Interval Timer with 100 milliseconds
+    //  5. carico l'Interval Timer a 100 ms
     setIntervalTimer(PSECOND);
 
+    // inizializzo i primi due processi (punti 6 e 7)
     initFirstProcesses();
 
-    //  8. Call the Scheduler.
+    //  8. chiamo lo Scheduler.
     scheduler();
     return EXIT_SUCCESS;
 }

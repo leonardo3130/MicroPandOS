@@ -30,25 +30,31 @@ static void blockProcessOnDevice(pcb_t* p, int line, int term){
     In caso di terminale imposta nella chiamata a blockProcessOnDevice() 
     il campo term a 0 per recv, a 1 per transm.   */
 static void addrToDevice(memaddr command_address, pcb_t *p){
+    //ciclo for che itera fra i dispositvi terminali
     for (int j = 0; j < 8; j++){ 
+        //calcolo indirizzo di base
         termreg_t *base_address = (termreg_t *)DEV_REG_ADDR(7, j);
         if((memaddr)&(base_address->recv_command) == command_address){
+            //inizializzazione del campo aggiuntivo del pcb
             p->dev_no = j;
             blockProcessOnDevice(p, 7, 0);
             return;
         }
         else if((memaddr)&(base_address->transm_command) == command_address){
+            //inizializzazione del campo aggiuntivo del pcb
             p->dev_no = j;
             blockProcessOnDevice(p, 7, 1);
             return;
         }
     }
+    //ciclo for che itera fra tutti gli altri dispositivi
     for (int i = 3; i < 7; i++)
     {
         for (int j = 0; j < 8; j++)
         { 
             dtpreg_t *base_address = (dtpreg_t *)DEV_REG_ADDR(i, j);
             if((memaddr)&(base_address->command) == command_address){
+                //inizializzazione del campo aggiuntivo del pcb
                 p->dev_no = j;
                 blockProcessOnDevice(p, i, -1);
                 return;
