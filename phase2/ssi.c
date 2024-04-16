@@ -34,13 +34,13 @@ static void addrToDevice(memaddr command_address, pcb_t *p){
     for (int j = 0; j < 8; j++){ 
         //calcolo indirizzo di base
         termreg_t *base_address = (termreg_t *)DEV_REG_ADDR(7, j);
-        if((memaddr)&(base_address->recv_command) == command_address){
+        if(command_address == (memaddr)&(base_address->recv_command) ){
             //inizializzazione del campo aggiuntivo del pcb
             p->dev_no = j;
             blockProcessOnDevice(p, 7, 0);
             return;
         }
-        else if((memaddr)&(base_address->transm_command) == command_address){
+        else if(command_address == (memaddr)&(base_address->transm_command)){
             //inizializzazione del campo aggiuntivo del pcb
             p->dev_no = j;
             blockProcessOnDevice(p, 7, 1);
@@ -53,7 +53,7 @@ static void addrToDevice(memaddr command_address, pcb_t *p){
         for (int j = 0; j < 8; j++)
         { 
             dtpreg_t *base_address = (dtpreg_t *)DEV_REG_ADDR(i, j);
-            if((memaddr)&(base_address->command) == command_address){
+            if(command_address == (memaddr)&(base_address->command) ){
                 //inizializzazione del campo aggiuntivo del pcb
                 p->dev_no = j;
                 blockProcessOnDevice(p, i, -1);
@@ -164,7 +164,7 @@ unsigned int SSIRequest(pcb_t* sender, ssi_payload_t *payload){
             }
             break;
 
-        case DOIO:
+        case DOIO:  //gestione DOI
             ssi_doio(sender, payload->arg);
             ret = -1;
             break;
