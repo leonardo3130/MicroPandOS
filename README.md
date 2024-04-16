@@ -28,7 +28,7 @@
 - `headers`: contains the costant and some usefull macro;
 - `phase1`: contains the definition of functions about pcb lists, pcbs trees, messages lists;
 - `phase2`: contains the Scheduler, SSI process, Exception and Interrupt handlers and the Nucleus initialization;
-- `phase3`: ... work in progress ...
+- `phase3`: contains the support level [... work in progress ... \]
 
 For more information about project and/or authors (`AUTHOR`), see the report: `Relazione.pdf`
 
