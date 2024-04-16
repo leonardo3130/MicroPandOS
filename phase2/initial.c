@@ -127,6 +127,5 @@ int main(int argc, char const *argv[])
 
     //  8. chiamo lo Scheduler.
     scheduler();
-    return EXIT_SUCCESS;
 }
 

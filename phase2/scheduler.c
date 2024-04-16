@@ -6,7 +6,7 @@ void scheduler(){
         current_process = removeProcQ(&Ready_Queue);
 
         //  2. carico il processo localt timer a 5ms [Section 4.1.4-pops].
-        setPLT(TIMESLICE);
+        setPLT(TIMESLICE*TIMESCALEADDR);
 
         //  3. Eseguo un Load Processor State (LDST) sul Current Process (p_s).
         start = getTOD(); 
@@ -15,7 +15,6 @@ void scheduler(){
     else{
 
         // nel caso la Ready Queue dovesse risultare vuota si entra in questo ramo else in cui avviena la deadlock detection
-
         if(process_count == 1) {
             HALT();
         }
@@ -29,5 +28,3 @@ void scheduler(){
         }
     }
 }
-
-
