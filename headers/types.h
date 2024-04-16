@@ -21,13 +21,13 @@ typedef struct pteEntry_t {
 } pteEntry_t;
 
 
-
 /* Support level context */
 typedef struct context_t {
     unsigned int stackPtr;
     unsigned int status;
     unsigned int pc;
 } context_t;
+
 
 /* Support level descriptor */
 typedef struct support_t {
@@ -61,24 +61,7 @@ typedef struct pcb_t
 
     /* process id */
     int p_pid;
-
-    //campi aggiuntivi creati da noi
-    //int service;
-
-    //int device;
-    
-    int dev_no;
-
-    //int term;
-
-    unsigned int from;
 } pcb_t, *pcb_PTR;
-
-typedef struct ssi_payload_t
-{
-    int service_code;
-    void *arg;
-} ssi_payload_t, *ssi_payload_PTR;
 
 /* message entry type */
 typedef struct msg_t
@@ -90,12 +73,14 @@ typedef struct msg_t
     struct pcb_t *m_sender;
 
     /* the payload of the message */
-	  unsigned int m_payload;
-
-    /* payload for messages to ssi*/
-    //ssi_payload_t *ssi_payload;
-
+	unsigned int m_payload;
 } msg_t, *msg_PTR;
+
+typedef struct ssi_payload_t
+{
+    int service_code;
+    void *arg;
+} ssi_payload_t, *ssi_payload_PTR;
 
 typedef struct ssi_create_process_t
 {
@@ -105,8 +90,21 @@ typedef struct ssi_create_process_t
 
 typedef struct ssi_do_io_t
 {
-    memaddr *commandAddr;
+    memaddr* commandAddr;
     unsigned int commandValue;
 } ssi_do_io_t, *ssi_do_io_PTR;
+
+typedef struct sst_print_t
+{
+    int length;
+    char *string;
+} sst_print_t, *sst_print_PTR;
+
+/* Page swap pool information structure type */
+typedef struct swap_t {
+    int         sw_asid;   /* ASID number			*/
+    int         sw_pageNo; /* page's virt page no.	*/
+    pteEntry_t *sw_pte;    /* page's PTE entry.	*/
+} swap_t;
 
 #endif
