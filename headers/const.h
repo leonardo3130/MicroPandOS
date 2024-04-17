@@ -26,8 +26,8 @@
 #define TIMESCALEADDR 0x10000024
 
 /* Memory related constants */
-#define KSEG0        0x00000000     //kernel
-#define KSEG1        0x20000000     //RAM
+#define KSEG0        0x00000000
+#define KSEG1        0x20000000
 #define KSEG2        0x40000000
 #define KUSEG        0x80000000
 #define RAMSTART     0x20000000
@@ -40,14 +40,17 @@
 
 /* Mikeyg Added constants */
 
-#define MAXPROC 40
-#define MAXMESSAGES 40
+#define MAXPROC 50
+#define MAXMESSAGES 50
 
 #define ANYMESSAGE 0
 #define MSGNOGOOD -1
 #define DEST_NOT_EXIST -2
 #define SENDMESSAGE -1
 #define RECEIVEMESSAGE -2
+
+#define SENDMSG 1
+#define RECEIVEMSG 2
 
 #define CREATEPROCESS 1
 #define TERMPROCESS   2
@@ -56,6 +59,11 @@
 #define CLOCKWAIT     5
 #define GETSUPPORTPTR 6
 #define GETPROCESSID  7
+
+#define GET_TOD 1
+#define TERMINATE 2
+#define WRITEPRINTER 3
+#define WRITETERMINAL 4
 
 /* Status register constants */
 #define ALLOFF      0x00000000
@@ -168,7 +176,7 @@
 
 /*
  * NOTE: Function coming from a 2012 project
-
+ 
 * This function takes the CAUSE register (3.3 of pops) and reads the bits corresponding to IP
  * The "il_no" parameter represents all the possible devices we have. (file /umps3/umps/arch.h line 68)
  * So the function allows us to go and check for each device which of them is working.
