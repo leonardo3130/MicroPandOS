@@ -60,6 +60,11 @@
 #define GETSUPPORTPTR 6
 #define GETPROCESSID  7
 
+#define GET_TOD 1
+#define TERMINATE 2
+#define WRITEPRINTER 3
+#define WRITETERMINAL 4
+
 /* Status register constants */
 #define ALLOFF      0x00000000
 #define USERPON     0x00000008
