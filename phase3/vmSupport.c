@@ -1,5 +1,14 @@
 #include "./include/vmSupport.h"
 
+
+// Since all valid ASID values are positive numbers, one can indicate that a frame is unoccupied with 
+// an entry of -1 in that frame’s ASID entry in the Swap Pool table [pagina 6/16]
+void init_swapPT(){
+    for(int i= 0;i < POOLSIZE; i++)
+        swap_pool_table[i].sw_asid = -1; 
+}
+
+
 void uTLB_refillHandler(){
     // prendo l'exception_state dalla BIOSDATAPAGE al fine di trovare 
     state_t* exception_state = (state_t *)BIOSDATAPAGE;
