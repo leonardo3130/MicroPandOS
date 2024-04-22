@@ -1,0 +1,24 @@
+#ifndef INITPROC
+
+#include "../../headers/const.h"
+#include "../../headers/types.h"
+#include "../../headers/listx.h"
+#include "../../phase1/headers/pcb.h"
+#include "../../phase1/headers/msg.h"
+#include "../../phase2/include/timers.h"
+#include "../../phase2/include/exceptions.h"
+#include <umps/const.h>
+#include <umps/libumps.h>
+#include <umps/arch.h>
+#include <umps/cp0.h>
+
+
+extern support_t ss_array[UPROCMAX]; //support struct array
+extern pcb_t *swap_mutex_pcb;
+extern swap_t swap_pool_table[POOLSIZE];
+extern pcb_t *sst_array[UPROCMAX];
+extern pcb_t *terminal_pcbs_recv[UPROCMAX];
+extern pcb_t *terminal_pcbs_transm[UPROCMAX];
+extern pcb_t *printer_pcbs[UPROCMAX];
+
+#endif 
