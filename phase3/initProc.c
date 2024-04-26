@@ -11,12 +11,15 @@ pcb_t *printer_pcbs[UPROCMAX];
 state_t swap_mutex_state;
 memaddr curr;
 
-pcb_t *create_process(state_t *s)
+extern pcb_t *ssi_pcb;
+extern pcb_t *current_process;
+
+pcb_t *create_process(state_t *s, support_t *sup)
 {
     pcb_t *p;
     ssi_create_process_t ssi_create_process = {
         .state = s,
-        .support = NULL,
+        .support = sup,
     };
     ssi_payload_t payload = {
         .service_code = CREATEPROCESS,
