@@ -6,7 +6,7 @@ void scheduler(){
         current_process = removeProcQ(&Ready_Queue);
 
         //  2. carico il processo localt timer a 5ms [Section 4.1.4-pops].
-        setPLT(TIMESLICE*TIMESCALEADDR);
+        setPLT(TIMESLICE * (*((cpu_t *)TIMESCALEADDR)));
 
         //  3. Eseguo un Load Processor State (LDST) sul Current Process (p_s).
         start = getTOD(); 
