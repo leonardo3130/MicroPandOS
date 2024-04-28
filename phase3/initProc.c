@@ -1,6 +1,7 @@
 #include "./include/initProc.h"
 
 support_t ss_array[UPROCMAX]; //support struct array
+state_t UProc_state[UPROCMAX];
 pcb_t *swap_mutex_pcb;
 swap_t swap_pool_table[POOLSIZE];
 pcb_t *sst_array[UPROCMAX];
@@ -32,7 +33,7 @@ pcb_t *create_process(state_t *s, support_t *sup)
 
 static void initSwapPoolTable() 
 {
-    for (i = 0; i < POOLSIZE; i++)
+    for (int i = 0; i < POOLSIZE; i++)
         swap_pool_table[i].sw_asid = -1;
 }
 
@@ -43,21 +44,20 @@ static void initUProc()
     for (int asid = 1; asid <= UPROCMAX; asid++) 
     {
         //inizializzazione stato
-        state_t UProc_state;
-        UProc_state.reg_sp = (memaddr)USERSTACKTOP;
-        UProc_state.reg_pc = (memaddr)UPROCSTARTADDR;
-        UProc_state.status = ALLOFF | IEPBITON | CAUSEINTMASK | TEBITON;
-        UProc_state.entry_hi = asid << ASIDSHIFT;
+        UProc_state[asid - 1].reg_sp = (memaddr)USERSTACKTOP;
+        UProc_state[asid - 1].pc_epc = (memaddr)UPROCSTARTADDR;
+        UProc_state[asid - 1].status = ALLOFF | IEPON | IMON | TEBITON;
+        UProc_state[asid - 1].entry_hi = asid << ASIDSHIFT;
 
         curr -= 2 * PAGESIZE; // general e tlb --> 2 pagine --> moltiplico per 2
 
         //inizializzazione support struct SST (stesse degli U-proc)
         ss_array[asid - 1].sup_asid = asid;
         ss_array[asid - 1].sup_exceptContext[GENERALEXCEPT].stackPtr = (memaddr)curr;
-        ss_array[asid - 1].sup_exceptContext[GENERALEXCEPT].status = ALLOFF | IEPBITON | CAUSEINTMASK | TEBITON;
+        ss_array[asid - 1].sup_exceptContext[GENERALEXCEPT].status = ALLOFF | IEPON | IMON | TEBITON;
         ss_array[asid - 1].sup_exceptContext[GENERALEXCEPT].pc = (memaddr)generalExceptionHandler;
         ss_array[asid - 1].sup_exceptContext[PGFAULTEXCEPT].stackPtr = (memaddr)curr + PAGESIZE;
-        ss_array[asid - 1].sup_exceptContext[PGFAULTEXCEPT].status = ALLOFF | IEPBITON | CAUSEINTMASK | TEBITON;
+        ss_array[asid - 1].sup_exceptContext[PGFAULTEXCEPT].status = ALLOFF | IEPON | IMON | TEBITON;
         ss_array[asid - 1].sup_exceptContext[PGFAULTEXCEPT].pc = (memaddr)TLBHandler; // nome da cambiare in base a come Andre nominerà la funzione
         
         //qualche inizializzazione con ss_array[asid].sup_privatePbTbl 
@@ -74,8 +74,8 @@ static void initSST()
         //inizializzazione stato
         state_t SST_state;
         SST_state.reg_sp = (memaddr)curr;
-        SST_state.reg_pc = (memaddr)SST; //da modificare in base a come chiamerà la funzione Luca 
-        SST_state.status = ALLOFF | IEPBITON | CAUSEINTMASK | TEBITON;
+        SST_state.pc_epc = (memaddr)SST; //da modificare in base a come chiamerà la funzione Luca 
+        SST_state.status = ALLOFF | IEPON | IMON | TEBITON;
         SST_state.entry_hi = asid << ASIDSHIFT;
 
         create_process(&SST_state,  &ss_array[asid - 1]);
@@ -86,8 +86,8 @@ static void initSwapMutex()
 {
     curr -= PAGESIZE;
     swap_mutex_state.reg_sp = (memaddr)curr;
-    swap_mutex_state.reg_pc = ...; //da definire
-    swap_mutex_state.status = ALLOFF | IEPBITON | CAUSEINTMASK | TEBITON;
+    swap_mutex_state.pc_epc = ...; //da definire
+    swap_mutex_state.status = ALLOFF | IEPON | IMON | TEBITON;
 
     create_process(&swap_mutex_state, NULL);
 }
@@ -100,9 +100,9 @@ static void initSemProc()
         curr -= PAGESIZE;
 
         state_t p_state;
-        swap_mutex_state.reg_sp = (memaddr)curr;
-        swap_mutex_state.reg_pc = ...; //da definire
-        swap_mutex_state.status = ALLOFF | IEPBITON | CAUSEINTMASK | TEBITON;
+        p_state.reg_sp = (memaddr)curr;
+        p_state.pc_epc = ...; //da definire
+        p_state.status = ALLOFF | IEPON | IMON | TEBITON;
         
         if(i < 8)
             terminal_pcbs[i] = create_process(&p_state, NULL);
