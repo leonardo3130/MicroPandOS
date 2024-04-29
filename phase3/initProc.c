@@ -74,11 +74,11 @@ static void initSST()
         //inizializzazione stato
         state_t SST_state;
         SST_state.reg_sp = (memaddr)curr;
-        SST_state.pc_epc = (memaddr)SST; //da modificare in base a come chiamerà la funzione Luca 
+        SST_state.pc_epc = (memaddr)SST_loop;
         SST_state.status = ALLOFF | IEPON | IMON | TEBITON;
         SST_state.entry_hi = asid << ASIDSHIFT;
 
-        create_process(&SST_state,  &ss_array[asid - 1]);
+        sst_array[asid-1] = create_process(&SST_state,  &ss_array[asid - 1]);
     }
 }
 

@@ -106,7 +106,6 @@ void print()
         devregtr *command = base + 3;
         devregtr status;
         
-
         while (*s != EOS)
         {
             devregtr value = PRINTCHR | (((devregtr)*s) << 8);

@@ -164,7 +164,7 @@ unsigned int SSIRequest(pcb_t* sender, ssi_payload_t *payload){
             }
             break;
 
-        case DOIO:  //gestione DOI
+        case DOIO:  //gestione DOIO
             ssi_doio(sender, payload->arg);
             ret = -1;
             break;
@@ -185,7 +185,7 @@ unsigned int SSIRequest(pcb_t* sender, ssi_payload_t *payload){
         case GETPROCESSID:
             ret = (unsigned int)ssi_getprocessid(sender, payload->arg);
             break;
-
+*/
         default:
             ssi_terminate_process(sender);
             ret = MSGNOGOOD;

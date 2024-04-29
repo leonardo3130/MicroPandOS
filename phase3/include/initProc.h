@@ -7,6 +7,7 @@
 #include "../../phase1/headers/msg.h"
 #include "../../phase2/include/timers.h"
 #include "../../phase2/include/exceptions.h"
+#include "../../phase3/include/sst.h"
 #include "./sysSupport.h"
 #include "./vmSupport.h"
 #include <umps/const.h>
