@@ -58,7 +58,7 @@ static void initUProc()
         ss_array[asid - 1].sup_exceptContext[GENERALEXCEPT].pc = (memaddr)generalExceptionHandler;
         ss_array[asid - 1].sup_exceptContext[PGFAULTEXCEPT].stackPtr = (memaddr)curr + PAGESIZE;
         ss_array[asid - 1].sup_exceptContext[PGFAULTEXCEPT].status = ALLOFF | IEPON | IMON | TEBITON;
-        //ss_array[asid - 1].sup_exceptContext[PGFAULTEXCEPT].pc = (memaddr)TLBHandler; // nome da cambiare in base a come Andre nominerà la funzione
+        ss_array[asid - 1].sup_exceptContext[PGFAULTEXCEPT].pc = (memaddr)TLBHandler; // nome da cambiare in base a come Andre nominerà la funzione
         
         //qualche inizializzazione con ss_array[asid].sup_privatePbTbl 
         //create_process(&SST_state,  &ss_array[asid - 1]); --> chiamata che deve fare l'SST
@@ -71,7 +71,7 @@ static void initSST()
     for (int asid = 1; asid <= UPROCMAX; asid++) 
     {
         curr -= PAGESIZE; 
-        //inizializzazione stato
+        inizializzazione stato
         state_t SST_state;
         SST_state.reg_sp = (memaddr)curr;
         SST_state.pc_epc = (memaddr)SST_loop;
@@ -86,7 +86,7 @@ static void initSwapMutex()
 {
     curr -= PAGESIZE;
     swap_mutex_state.reg_sp = (memaddr)curr;
-    //swap_mutex_state.pc_epc = ...; //da definire
+    swap_mutex_state.pc_epc = ...; //da definire
     swap_mutex_state.status = ALLOFF | IEPON | IMON | TEBITON;
 
     create_process(&swap_mutex_state, NULL);
@@ -101,7 +101,7 @@ static void initSemProc()
 
         state_t p_state;
         p_state.reg_sp = (memaddr)curr;
-        //p_state.pc_epc = ...; //da definire
+        p_state.pc_epc = ...; //da definire
         p_state.status = ALLOFF | IEPON | IMON | TEBITON;
         
         if(i < 8)
@@ -114,7 +114,7 @@ static void initSemProc()
 //funzione che verrà eseguita dal processo inizializzato in fase 2
 void test() 
 {
-    //pcb_t *test = current_process;
+    pcb_t *test = current_process;
     initSwapPoolTable();    //Swap Pool init
     initUProc();            //init U-procs
     initSST();              //init and create SSTs 
