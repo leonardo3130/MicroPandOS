@@ -108,6 +108,7 @@ typedef struct sst_print_t
 typedef struct swap_t {
     int         sw_asid;   /* ASID number			*/
     int         sw_pageNo; /* page's virt page no.	*/
+    // int         count;
     pteEntry_t *sw_pte;    /* page's PTE entry.	*/
 } swap_t;
 
