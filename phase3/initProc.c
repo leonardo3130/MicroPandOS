@@ -34,7 +34,10 @@ pcb_t *create_process(state_t *s, support_t *sup)
 static void initSwapPoolTable() 
 {
     for (int i = 0; i < POOLSIZE; i++)
+    {
         swap_pool_table[i].sw_asid = -1;
+        // swap_pool_table[i].count = 0;
+    }
 }
 
 static void initUProc()
@@ -71,7 +74,7 @@ static void initSST()
     for (int asid = 1; asid <= UPROCMAX; asid++) 
     {
         curr -= PAGESIZE; 
-        inizializzazione stato
+        // inizializzazione stato
         state_t SST_state;
         SST_state.reg_sp = (memaddr)curr;
         SST_state.pc_epc = (memaddr)SST_loop;
