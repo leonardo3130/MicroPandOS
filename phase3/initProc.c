@@ -5,7 +5,6 @@ state_t UProc_state[UPROCMAX];
 pcb_t *swap_mutex_pcb;
 swap_t swap_pool_table[POOLSIZE];
 pcb_t *sst_array[UPROCMAX];
-//pcb_t *terminal_pcbs_recv[UPROCMAX];
 pcb_t *terminal_pcbs[UPROCMAX];
 pcb_t *printer_pcbs[UPROCMAX];
 
@@ -95,7 +94,8 @@ static void initSwapMutex()
     create_process(&swap_mutex_state, NULL);
 }
 
-
+//funzione che riceve una stringa e la stampa sul device specificato 
+//dai 2 parametri
 void print(int device_number, unsigned int *base_address)
 {
     while (1)
@@ -131,6 +131,9 @@ void print(int device_number, unsigned int *base_address)
     }
 }
 
+//wrapper della funzione per poterla assegnare ai 
+//program counter dei processi semafori
+
 void print_term0 { print(0, (unsigned int *)TERM0ADDR); }
 void print_term1 { print(1, (unsigned int *)TERM0ADDR); }
 void print_term2 { print(2, (unsigned int *)TERM0ADDR); }
@@ -149,6 +152,8 @@ void printer5 { print(5, (unsigned int *)PRINTER0ADDR); }
 void printer6 { print(6, (unsigned int *)PRINTER0ADDR); }
 void printer7 { print(7, (unsigned int *)PRINTER0ADDR); }
 
+//array di puntatori ai wrapper soprastanti per 
+//una maggiore comodità durante l'assegnamento al program counter
 
 void (*terminals[8]) () = {print_term0, print_term1, print_term2, print_term3, print_term4, print_term5, print_term6, print_term7};
 void (*printers[8]) () = {printer0, printer1, printer2, printer3, printer4, printer5, printer6, printer7};

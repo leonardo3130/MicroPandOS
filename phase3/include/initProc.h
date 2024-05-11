@@ -16,6 +16,7 @@
 #include <umps/cp0.h>
 
 #define TERM0ADDR 0x10000254
+#define PRINTER0ADDR 0x
 #define PRINTCHR 2 
 #define TERMSTATMASK 0xFF
 #define RECVD 5
@@ -25,7 +26,6 @@ extern state_t UProc_state[UPROCMAX];
 extern pcb_t *swap_mutex_pcb;
 extern swap_t swap_pool_table[POOLSIZE];
 extern pcb_t *sst_array[UPROCMAX];
-//extern pcb_t *terminal_pcbs_recv[UPROCMAX];
 extern pcb_t *terminal_pcbs[UPROCMAX];
 extern pcb_t *printer_pcbs[UPROCMAX];
 
