@@ -105,11 +105,15 @@ void print(int device_number, unsigned int *base_address)
         char *s = msg;
         unsigned int *base0 = base_addres; //indirizzo base termiale 0 o stampante 0
         //basen =base0 + 4 * n
-        unsigned int *command = base0 + 4 * device_number + 3;
+        if(base_address == TERM0ADDR)
+            unsigned int *command = base0 + 4 * device_number + 3;
+        else
+            
+            unsigned int *command = base0 + 4 * device_number + 3;
         unsigned int status;
         
         while (*s != EOS)
-        {
+        {   /////////////////////
             unsigned int value = PRINTCHR | (((unsigned int)*s) << 8);
             ssi_do_io_t do_io = {
                 .commandAddr = command,
@@ -122,7 +126,9 @@ void print(int device_number, unsigned int *base_address)
             SYSCALL(SENDMESSAGE, (unsigned int)ssi_pcb, (unsigned int)(&payload), 0);
             SYSCALL(RECEIVEMESSAGE, (unsigned int)ssi_pcb, (unsigned int)(&status), 0);
             
-            if ((status & TERMSTATMASK) != RECVD)
+            if (base_addres == TERM0ADDR && (status & TERMSTATMASK) != RECVD)
+                PANIC();
+            if (base_address == PRINTER0ADDR && status != READY)
                 PANIC();
             s++;
         }

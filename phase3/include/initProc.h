@@ -16,10 +16,12 @@
 #include <umps/cp0.h>
 
 #define TERM0ADDR 0x10000254
-#define PRINTER0ADDR 0x
+#define TERMSTATMASK 0xFF
+#define PRINTER0ADDR 0x100001D4
 #define PRINTCHR 2 
 #define TERMSTATMASK 0xFF
 #define RECVD 5
+#define READY 1
 
 extern support_t ss_array[UPROCMAX]; //support struct array
 extern state_t UProc_state[UPROCMAX];
