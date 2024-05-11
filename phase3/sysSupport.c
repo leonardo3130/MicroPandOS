@@ -31,7 +31,7 @@ void generalExceptionHandler(){
   };
   SYSCALL(SENDMESSAGE, (unsigned int)ssi_pcb, (unsigned int)(&getsup_payload), 0);
   SYSCALL(RECEIVEMESSAGE, (unsigned int)ssi_pcb, (unsigned int)(&sup_struct_ptr), 0);
-	state_t *exception_state = &sup_struct_ptr->sup_exceptState[GENERALEXCEPT];  
+	state_t exception_state = sup_struct_ptr->sup_exceptState[GENERALEXCEPT];  
 	int cause = exception_state.cause;
 
   switch((cause & GETEXECCODE) >> CAUSESHIFT){

@@ -5,7 +5,6 @@ state_t UProc_state[UPROCMAX];
 pcb_t *swap_mutex_pcb;
 swap_t swap_pool_table[POOLSIZE];
 pcb_t *sst_array[UPROCMAX];
-//pcb_t *terminal_pcbs_recv[UPROCMAX];
 pcb_t *terminal_pcbs[UPROCMAX];
 pcb_t *printer_pcbs[UPROCMAX];
 
@@ -95,6 +94,84 @@ static void initSwapMutex()
     create_process(&swap_mutex_state, NULL);
 }
 
+//funzione che riceve una stringa e la stampa sul device specificato 
+//dai 2 parametri
+void print(int device_number, unsigned int *base_address)
+{
+    while (1)
+    {
+        char *msg;
+        unsigned int sender = SYSCALL(RECEIVEMESSAGE, ANYMESSAGE, (unsigned int)(&msg), 0);
+        char *s = msg;
+        unsigned int *base = base_address + 4 * device_number; //indirizzo base
+        //basen =base0 + 4 * n
+        unsigned int *command;
+        if(base_address == TERM0ADDR)
+            command = base + 3;
+        else
+            command = base + 1;
+        unsigned int *data0 = base + 2; //usato solo con stampanti
+        unsigned int status;
+        
+        while (*s != EOS)
+        {    
+            unsigned int value;
+            if(base_address == TERM0ADDR)
+                value = PRINTCHR | (((unsigned int)*s) << 8);
+            else {
+                value = PRINTCHR; //con le stampanti il valore va nel registro DATA0, non in command
+                *data0 = (unsigned int)*s;
+            }
+
+            ssi_do_io_t do_io = {
+                .commandAddr = command,
+                .commandValue = value,
+            };
+            ssi_payload_t payload = {
+                .service_code = DOIO,
+                .arg = &do_io,
+            };
+            SYSCALL(SENDMESSAGE, (unsigned int)ssi_pcb, (unsigned int)(&payload), 0);
+            SYSCALL(RECEIVEMESSAGE, (unsigned int)ssi_pcb, (unsigned int)(&status), 0);
+            
+            if (base_addres == TERM0ADDR && (status & TERMSTATMASK) != RECVD)
+                PANIC();
+            if (base_address == PRINTER0ADDR && status != READY)
+                PANIC();
+            s++;
+        }
+        
+        SYSCALL(SENDMESSAGE, (unsigned int)sender, 0, 0);
+    }
+}
+
+//wrapper della funzione per poterla assegnare ai 
+//program counter dei processi semafori
+
+void print_term0 { print(0, (unsigned int *)TERM0ADDR); }
+void print_term1 { print(1, (unsigned int *)TERM0ADDR); }
+void print_term2 { print(2, (unsigned int *)TERM0ADDR); }
+void print_term3 { print(3, (unsigned int *)TERM0ADDR); }
+void print_term4 { print(4, (unsigned int *)TERM0ADDR); }
+void print_term5 { print(5, (unsigned int *)TERM0ADDR); }
+void print_term6 { print(6, (unsigned int *)TERM0ADDR); }
+void print_term7 { print(7, (unsigned int *)TERM0ADDR); }
+
+void printer0 { print(0, (unsigned int *)PRINTER0ADDR); }
+void printer1 { print(1, (unsigned int *)PRINTER0ADDR); }
+void printer2 { print(2, (unsigned int *)PRINTER0ADDR); }
+void printer3 { print(3, (unsigned int *)PRINTER0ADDR); }
+void printer4 { print(4, (unsigned int *)PRINTER0ADDR); }
+void printer5 { print(5, (unsigned int *)PRINTER0ADDR); }
+void printer6 { print(6, (unsigned int *)PRINTER0ADDR); }
+void printer7 { print(7, (unsigned int *)PRINTER0ADDR); }
+
+//array di puntatori ai wrapper soprastanti per 
+//una maggiore comodità durante l'assegnamento al program counter
+
+void (*terminals[8]) () = {print_term0, print_term1, print_term2, print_term3, print_term4, print_term5, print_term6, print_term7};
+void (*printers[8]) () = {printer0, printer1, printer2, printer3, printer4, printer5, printer6, printer7};
+
 static void initSemProc()
 {
     //creazione e inizializzazione dei processi che si comportano come semafori dei 
@@ -104,7 +181,12 @@ static void initSemProc()
 
         state_t p_state;
         p_state.reg_sp = (memaddr)curr;
-        p_state.pc_epc = ...; //da definire
+        
+        if(i < 8)
+            p_state.pc_epc = terminals[i]; 
+        else
+            p_state.pc_epc = printers[i - 8]; 
+        
         p_state.status = ALLOFF | IEPON | IMON | TEBITON;
         
         if(i < 8)
@@ -120,7 +202,7 @@ void test()
     pcb_t *test = current_process;
     initSwapPoolTable();    //Swap Pool init
     initUProc();            //init U-procs
-    initSST();              //init and create SSTs 
     initSwapMutex();        //init and create swap mutex process
     initSemProc();          //init and create devices semaphore processes
+    initSST();              //init and create SSTs 
 }

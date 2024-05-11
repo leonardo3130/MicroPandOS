@@ -15,13 +15,19 @@
 #include <umps/arch.h>
 #include <umps/cp0.h>
 
+#define TERM0ADDR 0x10000254
+#define TERMSTATMASK 0xFF
+#define PRINTER0ADDR 0x100001D4
+#define PRINTCHR 2 
+#define TERMSTATMASK 0xFF
+#define RECVD 5
+#define READY 1
 
 extern support_t ss_array[UPROCMAX]; //support struct array
 extern state_t UProc_state[UPROCMAX];
 extern pcb_t *swap_mutex_pcb;
 extern swap_t swap_pool_table[POOLSIZE];
 extern pcb_t *sst_array[UPROCMAX];
-//extern pcb_t *terminal_pcbs_recv[UPROCMAX];
 extern pcb_t *terminal_pcbs[UPROCMAX];
 extern pcb_t *printer_pcbs[UPROCMAX];
 
