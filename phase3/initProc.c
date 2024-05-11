@@ -103,18 +103,26 @@ void print(int device_number, unsigned int *base_address)
         char *msg;
         unsigned int sender = SYSCALL(RECEIVEMESSAGE, ANYMESSAGE, (unsigned int)(&msg), 0);
         char *s = msg;
-        unsigned int *base0 = base_addres; //indirizzo base termiale 0 o stampante 0
+        unsigned int *base = base_address + 4 * device_number; //indirizzo base
         //basen =base0 + 4 * n
+        unsigned int *command;
         if(base_address == TERM0ADDR)
-            unsigned int *command = base0 + 4 * device_number + 3;
+            command = base + 3;
         else
-            
-            unsigned int *command = base0 + 4 * device_number + 3;
+            command = base + 1;
+        unsigned int *data0 = base + 2; //usato solo con stampanti
         unsigned int status;
         
         while (*s != EOS)
-        {   /////////////////////
-            unsigned int value = PRINTCHR | (((unsigned int)*s) << 8);
+        {    
+            unsigned int value;
+            if(base_address == TERM0ADDR)
+                value = PRINTCHR | (((unsigned int)*s) << 8);
+            else {
+                value = PRINTCHR; //con le stampanti il valore va nel registro DATA0, non in command
+                *data0 = (unsigned int)*s;
+            }
+
             ssi_do_io_t do_io = {
                 .commandAddr = command,
                 .commandValue = value,
