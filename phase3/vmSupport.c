@@ -4,10 +4,10 @@
 static int getPage(){
     
     for (int i = 0; i < POOLSIZE; i++)
-        if (swap_pool_table[i].sw_asid == -1)   // -1 means that the page is free
+        if (swap_pool_table[i].sw_asid == -1)   // -1 significa che la pagina è libera
             return i;
 
-    // if no page is free, use FIFO algorithm to find the page to replace
+    // se non c'è una pagina libera, use un algoritmo FIFO per trovare una pagina da rimpiazzare
     static int i = -1;
     return i = (i + 1) % POOLSIZE;
 }
@@ -15,14 +15,14 @@ static int getPage(){
 static void update(int index){
     
     // Imposta il registro ENTRYHI con il valore entryHI dalla swap_pool_table all'indice dato
-    setENTRYHI(swap_pool_table[index]->sw_pte.pte_entryHI);
+    setENTRYHI(swap_pool_table[index].sw_pte.pte_entryHI);
     
     // Prova il TLB per trovare una voce corrispondente
     TLBP();
     
     // Se la voce non è presente nel TLB, aggiorna il registro ENTRYLO e scrivilo nel TLB
     if((getINDEX() & PRESENTFLAG) == 0){
-        setENTRYLO(swap_pool_table[index]->sw_pte.pte_entryLO);
+        setENTRYLO(swap_pool_table[index].sw_pte.pte_entryLO);
         TLBWI();
     } 
 }
@@ -56,12 +56,12 @@ void pager(){
         // Gain mutual exclusion over the Swap Pool table sending a message to the swap_table PCB and waiting for a response.
         
         // Prendo la pagina dalla entry_hi supp_p->sup_exceptState[PGFAULTEXCEPT].entry_hi
-        int p;
+        int p = GETVPN(sup_st->sup_exceptState[PGFAULTEXCEPT].entry_hi);
         
         // Uso il mio algoritmo di rimpiazzamento per trovare la pagina da sostituire
         int i = getPage();
 
-        // è necessario aggiornare in modo atomico la pagina se questa era occupata da un altro frame appartenente ad un altro processo
+        // è necessario aggiornare la pagina se questa era occupata da un altro frame appartenente ad un altro processo
         // e in caso serve "pulirna" poichè ormai obsoleta (ovviamente tutto ciò in modo atomico per evitare inconsistenza)
         if(swap_pool_table[i].sw_asid != -1){
             cleanDirtyPage(i);
@@ -78,7 +78,7 @@ void pager(){
 void uTLB_refillHandler(){
     // prendo l'exception_state dalla BIOSDATAPAGE al fine di trovare 
     state_t* exception_state = (state_t *) BIOSDATAPAGE;
-    int p; // trovare il modo di prendere la page da exception_state->entry_hi
+    int p = GETVPN(&(exception_state->entry_hi));
 
     setENTRYHI(currentProcess->p_supportStruct->sup_privatePgTbl[p].pte_entryHI);
     setENTRYLO(currentProcess->p_supportStruct->sup_privatePgTbl[p].pte_entryLO);
