@@ -185,7 +185,6 @@ unsigned int SSIRequest(pcb_t* sender, ssi_payload_t *payload){
         case GETPROCESSID:
             ret = (unsigned int)ssi_getprocessid(sender, payload->arg);
             break;
-*/
         default:
             ssi_terminate_process(sender);
             ret = MSGNOGOOD;

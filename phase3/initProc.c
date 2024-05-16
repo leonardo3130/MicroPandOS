@@ -106,7 +106,7 @@ void print(int device_number, unsigned int *base_address)
         unsigned int *base = base_address + 4 * device_number; //indirizzo base
         //basen =base0 + 4 * n
         unsigned int *command;
-        if(base_address == TERM0ADDR)
+        if(base_address == (unsigned int *)TERM0ADDR)
             command = base + 3;
         else
             command = base + 1;
@@ -116,7 +116,7 @@ void print(int device_number, unsigned int *base_address)
         while (*s != EOS)
         {    
             unsigned int value;
-            if(base_address == TERM0ADDR)
+            if(base_address == (unsigned int *)TERM0ADDR)
                 value = PRINTCHR | (((unsigned int)*s) << 8);
             else {
                 value = PRINTCHR; //con le stampanti il valore va nel registro DATA0, non in command
@@ -134,9 +134,9 @@ void print(int device_number, unsigned int *base_address)
             SYSCALL(SENDMESSAGE, (unsigned int)ssi_pcb, (unsigned int)(&payload), 0);
             SYSCALL(RECEIVEMESSAGE, (unsigned int)ssi_pcb, (unsigned int)(&status), 0);
             
-            if (base_addres == TERM0ADDR && (status & TERMSTATMASK) != RECVD)
+            if (base_address == (unsigned int *)TERM0ADDR && (status & TERMSTATMASK) != RECVD)
                 PANIC();
-            if (base_address == PRINTER0ADDR && status != READY)
+            if (base_address == (unsigned int *)PRINTER0ADDR && status != READY)
                 PANIC();
             s++;
         }
@@ -148,23 +148,23 @@ void print(int device_number, unsigned int *base_address)
 //wrapper della funzione per poterla assegnare ai 
 //program counter dei processi semafori
 
-void print_term0 { print(0, (unsigned int *)TERM0ADDR); }
-void print_term1 { print(1, (unsigned int *)TERM0ADDR); }
-void print_term2 { print(2, (unsigned int *)TERM0ADDR); }
-void print_term3 { print(3, (unsigned int *)TERM0ADDR); }
-void print_term4 { print(4, (unsigned int *)TERM0ADDR); }
-void print_term5 { print(5, (unsigned int *)TERM0ADDR); }
-void print_term6 { print(6, (unsigned int *)TERM0ADDR); }
-void print_term7 { print(7, (unsigned int *)TERM0ADDR); }
+void print_term0 () { print(0, (unsigned int *)TERM0ADDR); }
+void print_term1 () { print(1, (unsigned int *)TERM0ADDR); }
+void print_term2 () { print(2, (unsigned int *)TERM0ADDR); }
+void print_term3 () { print(3, (unsigned int *)TERM0ADDR); }
+void print_term4 () { print(4, (unsigned int *)TERM0ADDR); }
+void print_term5 () { print(5, (unsigned int *)TERM0ADDR); }
+void print_term6 () { print(6, (unsigned int *)TERM0ADDR); }
+void print_term7 () { print(7, (unsigned int *)TERM0ADDR); }
 
-void printer0 { print(0, (unsigned int *)PRINTER0ADDR); }
-void printer1 { print(1, (unsigned int *)PRINTER0ADDR); }
-void printer2 { print(2, (unsigned int *)PRINTER0ADDR); }
-void printer3 { print(3, (unsigned int *)PRINTER0ADDR); }
-void printer4 { print(4, (unsigned int *)PRINTER0ADDR); }
-void printer5 { print(5, (unsigned int *)PRINTER0ADDR); }
-void printer6 { print(6, (unsigned int *)PRINTER0ADDR); }
-void printer7 { print(7, (unsigned int *)PRINTER0ADDR); }
+void printer0 () { print(0, (unsigned int *)PRINTER0ADDR); }
+void printer1 () { print(1, (unsigned int *)PRINTER0ADDR); }
+void printer2 () { print(2, (unsigned int *)PRINTER0ADDR); }
+void printer3 () { print(3, (unsigned int *)PRINTER0ADDR); }
+void printer4 () { print(4, (unsigned int *)PRINTER0ADDR); }
+void printer5 () { print(5, (unsigned int *)PRINTER0ADDR); }
+void printer6 () { print(6, (unsigned int *)PRINTER0ADDR); }
+void printer7 () { print(7, (unsigned int *)PRINTER0ADDR); }
 
 //array di puntatori ai wrapper soprastanti per 
 //una maggiore comodità durante l'assegnamento al program counter
@@ -183,9 +183,9 @@ static void initSemProc()
         p_state.reg_sp = (memaddr)curr;
         
         if(i < 8)
-            p_state.pc_epc = terminals[i]; 
+            p_state.pc_epc = (unsigned int)terminals[i]; 
         else
-            p_state.pc_epc = printers[i - 8]; 
+            p_state.pc_epc = (unsigned int)printers[i - 8]; 
         
         p_state.status = ALLOFF | IEPON | IMON | TEBITON;
         
