@@ -36,6 +36,28 @@ static void cleanDirtyPage(int sp_index){
     setSTATUS(getSTATUS() | IECON); // riabilito interrupt per rilasciare la mutua esclusione
 }
 
+static int RWBackingStore(int page_no, int asid, memaddr addr, int w) {
+    setSTATUS(getSTATUS() & (~IECON)); // disabilito interrupt per avere mutua esclusione
+    dtpreg_t *device_register = (termreg_t *)DEV_REG_ADDR(IL_FLASH, asid - 1);
+    device_register->data0 = addr; 
+
+    unsigned int value = w ? FLASHWRITE | (page_no << 8) : FLASHREAD | (page_no << 8);
+    unsigned int status;
+
+    ssi_do_io_t do_io = {
+        .commandAddr = (unsigned int *)device_register->command,
+        .commandValue = value,
+    };
+    ssi_payload_t payload = {
+        .service_code = DOIO,
+        .arg = &do_io,
+    };
+    
+    SYSCALL(SENDMESSAGE, (unsigned int)ssi_pcb, (unsigned int)(&payload), 0);
+    SYSCALL(RECEIVEMESSAGE, (unsigned int)ssi_pcb, (unsigned int)(&status), 0);
+    setSTATUS(getSTATUS() | IECON); // riabilito interrupt per rilasciare la mutua esclusione
+}
+
 void pager(){
     //prendo la support struct
     support_t * sup_st = (support_t *) SYSCALL(GETSUPPORTPTR, 0, 0, 0);
@@ -59,13 +81,27 @@ void pager(){
         int p = GETVPN(sup_st->sup_exceptState[PGFAULTEXCEPT].entry_hi);
         
         // Uso il mio algoritmo di rimpiazzamento per trovare la pagina da sostituire
-        int i = getPage();
+        int i = getPage(); //victim page
+
+        swap_t *swap_pool_entry = &swap_pool_table[i];
+        memaddr victim_addr = SWAP_POOL_AREA + i * PAGESIZE;
 
         // è necessario aggiornare la pagina se questa era occupata da un altro frame appartenente ad un altro processo
         // e in caso serve "pulirna" poichè ormai obsoleta (ovviamente tutto ciò in modo atomico per evitare inconsistenza)
+        int status;
         if(swap_pool_table[i].sw_asid != -1){
             cleanDirtyPage(i);
+            //write backing store/flash
+            status = RWBackingStore(swap_pool_entry->sw_pageNo ,swap_pool_entry->sw_asid, victim_addr, 1);
+
+            if(status != 1) 
+                kill_proc(); //tratto gli errori come se fossere program trap
         }
+
+        //read backing store/flash
+        status = RWBackingStore(p, sup_st->sup_asid, victim_addr, 0);
+        if(status != 1) 
+            kill_proc(); //tratto gli errori come se fossere program trap
 
 
 
