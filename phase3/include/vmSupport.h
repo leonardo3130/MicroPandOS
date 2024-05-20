@@ -6,6 +6,7 @@
 
 extern pcb_t* currentProcess;
 void uTLB_refillHandler();
+void pager();
 
 /*
 

@@ -39,6 +39,14 @@ static void initSwapPoolTable()
     }
 }
 
+static void initPageTableEntry(pteEntry_t *entry, int asid, int i) {
+    if(i < 31)
+        entry->pte_entryHI = (asid << ASIDSHIFT) | ((0x80000 + i) << VPNSHIFT);
+    else
+        entry->pte_entryHI = (asid << ASIDSHIFT) | (0xBFFFF << VPNSHIFT); //stack page 
+    entry->pte_entryLO = GLOBALON | VALIDON | DIRTYON;
+}
+
 static void initUProc()
 {
     RAMTOP(curr);
@@ -60,9 +68,11 @@ static void initUProc()
         ss_array[asid - 1].sup_exceptContext[GENERALEXCEPT].pc = (memaddr)generalExceptionHandler;
         ss_array[asid - 1].sup_exceptContext[PGFAULTEXCEPT].stackPtr = (memaddr)curr + PAGESIZE;
         ss_array[asid - 1].sup_exceptContext[PGFAULTEXCEPT].status = ALLOFF | IEPON | IMON | TEBITON;
-        ss_array[asid - 1].sup_exceptContext[PGFAULTEXCEPT].pc = (memaddr)TLBHandler; // nome da cambiare in base a come Andre nominerà la funzione
+        ss_array[asid - 1].sup_exceptContext[PGFAULTEXCEPT].pc = (memaddr)pager; // nome da cambiare in base a come Andre nominerà la funzione
         
-        //qualche inizializzazione con ss_array[asid].sup_privatePbTbl 
+        //inizializzazione page table del processo
+        for (int i = 0; i < USERPGTBLSIZE; i++) 
+            initPageTableEntry(&(ss_array[asid - 1].sup_privatePgTbl[i]), asid, i); 
         //create_process(&SST_state,  &ss_array[asid - 1]); --> chiamata che deve fare l'SST
         //se la faccio qua gli UProc diventerebbero figli del test
     }
