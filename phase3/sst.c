@@ -28,46 +28,31 @@ unsigned int sst_terminate(pcb_t *sender){
 }
 
 unsigned int sst_write(pcb_t *sender, unsigned int device_type, sst_print_t *payload){
-    memaddr *base;
-    //trovo il corretto asid e calcolo il relativo indirizzo di memoria del dispostivo sul quale voglio scrivere
-    for(int i=1; i<8; i++){
-        if(i == sender->p_supportStruct->sup_asid){
-            base = (memaddr*)(DEV_REG_ADDR(device_type, i));
-        }
-    }
-
-    memaddr *command = base + 3;
-    memaddr ret;
 
     //controllo lunghezza stringa
     if(payload->string[payload->length] != '\0'){
         payload->string[payload->length] = '\0';
     }
     
-    devregtr value = ((devregtr)payload->string) << 8;
-
-    ssi_do_io_t doio_struct = {
-        .commandAddr = command,
-        .commandValue = value,
-    };
-    ssi_payload_t payload = {
-        .service_code = DOIO,
-        .arg = &doio_struct,
-    };
-    SYSCALL(SENDMESSAGE, (unsigned int)ssi_pcb, (unsigned int)&payload, 0);
-    SYSCALL(RECEIVEMESSAGE, (unsigned int)ssi_pcb, (unsigned int)(&ret), 0);
-    return (unsigned int)ret;
+    unsigned int dest;
+    switch(device type){
+        case 6:
+            dest = (unsigned int)printer_pcbs[sender->p_supportStruct->sup_asid-1];
+        case 7:
+            dest = (unsigned int)terminal_pcbs[sender->p_supportStruct->sup_asid-1];
+        default:
+            break;
+    }
+        
+    SYSCALL(SENDMESSAGE, dest, (unsigned int)&payload, 0);
+    return 1;
 }
 
 /*  Esecuzione continua del processo SST attraverso un ciclo while   */
 void SST_loop(){
-    //receive per ottenere lo state_t per la creazione del nuovo processo (da capire come gestire la cosa)
-    //SYSCALL(RECEIVEMESSAGE, ANYMESSAGE, (unsigned int)(&state), 0);
-
     support_t *sup = support_request(); 
     state_t *state = UProc_state[sup->sup_asid];
     
-
     create_process(state, sup);
 
     while(TRUE){
