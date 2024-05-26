@@ -39,33 +39,34 @@ unsigned int sst_write(pcb_t *sender, unsigned int device_type, sst_print_t *pay
     memaddr *command = base + 3;
     memaddr ret;
 
-    for(int i=0; i<(payload->length); i++){
-
-        char *letter = &payload->string[i];
-        devregtr value = ((devregtr)*letter) << 8;
-
-        ssi_do_io_t doio_struct = {
-            .commandAddr = command,
-            .commandValue = value,
-        };
-        ssi_payload_t payload = {
-            .service_code = DOIO,
-            .arg = &doio_struct,
-        };
-        SYSCALL(SENDMESSAGE, (unsigned int)ssi_pcb, (unsigned int)&payload, 0);
-        SYSCALL(RECEIVEMESSAGE, (unsigned int)ssi_pcb, (unsigned int)(&ret), 0);
+    //controllo lunghezza stringa
+    if(payload->string[payload->length] != '\0'){
+        payload->string[payload->length] = '\0';
     }
+    
+    devregtr value = ((devregtr)payload->string) << 8;
+
+    ssi_do_io_t doio_struct = {
+        .commandAddr = command,
+        .commandValue = value,
+    };
+    ssi_payload_t payload = {
+        .service_code = DOIO,
+        .arg = &doio_struct,
+    };
+    SYSCALL(SENDMESSAGE, (unsigned int)ssi_pcb, (unsigned int)&payload, 0);
+    SYSCALL(RECEIVEMESSAGE, (unsigned int)ssi_pcb, (unsigned int)(&ret), 0);
     return (unsigned int)ret;
 }
 
 /*  Esecuzione continua del processo SST attraverso un ciclo while   */
 void SST_loop(){
-    state_t *state;
-
     //receive per ottenere lo state_t per la creazione del nuovo processo (da capire come gestire la cosa)
-    SYSCALL(RECEIVEMESSAGE, ANYMESSAGE, (unsigned int)(&state), 0);
-    
+    //SYSCALL(RECEIVEMESSAGE, ANYMESSAGE, (unsigned int)(&state), 0);
+
     support_t *sup = support_request(); 
+    state_t *state = UProc_state[sup->sup_asid];
+    
 
     create_process(state, sup);
 
