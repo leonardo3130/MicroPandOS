@@ -120,6 +120,7 @@
 #define DEV6ON 0x00000040
 #define DEV7ON 0x00000080
 
+#define PARENT 0
 
 #define OKCHARTRANS  5
 #define TRANSMITCHAR 2
