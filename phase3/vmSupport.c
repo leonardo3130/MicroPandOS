@@ -15,14 +15,14 @@ static int getPage(){
 static void update(int index){
     
     // Imposta il registro ENTRYHI con il valore entryHI dalla swap_pool_table all'indice dato
-    setENTRYHI(swap_pool_table[index].sw_pte.pte_entryHI);
+    setENTRYHI(swap_pool_table[index].sw_pte->pte_entryHI);
     
     // Prova il TLB per trovare una voce corrispondente
     TLBP();
     
     // Se la voce non è presente nel TLB, aggiorna il registro ENTRYLO e scrivilo nel TLB
     if((getINDEX() & PRESENTFLAG) == 0){
-        setENTRYLO(swap_pool_table[index].sw_pte.pte_entryLO);
+        setENTRYLO(swap_pool_table[index].sw_pte->pte_entryLO);
         TLBWI();
     } 
 }
@@ -30,7 +30,8 @@ static void update(int index){
 static void cleanDirtyPage(int sp_index){
     setSTATUS(getSTATUS() & (~IECON)); // disabilito interrupt per avere mutua esclusione
 
-    swap_pool_table[sp_index].pte_entry_lo &= !VALIDON; // invalido la pagina
+    swap_pool_table[sp_index].sw_pte->pte_entryLO &= !VALIDON; // invalido la pagina
+    //swap_pool_table[sp_index].pte_entry_lo &= !VALIDON; // invalido la pagina
     update(sp_index);
 
     setSTATUS(getSTATUS() | IECON); // riabilito interrupt per rilasciare la mutua esclusione
@@ -38,7 +39,7 @@ static void cleanDirtyPage(int sp_index){
 
 static int RWBackingStore(int page_no, int asid, memaddr addr, int w) {
     setSTATUS(getSTATUS() & (~IECON)); // disabilito interrupt per avere mutua esclusione
-    dtpreg_t *device_register = (termreg_t *)DEV_REG_ADDR(IL_FLASH, asid - 1);
+    dtpreg_t *device_register = (dtpreg_t *)DEV_REG_ADDR(IL_FLASH, asid - 1);
     device_register->data0 = addr; 
 
     unsigned int value = w ? FLASHWRITE | (page_no << 8) : FLASHREAD | (page_no << 8);
@@ -56,6 +57,7 @@ static int RWBackingStore(int page_no, int asid, memaddr addr, int w) {
     SYSCALL(SENDMESSAGE, (unsigned int)ssi_pcb, (unsigned int)(&payload), 0);
     SYSCALL(RECEIVEMESSAGE, (unsigned int)ssi_pcb, (unsigned int)(&status), 0);
     setSTATUS(getSTATUS() | IECON); // riabilito interrupt per rilasciare la mutua esclusione
+    return status;
 }
 
 void pager(){
@@ -64,7 +66,7 @@ void pager(){
     
     // TLB-Modification exception
     // If the Cause is a TLB-Modification exception, treat this exception as a program trap
-    if(sup_st->sup_exceptState[PGFAULTEXCEPT].s_cause == 1){
+    if(sup_st->sup_exceptState[PGFAULTEXCEPT].cause == 1){
        
         /*
             Importante: se il processo da terminare è attualmente in attesa di mutua esclusione su una struttura del livello di 

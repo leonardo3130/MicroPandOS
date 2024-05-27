@@ -87,7 +87,7 @@ void initFirstProcesses(){
 /* 
  *main 
 */
-int main(int argc, char const *argv[])
+void main(int argc, char const *argv[])
 {
     //  2. Passup Vector
     initPassupVector();

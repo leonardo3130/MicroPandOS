@@ -98,7 +98,7 @@ static void initSwapMutex()
 {
     curr -= PAGESIZE;
     swap_mutex_state.reg_sp = (memaddr)curr;
-    swap_mutex_state.pc_epc = ...; //da definire
+    //swap_mutex_state.pc_epc = ...; //da definire
     swap_mutex_state.status = ALLOFF | IEPON | IMON | TEBITON;
 
     create_process(&swap_mutex_state, NULL);
