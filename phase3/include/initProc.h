@@ -22,7 +22,7 @@
 #define TERMSTATMASK 0xFF
 #define RECVD 5
 #define READY 1
-#define SWAP_POOL_AREA 0x2002.0000
+#define SWAP_POOL_AREA 0x20020000
 
 extern support_t ss_array[UPROCMAX]; //support struct array
 extern state_t UProc_state[UPROCMAX];
@@ -33,5 +33,6 @@ extern pcb_t *terminal_pcbs[UPROCMAX];
 extern pcb_t *printer_pcbs[UPROCMAX];
 
 void test();
+pcb_t *create_process(state_t *s, support_t *sup);
 
 #endif 

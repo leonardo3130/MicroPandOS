@@ -35,7 +35,7 @@ unsigned int sst_write(pcb_t *sender, unsigned int device_type, sst_print_t *pay
     }
     
     unsigned int dest;
-    switch(device type){
+    switch(device_type){
         case 6:
             dest = (unsigned int)printer_pcbs[sender->p_supportStruct->sup_asid-1];
         case 7:
@@ -44,14 +44,15 @@ unsigned int sst_write(pcb_t *sender, unsigned int device_type, sst_print_t *pay
             break;
     }
         
-    SYSCALL(SENDMESSAGE, dest, (unsigned int)&payload, 0);
+    SYSCALL(SENDMESSAGE, dest, (unsigned int)payload->string, 0);
+    SYSCALL(RECEIVEMESSAGE, dest, 0, 0);
     return 1;
 }
 
 /*  Esecuzione continua del processo SST attraverso un ciclo while   */
 void SST_loop(){
     support_t *sup = support_request(); 
-    state_t *state = UProc_state[sup->sup_asid];
+    state_t *state = &UProc_state[sup->sup_asid - 1];
     
     create_process(state, sup);
 

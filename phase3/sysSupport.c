@@ -14,7 +14,7 @@ void syscallExceptionHandler(state_t *exception_state) {
 	//trova modo di riciclare codice syscal invece di fare solo copia incolla
   if(exception_state->reg_a0 == SENDMSG) {
     if(exception_state->reg_a1 == PARENT)
-      SYSCALL(SENDMESSAGE, current_process->p_parent, exception_state->reg_a2, 0);
+      SYSCALL(SENDMESSAGE, (unsigned int)current_process->p_parent, exception_state->reg_a2, 0);
     else
       SYSCALL(SENDMESSAGE, exception_state->reg_a1, exception_state->reg_a2, 0);
   } 
@@ -36,10 +36,10 @@ void generalExceptionHandler(){
 
   switch((cause & GETEXECCODE) >> CAUSESHIFT){
 			case SYSEXCEPTION:
-          syscallExceptionHandler(exception_state);
+          syscallExceptionHandler(&exception_state);
 					break;
 			default:
-          programTrapExceptionHandler(exception_state);
+          programTrapExceptionHandler(&exception_state);
   				break;
   }
 }
