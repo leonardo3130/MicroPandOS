@@ -80,7 +80,7 @@ void pager(){
         // Gain mutual exclusion over the Swap Pool table sending a message to the swap_table PCB and waiting for a response.
         
         // Prendo la pagina dalla entry_hi supp_p->sup_exceptState[PGFAULTEXCEPT].entry_hi
-        int p = GETVPN(sup_st->sup_exceptState[PGFAULTEXCEPT].entry_hi);
+        int p = ENTRYHI_GET_VPN(sup_st->sup_exceptState[PGFAULTEXCEPT].entry_hi);
         
         // Uso il mio algoritmo di rimpiazzamento per trovare la pagina da sostituire
         int i = getPage(); //victim page
@@ -116,7 +116,7 @@ void pager(){
 void uTLB_refillHandler(){
     // prendo l'exception_state dalla BIOSDATAPAGE al fine di trovare 
     state_t* exception_state = (state_t *) BIOSDATAPAGE;
-    int p = GETVPN(&(exception_state->entry_hi));
+    int p = ENTRYHI_GET_VPN(&(exception_state -> entry_hi));
 
     setENTRYHI(currentProcess->p_supportStruct->sup_privatePgTbl[p].pte_entryHI);
     setENTRYLO(currentProcess->p_supportStruct->sup_privatePgTbl[p].pte_entryLO);
