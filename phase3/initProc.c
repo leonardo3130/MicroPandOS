@@ -36,7 +36,6 @@ pcb_t *create_process(state_t *s, support_t *sup)
 
 void swapMutex(){
     int value = 1; //valore del semaforo
-    
     for(;;) {
         // ricezione richiesta (conterra' il valore P o V)
         unsigned int payload;
@@ -60,14 +59,9 @@ void swapMutex(){
                 if(!emptyProcQ(&locked_proc_mutex)){
                     //sblocco processo
                     pcb_t *unblocked_pcb = removeProcQ(&locked_proc_mutex);
-
                     //mando messaggio
                     SYSCALL(SENDMESSAGE, (unsigned int) unblocked_pcb, 0, 0);
-
                 }
-            }
-            else {
-                //qui c'è qualche problema
             }
         }
         //se P and val == 0 --> blocco processo su lista 
@@ -76,7 +70,6 @@ void swapMutex(){
         //prendo il primo processo in attesa e lo sblocco inviando un messaggio
         //se V and val == 1 --> non gestito, se succede c'è qualche errore       
     }
-    
 }
 
 static void initSwapPoolTable() 
@@ -90,9 +83,9 @@ static void initSwapPoolTable()
 
 static void initPageTableEntry(pteEntry_t *entry, int asid, int i) {
     if(i < 31)
-        entry->pte_entryHI = (asid << ASIDSHIFT) | ((0x80000 + i) << VPNSHIFT);
+        entry->pte_entryHI = KUSEG + (i << VPNSHIFT) + (asid << ASIDSHIFT);
     else
-        entry->pte_entryHI = (asid << ASIDSHIFT) | (0xBFFFF << VPNSHIFT); //stack page 
+        entry->pte_entryHI = 0xBFFFF000 + (asid << ASIDSHIFT); //stack page 
     entry->pte_entryLO = DIRTYON;
 }
 
@@ -106,6 +99,7 @@ static void initUProc()
         UProc_state[asid - 1].reg_sp = (memaddr)USERSTACKTOP;
         UProc_state[asid - 1].pc_epc = (memaddr)UPROCSTARTADDR;
         UProc_state[asid - 1].status = ALLOFF | IEPON | IMON | USERPON | TEBITON;
+        UProc_state[asid - 1].reg_t9 = (memaddr)UPROCSTARTADDR;
         UProc_state[asid - 1].entry_hi = asid << ASIDSHIFT;
 
         curr -= 2 * PAGESIZE; // general e tlb --> 2 pagine --> moltiplico per 2
@@ -120,7 +114,7 @@ static void initUProc()
         ss_array[asid - 1].sup_exceptContext[PGFAULTEXCEPT].pc = (memaddr)pager; // nome da cambiare in base a come Andre nominerà la funzione
         
         //inizializzazione page table del processo
-        for (int i = 0; i < USERPGTBLSIZE; i++) 
+        for (int i = 0; i < USERPGTBLSIZE; i++)  
             initPageTableEntry(&(ss_array[asid - 1].sup_privatePgTbl[i]), asid, i); 
         //create_process(&SST_state,  &ss_array[asid - 1]); --> chiamata che deve fare l'SST
         //se la faccio qua gli UProc diventerebbero figli del test
@@ -150,7 +144,7 @@ static void initSwapMutex()
     swap_mutex_state.pc_epc = (memaddr)swapMutex;
     swap_mutex_state.status = ALLOFF | IEPON | IMON | TEBITON;
 
-    create_process(&swap_mutex_state, NULL);
+    swap_mutex_process = create_process(&swap_mutex_state, NULL);
 }
 
 //funzione che riceve una stringa e la stampa sul device specificato 
@@ -257,10 +251,9 @@ static void initSemProc()
 //funzione che verrà eseguita dal processo inizializzato in fase 2
 void test() 
 {
-    pcb_t *test = current_process;
     initSwapPoolTable();    //Swap Pool init
     initUProc();            //init U-procs
     initSwapMutex();        //init and create swap mutex process
     initSemProc();          //init and create devices semaphore processes
-    initSST();              //init and create SSTs 
+    initSST();              //init and create SSTs
 }

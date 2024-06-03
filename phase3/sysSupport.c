@@ -1,5 +1,4 @@
 #include "include/sysSupport.h"
-#include <string.h>
 
 void programTrapExceptionHandler(state_t *exception_state) {
   SYSCALL(SENDMESSAGE, (unsigned int)swap_mutex_process, V, 0);
@@ -12,7 +11,6 @@ void programTrapExceptionHandler(state_t *exception_state) {
 }
 
 void supSyscallExceptionHandler(state_t *exception_state) { 
-	//trova modo di riciclare codice syscal invece di fare solo copia incolla
   if(exception_state->reg_a0 == SENDMSG) {
     if(exception_state->reg_a1 == PARENT)
       SYSCALL(SENDMESSAGE, (unsigned int)current_process->p_parent, exception_state->reg_a2, 0);
