@@ -7,6 +7,9 @@ swap_t swap_pool_table[POOLSIZE];
 pcb_t *sst_array[UPROCMAX];
 pcb_t *terminal_pcbs[UPROCMAX];
 pcb_t *printer_pcbs[UPROCMAX];
+pcb_t *swap_mutex_process;
+
+LIST_HEAD(locked_proc_mutex);
 
 state_t swap_mutex_state;
 memaddr curr;
@@ -28,6 +31,51 @@ pcb_t *create_process(state_t *s, support_t *sup)
     SYSCALL(SENDMESSAGE, (unsigned int)ssi_pcb, (unsigned int)&payload, 0);
     SYSCALL(RECEIVEMESSAGE, (unsigned int)ssi_pcb, (unsigned int)(&p), 0);
     return p;
+}
+
+void swapMutex(){
+    int value = 1; //valore del semaforo
+    
+    for(;;) {
+        // ricezione richiesta (conterra' il valore P o V)
+        unsigned int payload;
+
+        //attesa di una richiesta da parte di un client attraverso SYS2
+        unsigned int sender = SYSCALL(RECEIVEMESSAGE, ANYMESSAGE, (unsigned int)(&payload), 0);
+
+        if (payload == P)
+        {
+            if(value >= 1){     // semaforo non binario
+                value--;
+                //mando il messaggio per sbloccare il processo
+                SYSCALL(SENDMESSAGE, (unsigned int)sender, 0, 0);
+            }else if (value == 0){
+                insertProcQ(&locked_proc_mutex, (pcb_t *)sender);
+            }
+        }
+        else{
+            if(value == 0){
+                value++;
+                if(!emptyProcQ(&locked_proc_mutex)){
+                    //sblocco processo
+                    pcb_t *unblocked_pcb = removeProcQ(&locked_proc_mutex);
+
+                    //mando messaggio
+                    SYSCALL(SENDMESSAGE, (unsigned int) unblocked_pcb, 0, 0);
+
+                }
+            }
+            else {
+                //qui c'è qualche problema
+            }
+        }
+        //se P and val == 0 --> blocco processo su lista 
+        //se P and val == 1 --> v--, messaggio al processo per sbloccarlo --> ha la mutua esclusione
+        //se V and val == 0 --> v++, se la coda dei bloccati NON è vuota
+        //prendo il primo processo in attesa e lo sblocco inviando un messaggio
+        //se V and val == 1 --> non gestito, se succede c'è qualche errore       
+    }
+    
 }
 
 static void initSwapPoolTable() 
@@ -98,7 +146,7 @@ static void initSwapMutex()
 {
     curr -= PAGESIZE;
     swap_mutex_state.reg_sp = (memaddr)curr;
-    //swap_mutex_state.pc_epc = ...; //da definire
+    swap_mutex_state.pc_epc = (memaddr)swapMutex;
     swap_mutex_state.status = ALLOFF | IEPON | IMON | TEBITON;
 
     create_process(&swap_mutex_state, NULL);

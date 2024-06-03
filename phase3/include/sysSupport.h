@@ -12,8 +12,8 @@
 #include <umps/arch.h>
 #include <umps/cp0.h>
 
-void generalExceptionHandler();
-void syscallExceptionHandler(state_t *exception_state);
 void programTrapExceptionHandler(state_t *exception_state);
+void syscallExceptionHandler(state_t *exception_state);
+void generalExceptionHandler();
 
 #endif 
