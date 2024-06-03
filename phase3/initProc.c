@@ -1,4 +1,5 @@
 #include "./include/initProc.h"
+#include "../klog.c"
 
 support_t ss_array[UPROCMAX]; //support struct array
 state_t UProc_state[UPROCMAX];
@@ -92,7 +93,7 @@ static void initPageTableEntry(pteEntry_t *entry, int asid, int i) {
         entry->pte_entryHI = (asid << ASIDSHIFT) | ((0x80000 + i) << VPNSHIFT);
     else
         entry->pte_entryHI = (asid << ASIDSHIFT) | (0xBFFFF << VPNSHIFT); //stack page 
-    entry->pte_entryLO = GLOBALON | VALIDON | DIRTYON;
+    entry->pte_entryLO = DIRTYON;
 }
 
 static void initUProc()
@@ -104,7 +105,7 @@ static void initUProc()
         //inizializzazione stato
         UProc_state[asid - 1].reg_sp = (memaddr)USERSTACKTOP;
         UProc_state[asid - 1].pc_epc = (memaddr)UPROCSTARTADDR;
-        UProc_state[asid - 1].status = ALLOFF | IEPON | IMON | TEBITON;
+        UProc_state[asid - 1].status = ALLOFF | IEPON | IMON | USERPON | TEBITON;
         UProc_state[asid - 1].entry_hi = asid << ASIDSHIFT;
 
         curr -= 2 * PAGESIZE; // general e tlb --> 2 pagine --> moltiplico per 2
@@ -253,7 +254,6 @@ static void initSemProc()
             printer_pcbs[i - 8] = create_process(&p_state, NULL);
     } 
 }
-
 //funzione che verrà eseguita dal processo inizializzato in fase 2
 void test() 
 {

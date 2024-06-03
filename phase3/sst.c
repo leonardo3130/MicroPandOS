@@ -48,18 +48,20 @@ unsigned int sst_write(pcb_t *sender, unsigned int device_type, sst_print_t *pay
     SYSCALL(RECEIVEMESSAGE, dest, 0, 0);
     return 1;
 }
-
+void bp(){}
 /*  Esecuzione continua del processo SST attraverso un ciclo while   */
 void SST_loop(){
     support_t *sup = support_request(); 
     state_t *state = &UProc_state[sup->sup_asid - 1];
     
     create_process(state, sup);
+    klog_print_dec(sup->sup_asid - 1);
 
     while(TRUE){
         unsigned int payload;
 
         //attesa di una richiesta da parte del figlio attraverso SYS2
+        bp();
         unsigned int sender = SYSCALL(RECEIVEMESSAGE, ANYMESSAGE, (unsigned int)(&payload), 0);
 
         //tentativo di soddisfare la richiesta 

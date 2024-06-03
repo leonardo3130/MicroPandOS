@@ -156,7 +156,7 @@ void pager(){
     }
 }
 
-void uTLB_refillHandler(){
+void uTLB_RefillHandler(){
     // prendo l'exception_state dalla BIOSDATAPAGE al fine di trovare 
     state_t* exception_state = (state_t *) BIOSDATAPAGE;
     int p = ENTRYHI_GET_VPN(exception_state -> entry_hi);
