@@ -6,6 +6,7 @@
 #include "../../headers/listx.h"
 #include "../../phase1/headers/pcb.h"
 #include "../../phase1/headers/msg.h"
+#include "../../phase3/include/vmSupport.h"
 #include "interrupts.h"
 #include "initial.h"
 #include "scheduler.h"
