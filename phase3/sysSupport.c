@@ -1,8 +1,7 @@
 #include "include/sysSupport.h"
-#include <string.h>
 
 void programTrapExceptionHandler(state_t *exception_state) {
-  //se ha lo swap mutex rilascialo --> send a swap mutex process
+  SYSCALL(SENDMESSAGE, (unsigned int)swap_mutex_process, V, 0);
   ssi_payload_t term_process_payload = {
       .service_code = TERMPROCESS,
       .arg = NULL,
@@ -11,8 +10,7 @@ void programTrapExceptionHandler(state_t *exception_state) {
   SYSCALL(RECEIVEMESSAGE, (unsigned int)ssi_pcb, 0, 0);
 }
 
-void syscallExceptionHandler(state_t *exception_state) { 
-	//trova modo di riciclare codice syscal invece di fare solo copia incolla
+void supSyscallExceptionHandler(state_t *exception_state) { 
   if(exception_state->reg_a0 == SENDMSG) {
     if(exception_state->reg_a1 == PARENT)
       SYSCALL(SENDMESSAGE, (unsigned int)current_process->p_parent, exception_state->reg_a2, 0);
@@ -40,7 +38,7 @@ void generalExceptionHandler(){
 
   switch((cause & GETEXECCODE) >> CAUSESHIFT){
 			case SYSEXCEPTION:
-          syscallExceptionHandler(&exception_state);
+          supSyscallExceptionHandler(&exception_state);
 					break;
 			default:
           programTrapExceptionHandler(&exception_state);

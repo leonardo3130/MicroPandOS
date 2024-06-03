@@ -5,6 +5,7 @@
 #include "../../headers/types.h"
 #include "../../headers/listx.h"
 #include "../../phase1/headers/pcb.h"
+#include "../../phase3/include/vmSupport.h"
 #include "exceptions.h"
 #include "timers.h"
 #include <umps/libumps.h>

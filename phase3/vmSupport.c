@@ -61,6 +61,7 @@ static int RWBackingStore(int page_no, int asid, memaddr addr, int w) {
 }
 
 static void kill_proc(){
+    SYSCALL(SENDMESSAGE, (unsigned int)swap_mutex_process, V, 0);
     ssi_payload_t term_process_payload = {
         .service_code = TERMPROCESS,
         .arg = NULL,
@@ -84,14 +85,7 @@ void pager(){
     // TLB-Modification exception
     // If the Cause is a TLB-Modification exception, treat this exception as a program trap
     if(sup_st->sup_exceptState[PGFAULTEXCEPT].cause == 1){
-       
-        /*
-            Importante: se il processo da terminare è attualmente in attesa di mutua esclusione su una struttura del livello di 
-            supporto (ad esempio la tabella Swap Pool), la mutua esclusione deve essere prima rilasciata (inviare un messaggio) 
-            prima di richiedere la terminazione del processo.
-        */
         kill_proc();
-
     } else {
         // INIZIO MUTUA ESCLUSIONE
         // Gain mutual exclusion over the Swap Pool table sending a message to the swap_table PCB and waiting for a response.
@@ -116,19 +110,15 @@ void pager(){
             status = RWBackingStore(swap_pool_entry->sw_pageNo ,swap_pool_entry->sw_asid, victim_addr, 1);
 
             if(status != 1) {
-                SYSCALL(SENDMESSAGE, (unsigned int)swap_mutex_process, V, 0);
                 kill_proc(); //tratto gli errori come se fossere program trap
             }
         }
-        
 
         //read backing store/flash
         status = RWBackingStore(p, sup_st->sup_asid, victim_addr, 0);
         if(status != 1) {
-            SYSCALL(SENDMESSAGE, (unsigned int)swap_mutex_process, V, 0);
             kill_proc(); //tratto gli errori come se fossere program trap
         }
-
 
         // 10
         //Update the Swap Pool table’s entry i to reflect frame i’s new contents: page p belonging to the
@@ -156,7 +146,7 @@ void pager(){
     }
 }
 
-void uTLB_refillHandler(){
+void uTLB_RefillHandler(){
     // prendo l'exception_state dalla BIOSDATAPAGE al fine di trovare 
     state_t* exception_state = (state_t *) BIOSDATAPAGE;
     int p = ENTRYHI_GET_VPN(exception_state -> entry_hi);

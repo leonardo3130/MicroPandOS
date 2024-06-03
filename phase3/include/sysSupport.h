@@ -13,7 +13,9 @@
 #include <umps/cp0.h>
 
 void programTrapExceptionHandler(state_t *exception_state);
-void syscallExceptionHandler(state_t *exception_state);
+void supSyscallExceptionHandler(state_t *exception_state);
 void generalExceptionHandler();
+
+extern pcb_t* swap_mutex_process;
 
 #endif 
