@@ -1,7 +1,7 @@
 #include "include/sysSupport.h"
 
 void programTrapExceptionHandler(state_t *exception_state) {
-  SYSCALL(SENDMESSAGE, (unsigned int)swap_mutex_process, V, 0);
+  SYSCALL(SENDMESSAGE, (unsigned int)swap_mutex_process, 0, 0);
   ssi_payload_t term_process_payload = {
       .service_code = TERMPROCESS,
       .arg = NULL,

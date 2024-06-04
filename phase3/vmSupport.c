@@ -38,15 +38,17 @@ static void cleanDirtyPage(int sp_index){
 }
 
 static int RWBackingStore(int page_no, int asid, memaddr addr, int w) {
-    setSTATUS(getSTATUS() & (~IECON)); // disabilito interrupt per avere mutua esclusione
+    setSTATUS(getSTATUS() & (~IECON)); // disabilito interrupt per avere atomicita'
     dtpreg_t *device_register = (dtpreg_t *)DEV_REG_ADDR(IL_FLASH, asid - 1);
     device_register->data0 = addr; 
 
     unsigned int value = w ? FLASHWRITE | (page_no << 8) : FLASHREAD | (page_no << 8);
     unsigned int status;
 
+    //klog_print_hex(device_register->command); //stampa 0
+
     ssi_do_io_t do_io = {
-        .commandAddr = (unsigned int *)device_register->command,
+        .commandAddr = (unsigned int *)&(device_register->command),
         .commandValue = value,
     };
     ssi_payload_t payload = {
@@ -56,7 +58,7 @@ static int RWBackingStore(int page_no, int asid, memaddr addr, int w) {
     
     SYSCALL(SENDMESSAGE, (unsigned int)ssi_pcb, (unsigned int)(&payload), 0);
     SYSCALL(RECEIVEMESSAGE, (unsigned int)ssi_pcb, (unsigned int)(&status), 0);
-    setSTATUS(getSTATUS() | IECON); // riabilito interrupt per rilasciare l'atomicità
+    setSTATUS(getSTATUS() | IECON); // riabilito interrupt per rilasciare l'atomicita'
     return status;
 }
 
@@ -89,11 +91,12 @@ void pager(){
     } else {
         // INIZIO MUTUA ESCLUSIONE
         // Gain mutual exclusion over the Swap Pool table sending a message to the swap_table PCB and waiting for a response.
-        SYSCALL(SENDMESSAGE, (unsigned int)swap_mutex_process, P, 0);
+        SYSCALL(SENDMESSAGE, (unsigned int)swap_mutex_process, 0, 0);
         SYSCALL(RECEIVEMESSAGE, (unsigned int)swap_mutex_process, 0, 0); //qui si blocca se value == 0
         
         // Prendo la pagina dalla entry_hi supp_p->sup_exceptState[PGFAULTEXCEPT].entry_hi
         int p = ENTRYHI_GET_VPN(sup_st->sup_exceptState[PGFAULTEXCEPT].entry_hi);
+        //klog_print_dec(p);
         
         // Uso il mio algoritmo di rimpiazzamento per trovare la pagina da sostituire
         int i = getPage(); //pagina vittima
@@ -104,21 +107,28 @@ void pager(){
         // è necessario aggiornare la pagina se questa era occupata da un altro frame appartenente ad un altro processo
         // e in caso serve "pulirna" poichè ormai obsoleta (ovviamente tutto ciò in modo atomico per evitare inconsistenza)
         int status;
+
+        //klog_print_dec(swap_pool_table[i].sw_asid + 1);
         if(swap_pool_table[i].sw_asid != -1){
+            
             cleanDirtyPage(i);
             //write backing store/flash
+            
             status = RWBackingStore(swap_pool_entry->sw_pageNo ,swap_pool_entry->sw_asid, victim_addr, 1);
-
+            
             if(status != 1) {
                 kill_proc(); //tratto gli errori come se fossere program trap
             }
         }
+
+        //klog_print_dec(1);
 
         //read backing store/flash
         status = RWBackingStore(p, sup_st->sup_asid, victim_addr, 0);
         if(status != 1) {
             kill_proc(); //tratto gli errori come se fossere program trap
         }
+        klog_print_dec(1);
 
         // 10
         //Update the Swap Pool table’s entry i to reflect frame i’s new contents: page p belonging to the
@@ -126,6 +136,7 @@ void pager(){
         swap_pool_entry->sw_asid = sup_st->sup_asid; 
         swap_pool_entry->sw_pageNo = p;  
         swap_pool_entry->sw_pte = &(sup_st->sup_privatePgTbl[p]);
+        klog_print_dec(2);
 
 
         setSTATUS(getSTATUS() & (~IECON)); // disabilito interrupt per avere atomicita'
@@ -137,9 +148,10 @@ void pager(){
         updateTLB(sup_st->sup_privatePgTbl[p]);
 
         setSTATUS(getSTATUS() | IECON); // riabilito interrupt per rilasciare l'atomicita'
+        klog_print_dec(3);
         
         // 13 RILASCIARE MUTUA ESCLUSIONE
-        SYSCALL(SENDMESSAGE, (unsigned int)swap_mutex_process, V, 0);
+        SYSCALL(SENDMESSAGE, (unsigned int)swap_mutex_process, 0, 0);
             
         //FINE MUTUA ESCLUSIONE
         LDST(&(sup_st->sup_exceptState[PGFAULTEXCEPT]));

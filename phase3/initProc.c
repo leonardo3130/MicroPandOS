@@ -35,6 +35,7 @@ pcb_t *create_process(state_t *s, support_t *sup)
 }
 
 void swapMutex(){
+    /*
     int value = 1; //valore del semaforo
     for(;;) {
         // ricezione richiesta (conterra' il valore P o V)
@@ -68,7 +69,11 @@ void swapMutex(){
         //se P and val == 1 --> v--, messaggio al processo per sbloccarlo --> ha la mutua esclusione
         //se V and val == 0 --> v++, se la coda dei bloccati NON è vuota
         //prendo il primo processo in attesa e lo sblocco inviando un messaggio
-        //se V and val == 1 --> non gestito, se succede c'è qualche errore       
+    }*/
+    for(;;) {
+        unsigned int sender = SYSCALL(RECEIVEMESSAGE, ANYMESSAGE, 0, 0);
+        SYSCALL(SENDMESSAGE, (unsigned int)sender, 0, 0);
+        SYSCALL(RECEIVEMESSAGE, sender, 0, 0);
     }
 }
 

@@ -60,13 +60,13 @@ void SST_loop(){
     //klog_print_dec(sup->sup_asid - 1);
 
     while(TRUE){
-        klog_print_dec(sup->sup_asid - 1);
+        //klog_print_dec(sup->sup_asid - 1);
         unsigned int payload;
 
         //attesa di una richiesta da parte del figlio attraverso SYS2
         bp();
         unsigned int sender = SYSCALL(RECEIVEMESSAGE, ANYMESSAGE, (unsigned int)(&payload), 0);
-        klog_print_dec(sup->sup_asid - 1);
+        //klog_print_dec(sup->sup_asid - 1);
 
         //tentativo di soddisfare la richiesta 
         unsigned int ret = SSTRequest((pcb_t *)sender, (ssi_payload_t *)payload);
