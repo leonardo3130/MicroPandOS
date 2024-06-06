@@ -22,6 +22,7 @@ static void updateTLB(pteEntry_t p){
     
     // Se la voce non e' presente nel TLB, aggiorna il registro ENTRYLO e scrivilo nel TLB
     if((getINDEX() & PRESENTFLAG) == 0){
+        setENTRYHI(p.pte_entryHI);
         setENTRYLO(p.pte_entryLO);
         TLBWI();
     } 
@@ -45,8 +46,6 @@ static int RWBackingStore(int page_no, int asid, memaddr addr, int w) {
     unsigned int value = w ? FLASHWRITE | (page_no << 8) : FLASHREAD | (page_no << 8);
     unsigned int status;
 
-    //klog_print_hex(device_register->command); //stampa 0
-
     ssi_do_io_t do_io = {
         .commandAddr = (unsigned int *)&(device_register->command),
         .commandValue = value,
@@ -63,7 +62,7 @@ static int RWBackingStore(int page_no, int asid, memaddr addr, int w) {
 }
 
 static void kill_proc(){
-    SYSCALL(SENDMESSAGE, (unsigned int)swap_mutex_process, V, 0);
+    SYSCALL(SENDMESSAGE, (unsigned int)swap_mutex_process, 0, 0);
     ssi_payload_t term_process_payload = {
         .service_code = TERMPROCESS,
         .arg = NULL,
@@ -142,6 +141,7 @@ void pager(){
         setSTATUS(getSTATUS() & (~IECON)); // disabilito interrupt per avere atomicita'
         // 11 Update the Current Process's Page Table entry for page p to indicate it is now present (V bit) and occupying frame i (PFN field).
         sup_st->sup_privatePgTbl[p].pte_entryLO |= VALIDON;
+        sup_st->sup_privatePgTbl[p].pte_entryLO |= DIRTYON;
         sup_st->sup_privatePgTbl[p].pte_entryLO |= (victim_addr); //controllare !!!
 
         // 12 Update the TLB. The cached entry in the TLB for the Current Process's page p is clearly out of date; it was just updated in the previous step.

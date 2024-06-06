@@ -44,7 +44,7 @@ kernel : $(PHASE1) $(PHASE2) $(PHASE3) crtso.o libumps.o
 	$(LD) -o $@ $^ $(LDFLAGS)
 
 clean :
-	-rm -f *.o ./phase1/*.o ./phase2/*.o ./phase3/*.o kernel kernel.*.umps term0.umps
+	-rm -f *.o ./phase1/*.o ./phase2/*.o ./phase3/*.o kernel kernel.*.umps *.umps
 
 # Pattern rule for assembly modules
 %.o : %.S
