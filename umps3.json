@@ -11,31 +11,31 @@
             "file": "testers/todTest.umps"
         },
         "flash1": {
-            "enabled": true,
+            "enabled": false,
             "file": "testers/terminalTest1.umps"
         },
         "flash2": {
-            "enabled": true,
+            "enabled": false,
             "file": "testers/terminalTest2.umps"
         },
         "flash3": {
-            "enabled": true,
+            "enabled": false,
             "file": "testers/terminalTest3.umps"
         },
         "flash4": {
-            "enabled": true,
+            "enabled": false,
             "file": "testers/terminalTest4.umps"
         },
         "flash5": {
-            "enabled": true,
+            "enabled": false,
             "file": "testers/fibEight.umps"
         },
         "flash6": {
-            "enabled": true,
+            "enabled": false,
             "file": "testers/fibEleven.umps"
         },
         "flash7": {
-            "enabled": true,
+            "enabled": false,
             "file": "testers/printerTest.umps"
         },
         "printer0": {

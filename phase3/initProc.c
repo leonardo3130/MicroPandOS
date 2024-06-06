@@ -9,8 +9,7 @@ pcb_t *sst_array[UPROCMAX];
 pcb_t *terminal_pcbs[UPROCMAX];
 pcb_t *printer_pcbs[UPROCMAX];
 pcb_t *swap_mutex_process;
-
-LIST_HEAD(locked_proc_mutex);
+pcb_t *test_pcb;
 
 state_t swap_mutex_state;
 memaddr curr;
@@ -35,41 +34,6 @@ pcb_t *create_process(state_t *s, support_t *sup)
 }
 
 void swapMutex(){
-    /*
-    int value = 1; //valore del semaforo
-    for(;;) {
-        // ricezione richiesta (conterra' il valore P o V)
-        unsigned int payload;
-
-        //attesa di una richiesta da parte di un client attraverso SYS2
-        unsigned int sender = SYSCALL(RECEIVEMESSAGE, ANYMESSAGE, (unsigned int)(&payload), 0);
-
-        if (payload == P)
-        {
-            if(value >= 1){     // semaforo non binario
-                value--;
-                //mando il messaggio per sbloccare il processo
-                SYSCALL(SENDMESSAGE, (unsigned int)sender, 0, 0);
-            }else if (value == 0){
-                insertProcQ(&locked_proc_mutex, (pcb_t *)sender);
-            }
-        }
-        else{
-            if(value == 0){
-                value++;
-                if(!emptyProcQ(&locked_proc_mutex)){
-                    //sblocco processo
-                    pcb_t *unblocked_pcb = removeProcQ(&locked_proc_mutex);
-                    //mando messaggio
-                    SYSCALL(SENDMESSAGE, (unsigned int) unblocked_pcb, 0, 0);
-                }
-            }
-        }
-        //se P and val == 0 --> blocco processo su lista 
-        //se P and val == 1 --> v--, messaggio al processo per sbloccarlo --> ha la mutua esclusione
-        //se V and val == 0 --> v++, se la coda dei bloccati NON è vuota
-        //prendo il primo processo in attesa e lo sblocco inviando un messaggio
-    }*/
     for(;;) {
         unsigned int sender = SYSCALL(RECEIVEMESSAGE, ANYMESSAGE, 0, 0);
         SYSCALL(SENDMESSAGE, (unsigned int)sender, 0, 0);
@@ -82,7 +46,6 @@ static void initSwapPoolTable()
     for (int i = 0; i < POOLSIZE; i++)
     {
         swap_pool_table[i].sw_asid = -1;
-        // swap_pool_table[i].count = 0;
     }
 }
 
@@ -111,18 +74,16 @@ static void initUProc()
 
         //inizializzazione support struct SST (stesse degli U-proc)
         ss_array[asid - 1].sup_asid = asid;
-        ss_array[asid - 1].sup_exceptContext[GENERALEXCEPT].stackPtr = (memaddr)curr;
-        ss_array[asid - 1].sup_exceptContext[GENERALEXCEPT].status = ALLOFF | IEPON | IMON | TEBITON;
-        ss_array[asid - 1].sup_exceptContext[GENERALEXCEPT].pc = (memaddr)generalExceptionHandler;
-        ss_array[asid - 1].sup_exceptContext[PGFAULTEXCEPT].stackPtr = (memaddr)curr + PAGESIZE;
+        ss_array[asid - 1].sup_exceptContext[PGFAULTEXCEPT].stackPtr = (memaddr)curr;
         ss_array[asid - 1].sup_exceptContext[PGFAULTEXCEPT].status = ALLOFF | IEPON | IMON | TEBITON;
-        ss_array[asid - 1].sup_exceptContext[PGFAULTEXCEPT].pc = (memaddr)pager; // nome da cambiare in base a come Andre nominerà la funzione
+        ss_array[asid - 1].sup_exceptContext[PGFAULTEXCEPT].pc = (memaddr)pager;
+        ss_array[asid - 1].sup_exceptContext[GENERALEXCEPT].stackPtr = (memaddr)curr + PAGESIZE;
+        ss_array[asid - 1].sup_exceptContext[GENERALEXCEPT].status = ALLOFF | IEPON | IMON | TEBITON;
+        ss_array[asid - 1].sup_exceptContext[GENERALEXCEPT].pc = (memaddr)generalExceptionHandler; // nome da cambiare in base a come Andre nominerà la funzione
         
         //inizializzazione page table del processo
         for (int i = 0; i < USERPGTBLSIZE; i++)  
             initPageTableEntry(&(ss_array[asid - 1].sup_privatePgTbl[i]), asid, i); 
-        //create_process(&SST_state,  &ss_array[asid - 1]); --> chiamata che deve fare l'SST
-        //se la faccio qua gli UProc diventerebbero figli del test
     }
 }
 
@@ -256,9 +217,26 @@ static void initSemProc()
 //funzione che verrà eseguita dal processo inizializzato in fase 2
 void test() 
 {
+    test_pcb = current_process; 
     initSwapPoolTable();    //Swap Pool init
     initUProc();            //init U-procs
     initSwapMutex();        //init and create swap mutex process
     initSemProc();          //init and create devices semaphore processes
     initSST();              //init and create SSTs
+
+    //test deve aspettare che tutti SST e U-proc terminino
+    for (int i = 0; i < UPROCMAX; i++)
+        SYSCALL(RECEIVEMESSAGE, (unsigned int)sst_array[i], 0, 0);
+
+    //termino test e figli ancora vivi: processi device e swap mutex
+    ssi_payload_t payload = {
+        .service_code = TERMPROCESS,
+        .arg = NULL,
+    };
+    SYSCALL(SENDMESSAGE, (unsigned int)ssi_pcb, (unsigned int)&payload, 0);
+    SYSCALL(RECEIVEMESSAGE, (unsigned int)ssi_pcb, 0, 0); //inutile, per correttezza
+
+    //qui test, swap mutex, processi device, SST e U-proc non dovrebbero più esistere
+    //rimane solo SSI --> stato di HALT
+
 }

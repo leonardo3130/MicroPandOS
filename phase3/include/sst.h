@@ -13,8 +13,8 @@
 
 void SST_loop();
 support_t *support_request();
-unsigned int sst_terminate(pcb_t *sender);
-unsigned int sst_write(pcb_t *sender, unsigned int device_type, sst_print_t *payload);
-unsigned int SSTRequest(pcb_t* sender, ssi_payload_t *payload);
+unsigned int sst_terminate(int asid);
+unsigned int sst_write(support_t *sup, unsigned int device_type, sst_print_t *payload);
+unsigned int SSTRequest(support_t *sup, ssi_payload_t *payload);
 
 #endif
