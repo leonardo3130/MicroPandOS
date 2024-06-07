@@ -22,7 +22,6 @@ void supSyscallExceptionHandler(state_t *exception_state) {
   }
 }
 
-
 void generalExceptionHandler(){
   support_t *sup_struct_ptr;
   ssi_payload_t getsup_payload = {

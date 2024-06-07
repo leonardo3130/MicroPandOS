@@ -2,6 +2,7 @@
 
 void scheduler(){
     if(emptyProcQ(&Ready_Queue) == 0){
+
         //  1. Se c'e' almeno un processo pronto ad essere eseguito, lo prendo dalla Ready e lo assegno al current_process.
         current_process = removeProcQ(&Ready_Queue);
 
@@ -24,6 +25,20 @@ void scheduler(){
             WAIT();
         }
         else if(process_count > 0 && soft_blocked_count == 0){
+            
+            // klog_print("Process Count= ");
+            // klog_print_dec(process_count);
+            // klog_print("\n");
+
+            // klog_print("Soft Count   = ");
+            // klog_print_dec(soft_blocked_count);
+            // klog_print("\n");
+
+            // klog_print("Ready queue  = ");
+            // klog_print_dec(list_size(&Ready_Queue));
+            // klog_print("\n");
+            // klog_print("\n");
+
             PANIC();
         }
     }

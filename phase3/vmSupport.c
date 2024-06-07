@@ -31,7 +31,7 @@ static void updateTLB(pteEntry_t p){
 static void cleanDirtyPage(int sp_index){
     setSTATUS(getSTATUS() & (~IECON)); // disabilito interrupt per avere atomicità
     
-    swap_pool_table[sp_index].sw_pte->pte_entryLO &= !VALIDON; // invalido la pagina
+    swap_pool_table[sp_index].sw_pte->pte_entryLO &= (~VALIDON); // invalido la pagina
     updateTLB(*(swap_pool_table[sp_index].sw_pte));
 
     setSTATUS(getSTATUS() | IECON); // riabilito interrupt per rilasciare l'atomicita'
@@ -89,29 +89,34 @@ void pager(){
     if((cause & GETEXECCODE) >> CAUSESHIFT == 1){
         kill_proc();
     } else {
-        // INIZIO MUTUA ESCLUSIONE
-        // Gain mutual exclusion over the Swap Pool table sending a message to the swap_table PCB and waiting for a response.
+
+        // Vedo se posso PRENDERE la MUTUA ESCLUSIONE mandando allo swap_mutex_process e attendo un riscontro.
         SYSCALL(SENDMESSAGE, (unsigned int)swap_mutex_process, 0, 0);
-        SYSCALL(RECEIVEMESSAGE, (unsigned int)swap_mutex_process, 0, 0); //qui si blocca se value == 0
         
-        // Prendo la pagina dalla entry_hi supp_p->sup_exceptState[PGFAULTEXCEPT].entry_hi
+        // Attendo la risposta dallo swap_mutex_process per ottenere la mutua esclusione
+        SYSCALL(RECEIVEMESSAGE, (unsigned int)swap_mutex_process, 0, 0); 
+        
+
+        // Prendo la pagina virtuale dalla entry_hi supp_p->sup_exceptState[PGFAULTEXCEPT].entry_hi
         int p = GET_VPN(sup_st->sup_exceptState[PGFAULTEXCEPT].entry_hi);
         
         // Uso il mio algoritmo di rimpiazzamento per trovare la pagina da sostituire
         int i = getPage(); //pagina vittima
 
-        swap_t *swap_pool_entry = &swap_pool_table[i];
+        // calcolo l'indirizzo della pagina tenendo conto dell'offset SWAP_POOL_AREA e ogni singola pagina fino alla i-esima
         memaddr victim_addr = SWAP_POOL_AREA + i * PAGESIZE;
 
         // è necessario aggiornare la pagina se questa era occupata da un altro frame appartenente ad un altro processo
         // e in caso serve "pulirna" poichè ormai obsoleta (ovviamente tutto ciò in modo atomico per evitare inconsistenza)
         int status;
 
-        if(swap_pool_table[i].sw_asid != -1){
+        swap_t *swap_pool_entry = &swap_pool_table[i];
+
+        if(swap_pool_entry->sw_asid != -1){
             
             cleanDirtyPage(i); 
-            //write backing store/flash
-            
+
+            //write backing store/flash            
             status = RWBackingStore(swap_pool_entry->sw_pageNo, swap_pool_entry->sw_asid, victim_addr, 1);
             
             if(status != 1) {
@@ -125,16 +130,17 @@ void pager(){
             kill_proc(); //tratto gli errori come se fossere program trap
         }
 
-        // 10
-        //Update the Swap Pool table’s entry i to reflect frame i’s new contents: page p belonging to the
-        //Current Process’s ASID, and a pointer to the Current Process’s Page Table entry for page p.
+        /*
+            Aggiorna l'entry i nella Swap Pool table per riflettere i nuovi contenuti del frame i:
+            la pagina p appartenente all'ASID del processo corrente e un puntatore all'entry della tabella delle pagine del 
+            processo corrente per la pagina p.
+        */
         swap_pool_entry->sw_asid = sup_st->sup_asid; 
         swap_pool_entry->sw_pageNo = p;  
         swap_pool_entry->sw_pte = &(sup_st->sup_privatePgTbl[p]);
 
-        //bp();
-
         setSTATUS(getSTATUS() & (~IECON)); // disabilito interrupt per avere atomicita'
+        
         // 11 Update the Current Process's Page Table entry for page p to indicate it is now present (V bit) and occupying frame i (PFN field).
         sup_st->sup_privatePgTbl[p].pte_entryLO |= VALIDON;
         sup_st->sup_privatePgTbl[p].pte_entryLO |= DIRTYON;
@@ -145,34 +151,33 @@ void pager(){
 
         setSTATUS(getSTATUS() | IECON); // riabilito interrupt per rilasciare l'atomicita'
         
-        //bp();
         // 13 RILASCIARE MUTUA ESCLUSIONE
         SYSCALL(SENDMESSAGE, (unsigned int)swap_mutex_process, 0, 0);
             
         //FINE MUTUA ESCLUSIONE
-
         LDST(&(sup_st->sup_exceptState[PGFAULTEXCEPT]));
     }
 }
 void bp(){}
+
 void uTLB_RefillHandler(){
     // prendo l'exception_state dalla BIOSDATAPAGE al fine di trovare 
     state_t* exception_state = (state_t *) BIOSDATAPAGE;
     int p = GET_VPN(exception_state -> entry_hi);
-    // klog_print("TLB refill: ");
-    // klog_print_dec(p);
-    // klog_print("\n");
+    klog_print("TLB refill: ");
+    klog_print_dec(p);
+    klog_print("\n");
 
-    bp();
+    // scrivo nel TLB la entryHI e entryLO della pagina p-esima del processo corrente
     setENTRYHI(current_process->p_supportStruct->sup_privatePgTbl[p].pte_entryHI);
     setENTRYLO(current_process->p_supportStruct->sup_privatePgTbl[p].pte_entryLO);
-    
-    // scrivo nel TLB
     TLBWR();  
+
+
     //qua parte il loop delle eccezioni
-    bp();      
+    // bp();      
 
     //Return control to the Current Process to retry the instruction that caused the TLB-Refill event:
-    //LDST on the saved exception state located at the start of the BIOS Data Page.                                                                                                                                                                                                                                                                                                                                                                                             
+    //LDST on the saved exception state located at the start of the BIOS Data Page.                                                             
     LDST(exception_state);
 }

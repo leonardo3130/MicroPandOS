@@ -1,22 +1,33 @@
+/*
+ * Questo file contiene l'implementazione delle funzioni utilizzate per l'inizializzazione dei processi
+ * nel sistema operativo PandOS. Le funzioni inizializzano le strutture dati necessarie per la gestione
+ * dei processi, creano i processi semaforo per i dispositivi e inizializzano le tabelle di pagine.
+ */
+
 #include "./include/initProc.h"
 #include "../klog.c"
 
-support_t ss_array[UPROCMAX]; //support struct array
-state_t UProc_state[UPROCMAX];
-pcb_t *swap_mutex_pcb;
-swap_t swap_pool_table[POOLSIZE];
-pcb_t *sst_array[UPROCMAX];
-pcb_t *terminal_pcbs[UPROCMAX];
-pcb_t *printer_pcbs[UPROCMAX];
-pcb_t *swap_mutex_process;
-pcb_t *test_pcb;
+support_t ss_array[UPROCMAX]; // array di strutture di supporto
+state_t UProc_state[UPROCMAX]; // array di stati dei processi utente
+pcb_t *swap_mutex_pcb; // puntatore al processo mutex per lo swap
+swap_t swap_pool_table[POOLSIZE]; // tabella di swap
+pcb_t *sst_array[UPROCMAX]; // array di puntatori ai processi SST
+pcb_t *terminal_pcbs[UPROCMAX]; // array di puntatori ai processi terminali
+pcb_t *printer_pcbs[UPROCMAX]; // array di puntatori ai processi stampanti
+pcb_t *swap_mutex_process; // puntatore al processo mutex per lo swap
+pcb_t *test_pcb; // puntatore al processo di test
 
-state_t swap_mutex_state;
-memaddr curr;
+state_t swap_mutex_state; // stato del processo mutex per lo swap
+memaddr curr; // indirizzo corrente
 
-extern pcb_t *ssi_pcb;
-extern pcb_t *current_process;
+extern pcb_t *ssi_pcb; // puntatore al processo SSI
+extern pcb_t *current_process; // puntatore al processo corrente
 
+/*
+ * Funzione per la creazione di un processo.
+ * Riceve come argomenti lo stato del processo e la struttura di supporto.
+ * Restituisce il puntatore al processo creato.
+ */
 pcb_t *create_process(state_t *s, support_t *sup)
 {
     pcb_t *p;
@@ -33,6 +44,11 @@ pcb_t *create_process(state_t *s, support_t *sup)
     return p;
 }
 
+/*
+ * Funzione per la gestione del mutex per lo swap.
+ * Riceve messaggi dai processi che vogliono la mutua esclusione e la concede
+ * (ad un processo alla volta, ovviamente) aspettando che ognuno la rilasci dopo averla ottenuta.
+ */
 void swapMutex(){
     for(;;) {
         unsigned int sender = SYSCALL(RECEIVEMESSAGE, ANYMESSAGE, 0, 0);
@@ -41,6 +57,10 @@ void swapMutex(){
     }
 }
 
+/*
+ * Funzione per l'inizializzazione della tabella di swap.
+ * Imposta il campo sw_asid di ogni entry a -1.
+ */
 static void initSwapPoolTable() 
 {
     for (int i = 0; i < POOLSIZE; i++)
@@ -49,7 +69,11 @@ static void initSwapPoolTable()
     }
 }
 
-// OK
+/*
+ * Funzione per l'inizializzazione di una entry nella tabella delle pagine.
+ * Riceve come argomenti un puntatore all'entry, l'asid e l'indice.
+ * Imposta i campi pte_entryHI e pte_entryLO dell'entry in base all'asid e all'indice.
+ */
 static void initPageTableEntry(pteEntry_t *entry, int asid, int i) {
     if(i < 31)
         entry->pte_entryHI = KUSEG + (i << VPNSHIFT) + (asid << ASIDSHIFT);
@@ -58,64 +82,48 @@ static void initPageTableEntry(pteEntry_t *entry, int asid, int i) {
     entry->pte_entryLO = DIRTYON;
 }
 
+/*
+ * Funzione per l'inizializzazione dei processi utente.
+ * Inizializza gli stati dei processi, le strutture di supporto e le tabelle delle pagine.
+ */
 static void initUProc()
 {
     RAMTOP(curr);
-    curr -= 3 * PAGESIZE; //start after test and ssi space
+    curr -= 3 * PAGESIZE; // inizia dopo lo spazio per test e ssi
     for (int asid = 1; asid <= UPROCMAX; asid++) 
     {
-        //inizializzazione stato
+        // inizializzazione stato
         UProc_state[asid - 1].reg_sp = (memaddr)USERSTACKTOP;
         UProc_state[asid - 1].pc_epc = (memaddr)UPROCSTARTADDR;
         UProc_state[asid - 1].status = ALLOFF | IEPON | IMON | USERPON | TEBITON;
         UProc_state[asid - 1].reg_t9 = (memaddr)UPROCSTARTADDR;
         UProc_state[asid - 1].entry_hi = asid << ASIDSHIFT;
 
-        //curr -= 2 * PAGESIZE; // general e tlb --> 2 pagine --> moltiplico per 2
-
-        //inizializzazione support struct SST (stesse degli U-proc)
+        // inizializzazione strutture di supporto SST
         ss_array[asid - 1].sup_asid = asid;
         ss_array[asid - 1].sup_exceptContext[PGFAULTEXCEPT].stackPtr = (memaddr)curr;
         ss_array[asid - 1].sup_exceptContext[PGFAULTEXCEPT].status = ALLOFF | IEPON | IMON | TEBITON;
         ss_array[asid - 1].sup_exceptContext[PGFAULTEXCEPT].pc = (memaddr)pager;
         ss_array[asid - 1].sup_exceptContext[GENERALEXCEPT].stackPtr = (memaddr)curr - PAGESIZE;
         ss_array[asid - 1].sup_exceptContext[GENERALEXCEPT].status = ALLOFF | IEPON | IMON | TEBITON;
-        ss_array[asid - 1].sup_exceptContext[GENERALEXCEPT].pc = (memaddr)generalExceptionHandler; // nome da cambiare in base a come Andre nominerà la funzione
-        
+        ss_array[asid - 1].sup_exceptContext[GENERALEXCEPT].pc = (memaddr)generalExceptionHandler;
 
-        /*
-        ---------- --> RAMTOP
-        B --> SSI
-        ---------- --> RAMTOP - 1
-        B --> SSI
-        ---------- --> RAMTOP - 2
-        B --> TEST
-        ---------- --> RAMTOP - 3 --> curr
+        curr -= 2 * PAGESIZE; // general e tlb --> 2 pagine
 
-        ------------ --> RAMTOP - 4
-        B --> GENERAL
-        ---------- --> RAMTOP - 5 --> curr
-        B --> PGFAULT
-        ---------- --> RAMTOP - 6
-        B --> GENERAL
-        ---------- --> RAMTOP - 7
-        B --> PGFAULT
-
-        */
-        curr -= 2 * PAGESIZE; // general e tlb --> 2 pagine --> moltiplico per 2
-
-        //inizializzazione page table del processo
+        // inizializzazione tabella delle pagine del processo
         for (int i = 0; i < USERPGTBLSIZE; i++)  
             initPageTableEntry(&(ss_array[asid - 1].sup_privatePgTbl[i]), asid, i); 
     }
 }
 
+/*
+ * Funzione per l'inizializzazione dei processi SST.
+ * Crea i processi SST e inizializza i loro stati.
+ */
 static void initSST()
 {
     for (int asid = 1; asid <= UPROCMAX; asid++) 
     {
-        //curr -= PAGESIZE; 
-        // inizializzazione stato
         state_t SST_state;
         SST_state.reg_sp = (memaddr)curr;
         SST_state.pc_epc = (memaddr)SST_loop;
@@ -127,9 +135,12 @@ static void initSST()
     }
 }
 
+/*
+ * Funzione per l'inizializzazione del processo mutex per lo swap.
+ * Crea il processo mutex per lo swap e inizializza il suo stato.
+ */
 static void initSwapMutex()
 {
-    //curr -= PAGESIZE;
     swap_mutex_state.reg_sp = (memaddr)curr;
     swap_mutex_state.pc_epc = (memaddr)swapMutex;
     swap_mutex_state.status = ALLOFF | IEPON | IMON | TEBITON;
@@ -138,32 +149,36 @@ static void initSwapMutex()
     swap_mutex_process = create_process(&swap_mutex_state, NULL);
 }
 
-//funzione che riceve una stringa e la stampa sul device specificato 
-//dai 2 parametri
+/*
+ * Funzione per la stampa di una stringa su un dispositivo specificato.
+ * Riceve come argomenti il numero del dispositivo e l'indirizzo di base.
+ * Riceve messaggi contenenti le stringhe da stampare e invia messaggi di risposta.
+ */
 void print(int device_number, unsigned int *base_address)
 {
     while (1)
     {
         char *msg;
-        unsigned int sender = SYSCALL(RECEIVEMESSAGE, ANYMESSAGE, (unsigned int)(&msg), 0);
+        pcb_t *sender;
+        sender = (unsigned int) SYSCALL(RECEIVEMESSAGE, ANYMESSAGE, (unsigned int)(&msg), 0);
         char *s = msg;
-        unsigned int *base = base_address + 4 * device_number; //indirizzo base
-        //basen =base0 + 4 * n
+        unsigned int *base = base_address + 4 * device_number;
         unsigned int *command;
         if(base_address == (unsigned int *)TERM0ADDR)
             command = base + 3;
         else
             command = base + 1;
-        unsigned int *data0 = base + 2; //usato solo con stampanti
+        unsigned int *data0 = base + 2;
         unsigned int status;
         
         while (*s != EOS)
+
         {    
             unsigned int value;
             if(base_address == (unsigned int *)TERM0ADDR)
                 value = PRINTCHR | (((unsigned int)*s) << 8);
             else {
-                value = PRINTCHR; //con le stampanti il valore va nel registro DATA0, non in command
+                value = PRINTCHR;
                 *data0 = (unsigned int)*s;
             }
 
@@ -178,21 +193,26 @@ void print(int device_number, unsigned int *base_address)
             SYSCALL(SENDMESSAGE, (unsigned int)ssi_pcb, (unsigned int)(&payload), 0);
             SYSCALL(RECEIVEMESSAGE, (unsigned int)ssi_pcb, (unsigned int)(&status), 0);
             
-            // servono per controllare che lo status sia corretto, che il carattere sia stampato/ricevuto
-            // if (base_address == (unsigned int *)TERM0ADDR && (status & TERMSTATMASK) != RECVD)
-            //     PANIC();
-            // if (base_address == (unsigned int *)PRINTER0ADDR && status != READY)
-            //     PANIC();
+            
+            if (base_address == (unsigned int *)TERM0ADDR && (status & TERMSTATMASK) != RECVD)
+                PANIC();
+            if (base_address == (unsigned int *)PRINTER0ADDR && status != READY)
+                PANIC();
+
             s++;
         }
-        
+
+        klog_print_hex((unsigned int)current_process);
+        klog_print("\n");
+        klog_print_hex((unsigned int)sender) ;
+        klog_print("Ok send \n");
         SYSCALL(SENDMESSAGE, (unsigned int)sender, 0, 0);
     }
 }
 
-//wrapper della funzione per poterla assegnare ai 
-//program counter dei processi semafori
-
+/*
+ * Wrapper delle funzioni di stampa per poterle assegnare ai program counter dei processi semaforo.
+ */
 void print_term0 () { print(0, (unsigned int *)TERM0ADDR); }
 void print_term1 () { print(1, (unsigned int *)TERM0ADDR); }
 void print_term2 () { print(2, (unsigned int *)TERM0ADDR); }
@@ -211,19 +231,17 @@ void printer5 () { print(5, (unsigned int *)PRINTER0ADDR); }
 void printer6 () { print(6, (unsigned int *)PRINTER0ADDR); }
 void printer7 () { print(7, (unsigned int *)PRINTER0ADDR); }
 
-//array di puntatori ai wrapper soprastanti per 
-//una maggiore comodità durante l'assegnamento al program counter
-
+/*
+ * Array di puntatori ai wrapper delle funzioni di stampa per una maggiore comodità durante l'assegnamento al program counter.
+ */
 void (*terminals[8]) () = {print_term0, print_term1, print_term2, print_term3, print_term4, print_term5, print_term6, print_term7};
 void (*printers[8]) () = {printer0, printer1, printer2, printer3, printer4, printer5, printer6, printer7};
 
+
+
 static void initSemProc()
 {
-    //creazione e inizializzazione dei processi che si comportano come semafori dei 
-    //dispositivi, gestendo le rispettive richieste I/O
     for (int i = 0; i < 16; i++) {
-        //curr -= PAGESIZE;
-
         state_t p_state;
         p_state.reg_sp = (memaddr)curr;
         
@@ -241,29 +259,32 @@ static void initSemProc()
         curr -= PAGESIZE;
     } 
 }
-//funzione che verrà eseguita dal processo inizializzato in fase 2
+
+/*
+ * Funzione di test che viene eseguita dal processo inizializzato in fase 2.
+ * Inizializza la tabella di swap, i processi utente, il processo mutex per lo swap,
+ * i processi semaforo per i dispositivi e i processi SST.
+ * Infine, aspetta che tutti i processi SST e utente terminino e termina il processo di test.
+ */
 void test() 
 {
     test_pcb = current_process; 
-    initSwapPoolTable();    //Swap Pool init
-    initUProc();            //init U-procs
-    initSwapMutex();        //init and create swap mutex process
-    initSemProc();          //init and create devices semaphore processes
-    initSST();              //init and create SSTs
+    initSwapPoolTable();
+    initUProc();
+    initSwapMutex();
+    initSemProc();
+    initSST();
 
-    //test deve aspettare che tutti SST e U-proc terminino
     for (int i = 0; i < UPROCMAX; i++)
         SYSCALL(RECEIVEMESSAGE, (unsigned int)sst_array[i], 0, 0);
 
-    //termino test e figli ancora vivi: processi device e swap mutex
     ssi_payload_t payload = {
         .service_code = TERMPROCESS,
         .arg = NULL,
     };
     SYSCALL(SENDMESSAGE, (unsigned int)ssi_pcb, (unsigned int)&payload, 0);
-    SYSCALL(RECEIVEMESSAGE, (unsigned int)ssi_pcb, 0, 0); //inutile, per correttezza
+    SYSCALL(RECEIVEMESSAGE, (unsigned int)ssi_pcb, 0, 0);
 
-    //qui test, swap mutex, processi device, SST e U-proc non dovrebbero più esistere
-    //rimane solo SSI --> stato di HALT
-
+    // Qui i processi test, swap mutex, dispositivi, SST e utente non dovrebbero più esistere
+    // Rimane solo il processo SSI in stato di HALT
 }

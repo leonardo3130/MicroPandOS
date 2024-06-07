@@ -39,21 +39,27 @@ unsigned int sst_write(support_t *sup, unsigned int device_type, sst_print_t *pa
         payload->string[payload->length] = '\0';
     }
     
-    unsigned int dest;
+    pcb_t *dest;
     switch(device_type){
         case 6:
-            dest = (unsigned int)printer_pcbs[sup->sup_asid-1];
+            dest = printer_pcbs[sup->sup_asid-1];
         case 7:
-            dest = (unsigned int)terminal_pcbs[sup->sup_asid-1];
+            dest = terminal_pcbs[sup->sup_asid-1];
         default:
             break;
     }
 
-    klog_print("TEST SST_WRITE: \n");
-    klog_print(payload->string);
-    klog_print("\n");
-    SYSCALL(SENDMESSAGE, dest, (unsigned int)payload->string, 0);
-    SYSCALL(RECEIVEMESSAGE, dest, 0, 0);
+
+    SYSCALL(SENDMESSAGE, (unsigned int) dest, (unsigned int)payload->string, 0);
+
+    klog_print_hex((unsigned int)dest);
+    klog_print(" Prima SST\n\n");
+
+    pcb_t *sender;
+    sender = SYSCALL(RECEIVEMESSAGE, (unsigned int) dest, 0, 0);
+    klog_print_hex((unsigned int)sender);
+    klog_print(" dopo SST\n\n");
+
     return 1;
 }
 
