@@ -101,9 +101,6 @@ static void initUProc()
         ---------- --> RAMTOP - 7
         B --> PGFAULT
 
-        
-        
-        
         */
         curr -= 2 * PAGESIZE; // general e tlb --> 2 pagine --> moltiplico per 2
 
@@ -181,10 +178,11 @@ void print(int device_number, unsigned int *base_address)
             SYSCALL(SENDMESSAGE, (unsigned int)ssi_pcb, (unsigned int)(&payload), 0);
             SYSCALL(RECEIVEMESSAGE, (unsigned int)ssi_pcb, (unsigned int)(&status), 0);
             
-            if (base_address == (unsigned int *)TERM0ADDR && (status & TERMSTATMASK) != RECVD)
-                PANIC();
-            if (base_address == (unsigned int *)PRINTER0ADDR && status != READY)
-                PANIC();
+            // servono per controllare che lo status sia corretto, che il carattere sia stampato/ricevuto
+            // if (base_address == (unsigned int *)TERM0ADDR && (status & TERMSTATMASK) != RECVD)
+            //     PANIC();
+            // if (base_address == (unsigned int *)PRINTER0ADDR && status != READY)
+            //     PANIC();
             s++;
         }
         

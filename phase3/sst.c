@@ -48,7 +48,10 @@ unsigned int sst_write(support_t *sup, unsigned int device_type, sst_print_t *pa
         default:
             break;
     }
-    
+
+    klog_print("TEST SST_WRITE: \n");
+    klog_print(payload->string);
+    klog_print("\n");
     SYSCALL(SENDMESSAGE, dest, (unsigned int)payload->string, 0);
     SYSCALL(RECEIVEMESSAGE, dest, 0, 0);
     return 1;
@@ -92,10 +95,10 @@ unsigned int SSTRequest(support_t *sup, ssi_payload_t *payload){
             ret = sst_terminate(sup->sup_asid);
 
         case WRITEPRINTER:
-            ret = sst_write(sup, 6, (sst_print_t *)payload);
+            ret = sst_write(sup, 6, (sst_print_t *)payload->arg);
 
         case WRITETERMINAL:
-            ret = sst_write(sup, 7, (sst_print_t *)payload);
+            ret = sst_write(sup, 7, (sst_print_t *)payload->arg);
 
         default:
             ret = sst_terminate(sup->sup_asid);

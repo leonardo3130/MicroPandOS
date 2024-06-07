@@ -95,7 +95,7 @@ void pager(){
         SYSCALL(RECEIVEMESSAGE, (unsigned int)swap_mutex_process, 0, 0); //qui si blocca se value == 0
         
         // Prendo la pagina dalla entry_hi supp_p->sup_exceptState[PGFAULTEXCEPT].entry_hi
-        int p = ENTRYHI_GET_VPN(sup_st->sup_exceptState[PGFAULTEXCEPT].entry_hi);
+        int p = GET_VPN(sup_st->sup_exceptState[PGFAULTEXCEPT].entry_hi);
         
         // Uso il mio algoritmo di rimpiazzamento per trovare la pagina da sostituire
         int i = getPage(); //pagina vittima
@@ -158,9 +158,10 @@ void bp(){}
 void uTLB_RefillHandler(){
     // prendo l'exception_state dalla BIOSDATAPAGE al fine di trovare 
     state_t* exception_state = (state_t *) BIOSDATAPAGE;
-    int p = ENTRYHI_GET_VPN(exception_state -> entry_hi);
-    klog_print_dec(p);
-    klog_print("\n");
+    int p = GET_VPN(exception_state -> entry_hi);
+    // klog_print("TLB refill: ");
+    // klog_print_dec(p);
+    // klog_print("\n");
 
     bp();
     setENTRYHI(current_process->p_supportStruct->sup_privatePgTbl[p].pte_entryHI);
