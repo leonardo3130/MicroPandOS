@@ -49,6 +49,7 @@ static void initSwapPoolTable()
     }
 }
 
+// OK
 static void initPageTableEntry(pteEntry_t *entry, int asid, int i) {
     if(i < 31)
         entry->pte_entryHI = KUSEG + (i << VPNSHIFT) + (asid << ASIDSHIFT);
@@ -70,17 +71,42 @@ static void initUProc()
         UProc_state[asid - 1].reg_t9 = (memaddr)UPROCSTARTADDR;
         UProc_state[asid - 1].entry_hi = asid << ASIDSHIFT;
 
-        curr -= 2 * PAGESIZE; // general e tlb --> 2 pagine --> moltiplico per 2
+        //curr -= 2 * PAGESIZE; // general e tlb --> 2 pagine --> moltiplico per 2
 
         //inizializzazione support struct SST (stesse degli U-proc)
         ss_array[asid - 1].sup_asid = asid;
         ss_array[asid - 1].sup_exceptContext[PGFAULTEXCEPT].stackPtr = (memaddr)curr;
         ss_array[asid - 1].sup_exceptContext[PGFAULTEXCEPT].status = ALLOFF | IEPON | IMON | TEBITON;
         ss_array[asid - 1].sup_exceptContext[PGFAULTEXCEPT].pc = (memaddr)pager;
-        ss_array[asid - 1].sup_exceptContext[GENERALEXCEPT].stackPtr = (memaddr)curr + PAGESIZE;
+        ss_array[asid - 1].sup_exceptContext[GENERALEXCEPT].stackPtr = (memaddr)curr - PAGESIZE;
         ss_array[asid - 1].sup_exceptContext[GENERALEXCEPT].status = ALLOFF | IEPON | IMON | TEBITON;
         ss_array[asid - 1].sup_exceptContext[GENERALEXCEPT].pc = (memaddr)generalExceptionHandler; // nome da cambiare in base a come Andre nominerà la funzione
         
+
+        /*
+        ---------- --> RAMTOP
+        B --> SSI
+        ---------- --> RAMTOP - 1
+        B --> SSI
+        ---------- --> RAMTOP - 2
+        B --> TEST
+        ---------- --> RAMTOP - 3 --> curr
+
+        ------------ --> RAMTOP - 4
+        B --> GENERAL
+        ---------- --> RAMTOP - 5 --> curr
+        B --> PGFAULT
+        ---------- --> RAMTOP - 6
+        B --> GENERAL
+        ---------- --> RAMTOP - 7
+        B --> PGFAULT
+
+        
+        
+        
+        */
+        curr -= 2 * PAGESIZE; // general e tlb --> 2 pagine --> moltiplico per 2
+
         //inizializzazione page table del processo
         for (int i = 0; i < USERPGTBLSIZE; i++)  
             initPageTableEntry(&(ss_array[asid - 1].sup_privatePgTbl[i]), asid, i); 
@@ -91,7 +117,7 @@ static void initSST()
 {
     for (int asid = 1; asid <= UPROCMAX; asid++) 
     {
-        curr -= PAGESIZE; 
+        //curr -= PAGESIZE; 
         // inizializzazione stato
         state_t SST_state;
         SST_state.reg_sp = (memaddr)curr;
@@ -100,15 +126,17 @@ static void initSST()
         SST_state.entry_hi = asid << ASIDSHIFT;
 
         sst_array[asid-1] = create_process(&SST_state,  &ss_array[asid - 1]);
+        curr -= PAGESIZE;
     }
 }
 
 static void initSwapMutex()
 {
-    curr -= PAGESIZE;
+    //curr -= PAGESIZE;
     swap_mutex_state.reg_sp = (memaddr)curr;
     swap_mutex_state.pc_epc = (memaddr)swapMutex;
     swap_mutex_state.status = ALLOFF | IEPON | IMON | TEBITON;
+    curr -= PAGESIZE;
 
     swap_mutex_process = create_process(&swap_mutex_state, NULL);
 }
@@ -196,7 +224,7 @@ static void initSemProc()
     //creazione e inizializzazione dei processi che si comportano come semafori dei 
     //dispositivi, gestendo le rispettive richieste I/O
     for (int i = 0; i < 16; i++) {
-        curr -= PAGESIZE;
+        //curr -= PAGESIZE;
 
         state_t p_state;
         p_state.reg_sp = (memaddr)curr;
@@ -212,6 +240,7 @@ static void initSemProc()
             terminal_pcbs[i] = create_process(&p_state, NULL);
         else
             printer_pcbs[i - 8] = create_process(&p_state, NULL);
+        curr -= PAGESIZE;
     } 
 }
 //funzione che verrà eseguita dal processo inizializzato in fase 2

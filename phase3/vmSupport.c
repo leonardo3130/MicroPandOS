@@ -30,9 +30,8 @@ static void updateTLB(pteEntry_t p){
 
 static void cleanDirtyPage(int sp_index){
     setSTATUS(getSTATUS() & (~IECON)); // disabilito interrupt per avere atomicità
-
+    
     swap_pool_table[sp_index].sw_pte->pte_entryLO &= !VALIDON; // invalido la pagina
-    //swap_pool_table[sp_index].pte_entry_lo &= !VALIDON; // invalido la pagina
     updateTLB(*(swap_pool_table[sp_index].sw_pte));
 
     setSTATUS(getSTATUS() | IECON); // riabilito interrupt per rilasciare l'atomicita'
@@ -85,7 +84,9 @@ void pager(){
     
     // TLB-Modification exception
     // If the Cause is a TLB-Modification exception, treat this exception as a program trap
-    if(sup_st->sup_exceptState[PGFAULTEXCEPT].cause == 1){
+    //if(sup_st->sup_exceptState[PGFAULTEXCEPT].cause == 1){ //!!! --> cause va elaborato per avere il code
+    int cause = sup_st->sup_exceptState[PGFAULTEXCEPT].cause;
+    if((cause & GETEXECCODE) >> CAUSESHIFT == 1){
         kill_proc();
     } else {
         // INIZIO MUTUA ESCLUSIONE
@@ -95,7 +96,6 @@ void pager(){
         
         // Prendo la pagina dalla entry_hi supp_p->sup_exceptState[PGFAULTEXCEPT].entry_hi
         int p = ENTRYHI_GET_VPN(sup_st->sup_exceptState[PGFAULTEXCEPT].entry_hi);
-        //klog_print_dec(p);
         
         // Uso il mio algoritmo di rimpiazzamento per trovare la pagina da sostituire
         int i = getPage(); //pagina vittima
@@ -107,27 +107,23 @@ void pager(){
         // e in caso serve "pulirna" poichè ormai obsoleta (ovviamente tutto ciò in modo atomico per evitare inconsistenza)
         int status;
 
-        //klog_print_dec(swap_pool_table[i].sw_asid + 1);
         if(swap_pool_table[i].sw_asid != -1){
             
-            cleanDirtyPage(i);
+            cleanDirtyPage(i); 
             //write backing store/flash
             
-            status = RWBackingStore(swap_pool_entry->sw_pageNo ,swap_pool_entry->sw_asid, victim_addr, 1);
+            status = RWBackingStore(swap_pool_entry->sw_pageNo, swap_pool_entry->sw_asid, victim_addr, 1);
             
             if(status != 1) {
                 kill_proc(); //tratto gli errori come se fossere program trap
             }
         }
 
-        //klog_print_dec(1);
-
         //read backing store/flash
         status = RWBackingStore(p, sup_st->sup_asid, victim_addr, 0);
         if(status != 1) {
             kill_proc(); //tratto gli errori come se fossere program trap
         }
-        klog_print_dec(1);
 
         // 10
         //Update the Swap Pool table’s entry i to reflect frame i’s new contents: page p belonging to the
@@ -135,39 +131,45 @@ void pager(){
         swap_pool_entry->sw_asid = sup_st->sup_asid; 
         swap_pool_entry->sw_pageNo = p;  
         swap_pool_entry->sw_pte = &(sup_st->sup_privatePgTbl[p]);
-        klog_print_dec(2);
 
+        //bp();
 
         setSTATUS(getSTATUS() & (~IECON)); // disabilito interrupt per avere atomicita'
         // 11 Update the Current Process's Page Table entry for page p to indicate it is now present (V bit) and occupying frame i (PFN field).
         sup_st->sup_privatePgTbl[p].pte_entryLO |= VALIDON;
         sup_st->sup_privatePgTbl[p].pte_entryLO |= DIRTYON;
-        sup_st->sup_privatePgTbl[p].pte_entryLO |= (victim_addr); //controllare !!!
+        sup_st->sup_privatePgTbl[p].pte_entryLO |= (victim_addr); 
 
         // 12 Update the TLB. The cached entry in the TLB for the Current Process's page p is clearly out of date; it was just updated in the previous step.
         updateTLB(sup_st->sup_privatePgTbl[p]);
 
         setSTATUS(getSTATUS() | IECON); // riabilito interrupt per rilasciare l'atomicita'
-        klog_print_dec(3);
         
+        //bp();
         // 13 RILASCIARE MUTUA ESCLUSIONE
         SYSCALL(SENDMESSAGE, (unsigned int)swap_mutex_process, 0, 0);
             
         //FINE MUTUA ESCLUSIONE
+
         LDST(&(sup_st->sup_exceptState[PGFAULTEXCEPT]));
     }
 }
-
+void bp(){}
 void uTLB_RefillHandler(){
     // prendo l'exception_state dalla BIOSDATAPAGE al fine di trovare 
     state_t* exception_state = (state_t *) BIOSDATAPAGE;
     int p = ENTRYHI_GET_VPN(exception_state -> entry_hi);
+    klog_print_dec(p);
+    klog_print("\n");
 
+    bp();
     setENTRYHI(current_process->p_supportStruct->sup_privatePgTbl[p].pte_entryHI);
     setENTRYLO(current_process->p_supportStruct->sup_privatePgTbl[p].pte_entryLO);
     
     // scrivo nel TLB
-    TLBWR();        
+    TLBWR();  
+    //qua parte il loop delle eccezioni
+    bp();      
 
     //Return control to the Current Process to retry the instruction that caused the TLB-Refill event:
     //LDST on the saved exception state located at the start of the BIOS Data Page.                                                                                                                                                                                                                                                                                                                                                                                             

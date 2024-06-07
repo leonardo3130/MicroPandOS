@@ -53,6 +53,7 @@ unsigned int sst_write(support_t *sup, unsigned int device_type, sst_print_t *pa
     SYSCALL(RECEIVEMESSAGE, dest, 0, 0);
     return 1;
 }
+
 /*  Esecuzione continua del processo SST attraverso un ciclo while   */
 void SST_loop(){
     support_t *sup = support_request(); 

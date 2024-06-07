@@ -22,6 +22,7 @@ void supSyscallExceptionHandler(state_t *exception_state) {
   }
 }
 
+
 void generalExceptionHandler(){
   support_t *sup_struct_ptr;
   ssi_payload_t getsup_payload = {
@@ -35,8 +36,8 @@ void generalExceptionHandler(){
 
 	int cause = exception_state->cause;
 	exception_state->pc_epc += WORDLEN;
-
-  switch((cause & GETEXECCODE) >> CAUSESHIFT){
+  int val = (cause & GETEXECCODE) >> CAUSESHIFT;
+  switch(val){
 			case SYSEXCEPTION:
           supSyscallExceptionHandler(exception_state);
 					break;
