@@ -31,6 +31,7 @@ unsigned int sst_terminate(int asid){
 
     return (unsigned int)ret;
 }
+    
 
 unsigned int sst_write(support_t *sup, unsigned int device_type, sst_print_t *payload){
 
@@ -43,22 +44,26 @@ unsigned int sst_write(support_t *sup, unsigned int device_type, sst_print_t *pa
     switch(device_type){
         case 6:
             dest = printer_pcbs[sup->sup_asid-1];
+            break;
         case 7:
             dest = terminal_pcbs[sup->sup_asid-1];
+            break;
         default:
             break;
     }
 
+    
+    
+    SYSCALL(SENDMESSAGE, (unsigned int)dest, (unsigned int)payload->string, 0);
 
-    SYSCALL(SENDMESSAGE, (unsigned int) dest, (unsigned int)payload->string, 0);
-
-    klog_print_hex((unsigned int)dest);
-    klog_print(" Prima SST\n\n");
+    //klog_print_hex((unsigned int)current_process);
+    //klog_print("\n");
 
     pcb_t *sender;
     sender = SYSCALL(RECEIVEMESSAGE, (unsigned int) dest, 0, 0);
-    klog_print_hex((unsigned int)sender);
-    klog_print(" dopo SST\n\n");
+
+    //klog_print_hex((unsigned int)sender);
+    //klog_print(" dopo SST\n\n");
 
     return 1;
 }
@@ -96,15 +101,19 @@ unsigned int SSTRequest(support_t *sup, ssi_payload_t *payload){
     switch(payload->service_code){
         case GET_TOD:
             ret = getTOD();
+            break;
 
         case TERMINATE:
             ret = sst_terminate(sup->sup_asid);
+            break;
 
         case WRITEPRINTER:
             ret = sst_write(sup, 6, (sst_print_t *)payload->arg);
+            break;
 
         case WRITETERMINAL:
             ret = sst_write(sup, 7, (sst_print_t *)payload->arg);
+            break;
 
         default:
             ret = sst_terminate(sup->sup_asid);

@@ -4,7 +4,7 @@
 static int getPage(){
     
     for (int i = 0; i < POOLSIZE; i++)
-        if (swap_pool_table[i].sw_asid == -1)   // -1 significa che la pagina e' libera
+        if (swap_pool_table[i].sw_asid == NOPROC)   // -1 significa che la pagina e' libera
             return i;
 
     // se non c'e' una pagina libera, use un algoritmo FIFO per trovare una pagina da rimpiazzare
@@ -104,7 +104,7 @@ void pager(){
         int i = getPage(); //pagina vittima
 
         // calcolo l'indirizzo della pagina tenendo conto dell'offset SWAP_POOL_AREA e ogni singola pagina fino alla i-esima
-        memaddr victim_addr = SWAP_POOL_AREA + i * PAGESIZE;
+        memaddr victim_addr = SWAP_POOL_AREA + (i * PAGESIZE);
 
         // è necessario aggiornare la pagina se questa era occupata da un altro frame appartenente ad un altro processo
         // e in caso serve "pulirna" poichè ormai obsoleta (ovviamente tutto ciò in modo atomico per evitare inconsistenza)
@@ -146,6 +146,11 @@ void pager(){
         sup_st->sup_privatePgTbl[p].pte_entryLO |= DIRTYON;
         sup_st->sup_privatePgTbl[p].pte_entryLO |= (victim_addr); 
 
+        // klog_print_hex((memaddr) sup_st->sup_privatePgTbl[p].pte_entryLO);
+        // klog_print("\n");
+        // klog_print_hex((memaddr) victim_addr);
+        // klog_print("\n");
+
         // 12 Update the TLB. The cached entry in the TLB for the Current Process's page p is clearly out of date; it was just updated in the previous step.
         updateTLB(sup_st->sup_privatePgTbl[p]);
 
@@ -163,16 +168,16 @@ void bp(){}
 void uTLB_RefillHandler(){
     // prendo l'exception_state dalla BIOSDATAPAGE al fine di trovare 
     state_t* exception_state = (state_t *) BIOSDATAPAGE;
-    int p = GET_VPN(exception_state -> entry_hi);
+    int p = GET_VPN(exception_state->entry_hi);
     klog_print("TLB refill: ");
-    klog_print_dec(p);
+    klog_print_hex((memaddr) current_process);
     klog_print("\n");
 
+    
     // scrivo nel TLB la entryHI e entryLO della pagina p-esima del processo corrente
     setENTRYHI(current_process->p_supportStruct->sup_privatePgTbl[p].pte_entryHI);
     setENTRYLO(current_process->p_supportStruct->sup_privatePgTbl[p].pte_entryLO);
     TLBWR();  
-
 
     //qua parte il loop delle eccezioni
     // bp();      

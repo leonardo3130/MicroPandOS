@@ -39,8 +39,14 @@ pcb_t *create_process(state_t *s, support_t *sup)
         .service_code = CREATEPROCESS,
         .arg = &ssi_create_process,
     };
+
+    
+
     SYSCALL(SENDMESSAGE, (unsigned int)ssi_pcb, (unsigned int)&payload, 0);
     SYSCALL(RECEIVEMESSAGE, (unsigned int)ssi_pcb, (unsigned int)(&p), 0);
+
+    //klog_print_hex((unsigned int)p);
+    //klog_print("\n");
     return p;
 }
 
@@ -65,7 +71,7 @@ static void initSwapPoolTable()
 {
     for (int i = 0; i < POOLSIZE; i++)
     {
-        swap_pool_table[i].sw_asid = -1;
+        swap_pool_table[i].sw_asid = NOPROC;
     }
 }
 
@@ -122,15 +128,15 @@ static void initUProc()
  */
 static void initSST()
 {
+    state_t SST_state[UPROCMAX];
     for (int asid = 1; asid <= UPROCMAX; asid++) 
     {
-        state_t SST_state;
-        SST_state.reg_sp = (memaddr)curr;
-        SST_state.pc_epc = (memaddr)SST_loop;
-        SST_state.status = ALLOFF | IEPON | IMON | TEBITON;
-        SST_state.entry_hi = asid << ASIDSHIFT;
+        SST_state[asid - 1].reg_sp = (memaddr)curr;
+        SST_state[asid - 1].pc_epc = (memaddr)SST_loop;
+        SST_state[asid - 1].status = ALLOFF | IEPON | IMON | TEBITON;
+        SST_state[asid - 1].entry_hi = asid << ASIDSHIFT;
 
-        sst_array[asid-1] = create_process(&SST_state,  &ss_array[asid - 1]);
+        sst_array[asid - 1] = create_process(&SST_state[asid - 1],  &ss_array[asid - 1]);
         curr -= PAGESIZE;
     }
 }
@@ -149,6 +155,9 @@ static void initSwapMutex()
     swap_mutex_process = create_process(&swap_mutex_state, NULL);
 }
 
+void br(){}
+
+
 /*
  * Funzione per la stampa di una stringa su un dispositivo specificato.
  * Riceve come argomenti il numero del dispositivo e l'indirizzo di base.
@@ -161,6 +170,9 @@ void print(int device_number, unsigned int *base_address)
         char *msg;
         pcb_t *sender;
         sender = (unsigned int) SYSCALL(RECEIVEMESSAGE, ANYMESSAGE, (unsigned int)(&msg), 0);
+        //klog_print("Print1\n");
+
+        br();
         char *s = msg;
         unsigned int *base = base_address + 4 * device_number;
         unsigned int *command;
@@ -170,10 +182,11 @@ void print(int device_number, unsigned int *base_address)
             command = base + 1;
         unsigned int *data0 = base + 2;
         unsigned int status;
+        klog_print("Print2\n");
         
         while (*s != EOS)
-
         {    
+            klog_print("\nPrint3\n");
             unsigned int value;
             if(base_address == (unsigned int *)TERM0ADDR)
                 value = PRINTCHR | (((unsigned int)*s) << 8);
@@ -190,8 +203,11 @@ void print(int device_number, unsigned int *base_address)
                 .service_code = DOIO,
                 .arg = &do_io,
             };
+
+            
             SYSCALL(SENDMESSAGE, (unsigned int)ssi_pcb, (unsigned int)(&payload), 0);
             SYSCALL(RECEIVEMESSAGE, (unsigned int)ssi_pcb, (unsigned int)(&status), 0);
+            klog_print("Print4\n");
             
             
             if (base_address == (unsigned int *)TERM0ADDR && (status & TERMSTATMASK) != RECVD)
@@ -202,10 +218,10 @@ void print(int device_number, unsigned int *base_address)
             s++;
         }
 
-        klog_print_hex((unsigned int)current_process);
-        klog_print("\n");
-        klog_print_hex((unsigned int)sender) ;
-        klog_print("Ok send \n");
+        // klog_print_hex((unsigned int)current_process);
+        // klog_print("\n");
+        // klog_print_hex((unsigned int)sender) ;
+        // klog_print("Ok send \n");
         SYSCALL(SENDMESSAGE, (unsigned int)sender, 0, 0);
     }
 }
@@ -238,24 +254,30 @@ void (*terminals[8]) () = {print_term0, print_term1, print_term2, print_term3, p
 void (*printers[8]) () = {printer0, printer1, printer2, printer3, printer4, printer5, printer6, printer7};
 
 
+/*
+ *Funzione che inizializza i processi per i dispositivi, 
+ *ricevono le richieste di operazioni DOIO dagli SST e le eseguono sui 
+ *rispettivi device
+*/
 
-static void initSemProc()
+static void initDevProc()
 {
-    for (int i = 0; i < 16; i++) {
-        state_t p_state;
-        p_state.reg_sp = (memaddr)curr;
+    state_t dev_state[UPROCMAX * 2];
+
+    for (int i = 0; i < UPROCMAX * 2; i++) {
+        dev_state[i].reg_sp = (memaddr)curr;
         
-        if(i < 8)
-            p_state.pc_epc = (unsigned int)terminals[i]; 
+        if(i < UPROCMAX)
+            dev_state[i].pc_epc = (unsigned int)terminals[i]; 
         else
-            p_state.pc_epc = (unsigned int)printers[i - 8]; 
+            dev_state[i].pc_epc = (unsigned int)printers[i - UPROCMAX]; 
         
-        p_state.status = ALLOFF | IEPON | IMON | TEBITON;
+        dev_state[i].status = ALLOFF | IEPON | IMON | TEBITON;
         
-        if(i < 8)
-            terminal_pcbs[i] = create_process(&p_state, NULL);
+        if(i < UPROCMAX)
+            terminal_pcbs[i] = create_process(&dev_state[i], NULL);
         else
-            printer_pcbs[i - 8] = create_process(&p_state, NULL);
+            printer_pcbs[i - UPROCMAX] = create_process(&dev_state[i], NULL);
         curr -= PAGESIZE;
     } 
 }
@@ -272,7 +294,7 @@ void test()
     initSwapPoolTable();
     initUProc();
     initSwapMutex();
-    initSemProc();
+    initDevProc();
     initSST();
 
     for (int i = 0; i < UPROCMAX; i++)
