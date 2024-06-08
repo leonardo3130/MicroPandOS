@@ -163,21 +163,21 @@ void pager(){
         LDST(&(sup_st->sup_exceptState[PGFAULTEXCEPT]));
     }
 }
-void bp(){}
+//void bp(){}
 
 void uTLB_RefillHandler(){
     // prendo l'exception_state dalla BIOSDATAPAGE al fine di trovare 
     state_t* exception_state = (state_t *) BIOSDATAPAGE;
     int p = GET_VPN(exception_state->entry_hi);
-    klog_print("TLB refill: ");
-    klog_print_hex((memaddr) current_process);
-    klog_print("\n");
+    // klog_print("TLB refill: ");
+    // klog_print_hex((memaddr) current_process);
+    // klog_print("\n");
 
     
     // scrivo nel TLB la entryHI e entryLO della pagina p-esima del processo corrente
     setENTRYHI(current_process->p_supportStruct->sup_privatePgTbl[p].pte_entryHI);
     setENTRYLO(current_process->p_supportStruct->sup_privatePgTbl[p].pte_entryLO);
-    TLBWR();  
+    TLBWR();
 
     //qua parte il loop delle eccezioni
     // bp();      

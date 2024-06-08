@@ -62,8 +62,8 @@ unsigned int sst_write(support_t *sup, unsigned int device_type, sst_print_t *pa
     pcb_t *sender;
     sender = SYSCALL(RECEIVEMESSAGE, (unsigned int) dest, 0, 0);
 
-    //klog_print_hex((unsigned int)sender);
-    //klog_print(" dopo SST\n\n");
+    // klog_print_hex((unsigned int)sender);
+    // klog_print(" dopo SST\n\n");
 
     return 1;
 }
@@ -84,6 +84,7 @@ void SST_loop(){
 
         //attesa di una richiesta da parte del figlio attraverso SYS2
         unsigned int sender = SYSCALL(RECEIVEMESSAGE, ANYMESSAGE, (unsigned int)(&payload), 0);
+
         //klog_print_dec(sup->sup_asid - 1);
 
         //tentativo di soddisfare la richiesta 
@@ -94,6 +95,8 @@ void SST_loop(){
             SYSCALL(SENDMESSAGE, (unsigned int)sender, ret, 0);
     }
 }
+
+void br(){}
 
 /*  Funzione che gestisce mediante il payload ricevuto dal sender la richiesta di un servizio   */
 unsigned int SSTRequest(support_t *sup, ssi_payload_t *payload){
@@ -113,6 +116,7 @@ unsigned int SSTRequest(support_t *sup, ssi_payload_t *payload){
 
         case WRITETERMINAL:
             ret = sst_write(sup, 7, (sst_print_t *)payload->arg);
+            br();
             break;
 
         default:

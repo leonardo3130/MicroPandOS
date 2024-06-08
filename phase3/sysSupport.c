@@ -21,7 +21,7 @@ void supSyscallExceptionHandler(state_t *exception_state) {
     SYSCALL(RECEIVEMESSAGE, exception_state->reg_a1, exception_state->reg_a2, 0);
   }
 }
-
+void bp() {}
 void generalExceptionHandler(){
   support_t *sup_struct_ptr;
   ssi_payload_t getsup_payload = {
@@ -29,13 +29,17 @@ void generalExceptionHandler(){
       .arg = NULL,
   };
   SYSCALL(SENDMESSAGE, (unsigned int)ssi_pcb, (unsigned int)(&getsup_payload), 0);
+  bp();
   SYSCALL(RECEIVEMESSAGE, (unsigned int)ssi_pcb, (unsigned int)(&sup_struct_ptr), 0);
+  bp();
 
 	state_t *exception_state = &(sup_struct_ptr->sup_exceptState[GENERALEXCEPT]);
 
 	int cause = exception_state->cause;
 	exception_state->pc_epc += WORDLEN;
   int val = (cause & GETEXECCODE) >> CAUSESHIFT;
+  klog_print_dec(val);
+  klog_print("\n");
   switch(val){
 			case SYSEXCEPTION:
           supSyscallExceptionHandler(exception_state);

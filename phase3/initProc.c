@@ -113,6 +113,8 @@ static void initUProc()
         ss_array[asid - 1].sup_exceptContext[GENERALEXCEPT].stackPtr = (memaddr)curr - PAGESIZE;
         ss_array[asid - 1].sup_exceptContext[GENERALEXCEPT].status = ALLOFF | IEPON | IMON | TEBITON;
         ss_array[asid - 1].sup_exceptContext[GENERALEXCEPT].pc = (memaddr)generalExceptionHandler;
+        klog_print_hex(curr);
+        klog_print("\n");
 
         curr -= 2 * PAGESIZE; // general e tlb --> 2 pagine
 
@@ -135,8 +137,11 @@ static void initSST()
         SST_state[asid - 1].pc_epc = (memaddr)SST_loop;
         SST_state[asid - 1].status = ALLOFF | IEPON | IMON | TEBITON;
         SST_state[asid - 1].entry_hi = asid << ASIDSHIFT;
-
         sst_array[asid - 1] = create_process(&SST_state[asid - 1],  &ss_array[asid - 1]);
+
+        klog_print_hex((memaddr) curr);
+        klog_print("\n");
+
         curr -= PAGESIZE;
     }
 }
@@ -150,12 +155,17 @@ static void initSwapMutex()
     swap_mutex_state.reg_sp = (memaddr)curr;
     swap_mutex_state.pc_epc = (memaddr)swapMutex;
     swap_mutex_state.status = ALLOFF | IEPON | IMON | TEBITON;
+    
+    klog_print_hex((memaddr) curr);
+    klog_print("\n");
+    
     curr -= PAGESIZE;
+    
 
     swap_mutex_process = create_process(&swap_mutex_state, NULL);
 }
 
-void br(){}
+//void br(){}
 
 
 /*
@@ -170,10 +180,9 @@ void print(int device_number, unsigned int *base_address)
         char *msg;
         pcb_t *sender;
         sender = (unsigned int) SYSCALL(RECEIVEMESSAGE, ANYMESSAGE, (unsigned int)(&msg), 0);
-        //klog_print("Print1\n");
-
-        br();
+        //br();
         char *s = msg;
+        //klog_print(s);
         unsigned int *base = base_address + 4 * device_number;
         unsigned int *command;
         if(base_address == (unsigned int *)TERM0ADDR)
@@ -182,11 +191,9 @@ void print(int device_number, unsigned int *base_address)
             command = base + 1;
         unsigned int *data0 = base + 2;
         unsigned int status;
-        klog_print("Print2\n");
         
         while (*s != EOS)
         {    
-            klog_print("\nPrint3\n");
             unsigned int value;
             if(base_address == (unsigned int *)TERM0ADDR)
                 value = PRINTCHR | (((unsigned int)*s) << 8);
@@ -207,7 +214,6 @@ void print(int device_number, unsigned int *base_address)
             
             SYSCALL(SENDMESSAGE, (unsigned int)ssi_pcb, (unsigned int)(&payload), 0);
             SYSCALL(RECEIVEMESSAGE, (unsigned int)ssi_pcb, (unsigned int)(&status), 0);
-            klog_print("Print4\n");
             
             
             if (base_address == (unsigned int *)TERM0ADDR && (status & TERMSTATMASK) != RECVD)
@@ -267,17 +273,24 @@ static void initDevProc()
     for (int i = 0; i < UPROCMAX * 2; i++) {
         dev_state[i].reg_sp = (memaddr)curr;
         
-        if(i < UPROCMAX)
+        if(i < UPROCMAX) {
             dev_state[i].pc_epc = (unsigned int)terminals[i]; 
-        else
+            dev_state[i].entry_hi = (i + 1) << ASIDSHIFT;
+        } else {
             dev_state[i].pc_epc = (unsigned int)printers[i - UPROCMAX]; 
+            dev_state[i].entry_hi = (i - UPROCMAX + 1) << ASIDSHIFT;
+        }
         
         dev_state[i].status = ALLOFF | IEPON | IMON | TEBITON;
         
         if(i < UPROCMAX)
-            terminal_pcbs[i] = create_process(&dev_state[i], NULL);
+            terminal_pcbs[i] = create_process(&dev_state[i], &ss_array[i]);
+            //terminal_pcbs[i] = create_process(&dev_state[i], NULL);
         else
-            printer_pcbs[i - UPROCMAX] = create_process(&dev_state[i], NULL);
+            printer_pcbs[i - UPROCMAX] = create_process(&dev_state[i], &ss_array[i - UPROCMAX]);
+            //printer_pcbs[i - UPROCMAX] = create_process(&dev_state[i], NULL);
+        klog_print_hex((memaddr) curr);
+        klog_print("\n");
         curr -= PAGESIZE;
     } 
 }
