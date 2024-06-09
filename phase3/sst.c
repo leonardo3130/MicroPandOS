@@ -73,6 +73,7 @@ unsigned int sst_write(support_t *sup, unsigned int device_type, sst_print_t *pa
     SYSCALL(RECEIVEMESSAGE, (unsigned int) dest, 0, 0);
     klog_print("\nSSTW R\n");
 
+
     return 1;
 }
 
@@ -98,13 +99,13 @@ void SST_loop(){
         ssi_payload_t *payload; 
         pcb_t *sender;
 
+        
+            
         klog_print("SSTL P RCV\n"); // SST LOOP PRIMA DI RECEIVE
         sender = SYSCALL(RECEIVEMESSAGE, (unsigned int)sst_child, (unsigned int)(&payload), 0);  // SI BLOCCA QUI IN ATTESA DELLA SECONDA RECEVE
-        
-        // klog_print("SSTLOOP DOPO DI RECEIVE\n");
+        klog_print("SSTL D RCV\n"); // SST LOOP DOPO RECEIVE
 
-        
-
+    
         // klog_print("SST LOOP code: ");
         // klog_print_hex(payload->service_code);
         // klog_print(".\n");
@@ -114,6 +115,8 @@ void SST_loop(){
 
         // Se necessario, restituisco ret (specialmente nel caso sia getTOD, altrimenti basta un valore a caso solo per ACK)
         SYSCALL(SENDMESSAGE, (unsigned int)sender, ret, 0);  
+    
+        
         ss();          
 
     }

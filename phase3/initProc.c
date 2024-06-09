@@ -94,8 +94,6 @@ static void initPageTableEntry(pteEntry_t *entry, int asid, int i) {
  */
 static void initUProc()
 {
-    RAMTOP(curr);
-    curr -= 3 * PAGESIZE; // inizia dopo lo spazio per test e ssi
     for (int asid = 1; asid <= UPROCMAX; asid++) 
     {
         // inizializzazione stato
@@ -111,13 +109,15 @@ static void initUProc()
         ss_array[asid - 1].sup_exceptContext[PGFAULTEXCEPT].status = ALLOFF | IEPON | IMON | TEBITON;
         ss_array[asid - 1].sup_exceptContext[PGFAULTEXCEPT].pc = (memaddr) pager;
 
-        ss_array[asid - 1].sup_exceptContext[GENERALEXCEPT].stackPtr = (memaddr) (curr - PAGESIZE);
+        curr -= PAGESIZE;
+
+        ss_array[asid - 1].sup_exceptContext[GENERALEXCEPT].stackPtr = (memaddr) curr;
         ss_array[asid - 1].sup_exceptContext[GENERALEXCEPT].status = ALLOFF | IEPON | IMON | TEBITON;
         ss_array[asid - 1].sup_exceptContext[GENERALEXCEPT].pc = (memaddr) generalExceptionHandler;
         // klog_print_hex(curr);
         // klog_print("\n");
 
-        curr -= 2 * PAGESIZE; // general e tlb --> 2 pagine
+        curr -= PAGESIZE; // general e tlb --> 2 pagine 
 
         // inizializzazione tabella delle pagine del processo
         for (int i = 0; i < USERPGTBLSIZE; i++)  
@@ -180,9 +180,12 @@ void my_print(int device_number, unsigned int *base_address)
         pcb_t *sender;
         sender = (unsigned int) SYSCALL(RECEIVEMESSAGE, ANYMESSAGE, (unsigned int)(&s), 0);
 
-        br();
         
-        // klog_print(" to print\n");
+        
+        klog_print("Da stampare ");
+        klog_print(s);
+        klog_print("\n");
+        br();
         
         unsigned int *base = base_address + 4 * device_number;
         unsigned int *command;
@@ -212,6 +215,7 @@ void my_print(int device_number, unsigned int *base_address)
                 .service_code = DOIO,
                 .arg = &do_io,
             };
+            
             SYSCALL(SENDMESSAGE, (unsigned int)ssi_pcb, (unsigned int)(&payload), 0);
             SYSCALL(RECEIVEMESSAGE, (unsigned int)ssi_pcb, (unsigned int)(&status), 0);
             
@@ -221,7 +225,7 @@ void my_print(int device_number, unsigned int *base_address)
             if (base_address == (unsigned int *)PRINTER0ADDR && status != READY)
                 PANIC();
 
-            ++s;    //passo al char successivo
+            s++;    //passo al char successivo
         }
 
         
@@ -292,6 +296,8 @@ static void initDevProc()
             printer_pcbs[i - UPROCMAX] = create_process(&dev_state[i], NULL);                   // pid 5
         // klog_print_hex((memaddr) curr);
         // klog_print("\n");
+        
+        
         curr -= PAGESIZE;
     } 
 }
@@ -306,6 +312,9 @@ static void initDevProc()
 void test() 
 {
     test_pcb = current_process; 
+
+    RAMTOP(curr);
+    curr -= (3 * PAGESIZE); // inizia dopo lo spazio per test e ssi
 
     // inizializzo la tabella di swap
     initSwapPoolTable();
