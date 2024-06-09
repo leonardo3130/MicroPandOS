@@ -24,6 +24,12 @@ static void updateTLB(pteEntry_t p){
     if((getINDEX() & PRESENTFLAG) == 0){
         setENTRYHI(p.pte_entryHI);
         setENTRYLO(p.pte_entryLO);
+        
+        /**
+         * Esegue l'operazione TLBWI (Translation Lookaside Buffer Write Index).
+         * Questa operazione scrive l'entry corrente della TLB (Translation Lookaside Buffer)
+         * nell'indice specificato dal registro EntryHi.
+         */
         TLBWI();
     } 
 }
@@ -37,6 +43,15 @@ static void cleanDirtyPage(int sp_index){
     setSTATUS(getSTATUS() | IECON); // riabilito interrupt per rilasciare l'atomicita'
 }
 
+/**
+ * Funzione per la lettura o scrittura di una pagina nel backing store.
+ *
+ * @param page_no il numero della pagina da leggere o scrivere
+ * @param asid l'ID dell'address space
+ * @param addr l'indirizzo di memoria virtuale
+ * @param w flag che indica se l'operazione è di scrittura (w = 1) o lettura (w = 0)
+ * @return lo stato dell'operazione di I/O
+ */
 static int RWBackingStore(int page_no, int asid, memaddr addr, int w) {
     setSTATUS(getSTATUS() & (~IECON)); // disabilito interrupt per avere atomicita'
     dtpreg_t *device_register = (dtpreg_t *)DEV_REG_ADDR(IL_FLASH, asid - 1);
@@ -56,6 +71,7 @@ static int RWBackingStore(int page_no, int asid, memaddr addr, int w) {
     
     SYSCALL(SENDMESSAGE, (unsigned int)ssi_pcb, (unsigned int)(&payload), 0);
     SYSCALL(RECEIVEMESSAGE, (unsigned int)ssi_pcb, (unsigned int)(&status), 0);
+
     setSTATUS(getSTATUS() | IECON); // riabilito interrupt per rilasciare l'atomicita'
     return status;
 }
@@ -165,21 +181,27 @@ void pager(){
 }
 //void bp(){}
 
+
+
 void uTLB_RefillHandler(){
     // prendo l'exception_state dalla BIOSDATAPAGE al fine di trovare 
     state_t* exception_state = (state_t *) BIOSDATAPAGE;
     int p = GET_VPN(exception_state->entry_hi);
-    // klog_print("TLB refill: ");
-    // klog_print_hex((memaddr) current_process);
-    // klog_print("\n");
 
+    // klog_print("TLB refill: \n");
+    // klog_print_dec((memaddr) current_process->p_supportStruct->sup_privatePgTbl[p].pte_entryHI);
+    // klog_print("\n");
+    // klog_print_dec((memaddr) current_process->p_supportStruct->sup_privatePgTbl[p].pte_entryLO);
+    // printBinary((memaddr) current_process->p_supportStruct->sup_privatePgTbl[p].pte_entryHI);
+    // printBinary((memaddr) current_process->p_supportStruct->sup_privatePgTbl[p].pte_entryLO);
+    // klog_print("\n");
     
     // scrivo nel TLB la entryHI e entryLO della pagina p-esima del processo corrente
     setENTRYHI(current_process->p_supportStruct->sup_privatePgTbl[p].pte_entryHI);
     setENTRYLO(current_process->p_supportStruct->sup_privatePgTbl[p].pte_entryLO);
     TLBWR();
 
-    //qua parte il loop delle eccezioni
+    // qua parte il loop delle eccezioni
     // bp();      
 
     //Return control to the Current Process to retry the instruction that caused the TLB-Refill event:

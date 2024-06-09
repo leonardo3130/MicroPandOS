@@ -1,10 +1,19 @@
 #include "./include/scheduler.h"
-//void bb(){}
+void bb(){}
 void scheduler(){
     if(emptyProcQ(&Ready_Queue) == 0){
 
         //  1. Se c'e' almeno un processo pronto ad essere eseguito, lo prendo dalla Ready e lo assegno al current_process.
         current_process = removeProcQ(&Ready_Queue);
+
+        // if(current_process->p_pid != 7){
+        //     klog_print("  ");
+        //     klog_print_dec(current_process->p_pid);
+
+        // }
+        // if(current_process->p_pid == 1){
+        //     bb();
+        // }
 
         //  2. carico il processo localt timer a 5ms [Section 4.1.4-pops].
         setPLT(TIMESLICE * (*((cpu_t *)TIMESCALEADDR)));

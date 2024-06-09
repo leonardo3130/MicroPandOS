@@ -18,35 +18,43 @@ void supSyscallExceptionHandler(state_t *exception_state) {
       SYSCALL(SENDMESSAGE, exception_state->reg_a1, exception_state->reg_a2, 0);
   } 
   else if(exception_state->reg_a0 == RECEIVEMSG) {
+    bp();
     SYSCALL(RECEIVEMESSAGE, exception_state->reg_a1, exception_state->reg_a2, 0);
+    bp();
   }
 }
 void bp() {}
+
+
 void generalExceptionHandler(){
   support_t *sup_struct_ptr;
   ssi_payload_t getsup_payload = {
-      .service_code = GETSUPPORTPTR,
-      .arg = NULL,
+    .service_code = GETSUPPORTPTR,
+    .arg = NULL,
   };
   SYSCALL(SENDMESSAGE, (unsigned int)ssi_pcb, (unsigned int)(&getsup_payload), 0);
-  bp();
   SYSCALL(RECEIVEMESSAGE, (unsigned int)ssi_pcb, (unsigned int)(&sup_struct_ptr), 0);
-  bp();
 
 	state_t *exception_state = &(sup_struct_ptr->sup_exceptState[GENERALEXCEPT]);
 
-	int cause = exception_state->cause;
 	exception_state->pc_epc += WORDLEN;
-  int val = (cause & GETEXECCODE) >> CAUSESHIFT;
+  int val = (exception_state->cause & GETEXECCODE) >> CAUSESHIFT;
+
+  klog_print("\n");
   klog_print_dec(val);
   klog_print("\n");
+
   switch(val){
-			case SYSEXCEPTION:
-          supSyscallExceptionHandler(exception_state);
-					break;
-			default:
-          programTrapExceptionHandler(exception_state);
-  				break;
+    case SYSEXCEPTION:
+      supSyscallExceptionHandler(exception_state);
+      break;
+    default:
+      // klog_print_dec(current_process->p_pid);
+      // klog_print("\n");
+
+      // viene killato il processo con PID == 7
+      programTrapExceptionHandler(exception_state);
+      break;
   }
   LDST(exception_state);
 }

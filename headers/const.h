@@ -208,4 +208,7 @@
 /* Macro e funzioni usate per prendere il VPN, anche nel caso sfori i 31*/
 #define GET_VPN(x) MIN(ENTRYHI_GET_VPN(x), 31)
 
+
+
+
 #endif

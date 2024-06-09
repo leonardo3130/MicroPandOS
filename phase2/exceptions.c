@@ -84,7 +84,7 @@ static void syscallExceptionHandler(state_t *exception_state){
             }
 
             exception_state->pc_epc += WORDLEN; //non bloccante
-            LDST(exception_state);
+            LDST(exception_state);      // QUI CAMBIA DA CURRPROCESS CON PID 1 A CURR PROCESS CON PID
         }
         //SYS2
         else if(exception_state->reg_a0 == RECEIVEMESSAGE) {
