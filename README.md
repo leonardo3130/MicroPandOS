@@ -2,7 +2,7 @@
 µPandOS is an educational microkernel operating system
 
 ## Installation and usage
-1. To use this software you need to install <i>umps3</i>  with yout package manager, for example with apt:
+1. To use this software you need to install <i>umps3</i>  with your package manager, for example with apt:
     ```sh
     sudo apt install umps3
     ```

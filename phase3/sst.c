@@ -98,9 +98,7 @@ void SST_loop(){
     while(TRUE){
         ssi_payload_t *payload; 
         pcb_t *sender;
-
-        
-            
+    
         klog_print("SSTL P RCV\n"); // SST LOOP PRIMA DI RECEIVE
         sender = SYSCALL(RECEIVEMESSAGE, (unsigned int)sst_child, (unsigned int)(&payload), 0);  // SI BLOCCA QUI IN ATTESA DELLA SECONDA RECEVE
         klog_print("SSTL D RCV\n"); // SST LOOP DOPO RECEIVE
@@ -140,7 +138,7 @@ unsigned int SSTRequest(support_t *sup, ssi_payload_t *payload){
             ret = getTOD();
             break;
 
-        case TERMINATE:
+        case TERMINATE:             // DA levare poichè coincide con default
             ret = sst_terminate(sup->sup_asid);
             break;
 
