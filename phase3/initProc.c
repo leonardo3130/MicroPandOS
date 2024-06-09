@@ -110,9 +110,10 @@ static void initUProc()
         ss_array[asid - 1].sup_exceptContext[PGFAULTEXCEPT].stackPtr = (memaddr) curr;
         ss_array[asid - 1].sup_exceptContext[PGFAULTEXCEPT].status = ALLOFF | IEPON | IMON | TEBITON;
         ss_array[asid - 1].sup_exceptContext[PGFAULTEXCEPT].pc = (memaddr) pager;
+
         ss_array[asid - 1].sup_exceptContext[GENERALEXCEPT].stackPtr = (memaddr) (curr - PAGESIZE);
         ss_array[asid - 1].sup_exceptContext[GENERALEXCEPT].status = ALLOFF | IEPON | IMON | TEBITON;
-        ss_array[asid - 1].sup_exceptContext[GENERALEXCEPT].pc = (memaddr)generalExceptionHandler;
+        ss_array[asid - 1].sup_exceptContext[GENERALEXCEPT].pc = (memaddr) generalExceptionHandler;
         // klog_print_hex(curr);
         // klog_print("\n");
 
@@ -163,7 +164,7 @@ static void initSwapMutex()
     swap_mutex_process = create_process(&swap_mutex_state, NULL);   // pid 3
 }
 
-//void br(){}
+void br(){}
 
 
 /*
@@ -171,15 +172,17 @@ static void initSwapMutex()
  * Riceve come argomenti il numero del dispositivo e l'indirizzo di base.
  * Riceve messaggi contenenti le stringhe da stampare e invia messaggi di risposta.
  */
-void print(int device_number, unsigned int *base_address)
+void my_print(int device_number, unsigned int *base_address)
 {
     while (1)
     {
         char *s;
         pcb_t *sender;
         sender = (unsigned int) SYSCALL(RECEIVEMESSAGE, ANYMESSAGE, (unsigned int)(&s), 0);
+
+        br();
         
-        klog_print(" to print\n");
+        // klog_print(" to print\n");
         
         unsigned int *base = base_address + 4 * device_number;
         unsigned int *command;
@@ -226,31 +229,31 @@ void print(int device_number, unsigned int *base_address)
         
         // klog_print_hex((unsigned int)current_process);
         // klog_print("\n");
-        klog_print_hex((unsigned int)sender) ;
-        klog_print(" Ok send \n");
+        // klog_print_hex((unsigned int)sender) ;
+        // klog_print(" Ok send \n");
     }
 }
 
 /*
  * Wrapper delle funzioni di stampa per poterle assegnare ai program counter dei vari device.
  */
-void print_term0 () { print(0, (unsigned int *)TERM0ADDR); }
-void print_term1 () { print(1, (unsigned int *)TERM0ADDR); }
-void print_term2 () { print(2, (unsigned int *)TERM0ADDR); }
-void print_term3 () { print(3, (unsigned int *)TERM0ADDR); }
-void print_term4 () { print(4, (unsigned int *)TERM0ADDR); }
-void print_term5 () { print(5, (unsigned int *)TERM0ADDR); }
-void print_term6 () { print(6, (unsigned int *)TERM0ADDR); }
-void print_term7 () { print(7, (unsigned int *)TERM0ADDR); }
+void print_term0 () { my_print(0, (unsigned int *)TERM0ADDR); }
+void print_term1 () { my_print(1, (unsigned int *)TERM0ADDR); }
+void print_term2 () { my_print(2, (unsigned int *)TERM0ADDR); }
+void print_term3 () { my_print(3, (unsigned int *)TERM0ADDR); }
+void print_term4 () { my_print(4, (unsigned int *)TERM0ADDR); }
+void print_term5 () { my_print(5, (unsigned int *)TERM0ADDR); }
+void print_term6 () { my_print(6, (unsigned int *)TERM0ADDR); }
+void print_term7 () { my_print(7, (unsigned int *)TERM0ADDR); }
 
-void printer0 () { print(0, (unsigned int *)PRINTER0ADDR); }
-void printer1 () { print(1, (unsigned int *)PRINTER0ADDR); }
-void printer2 () { print(2, (unsigned int *)PRINTER0ADDR); }
-void printer3 () { print(3, (unsigned int *)PRINTER0ADDR); }
-void printer4 () { print(4, (unsigned int *)PRINTER0ADDR); }
-void printer5 () { print(5, (unsigned int *)PRINTER0ADDR); }
-void printer6 () { print(6, (unsigned int *)PRINTER0ADDR); }
-void printer7 () { print(7, (unsigned int *)PRINTER0ADDR); }
+void printer0 () { my_print(0, (unsigned int *)PRINTER0ADDR); }
+void printer1 () { my_print(1, (unsigned int *)PRINTER0ADDR); }
+void printer2 () { my_print(2, (unsigned int *)PRINTER0ADDR); }
+void printer3 () { my_print(3, (unsigned int *)PRINTER0ADDR); }
+void printer4 () { my_print(4, (unsigned int *)PRINTER0ADDR); }
+void printer5 () { my_print(5, (unsigned int *)PRINTER0ADDR); }
+void printer6 () { my_print(6, (unsigned int *)PRINTER0ADDR); }
+void printer7 () { my_print(7, (unsigned int *)PRINTER0ADDR); }
 
 /*
  * Array di puntatori ai wrapper delle funzioni di stampa per una maggiore comodità durante l'assegnamento al program counter.
@@ -279,14 +282,14 @@ static void initDevProc()
             dev_state[i].entry_hi = (i - UPROCMAX + 1) << ASIDSHIFT;
         }
         
-        dev_state[i].status = ALLOFF | IEPON | IMON | TEBITON;
+        dev_state[i].status = ALLOFF | IEPBITON | CAUSEINTMASK | TEBITON;
         
         if(i < UPROCMAX)
-            terminal_pcbs[i] = create_process(&dev_state[i], &ss_array[i]);                         // pid 4
-            //terminal_pcbs[i] = create_process(&dev_state[i], NULL);
+            // terminal_pcbs[i] = create_process(&dev_state[i], &ss_array[i]);                        
+            terminal_pcbs[i] = create_process(&dev_state[i], NULL);                             // pid 4
         else
-            printer_pcbs[i - UPROCMAX] = create_process(&dev_state[i], &ss_array[i - UPROCMAX]);    // pid 5
-            //printer_pcbs[i - UPROCMAX] = create_process(&dev_state[i], NULL);
+            // printer_pcbs[i - UPROCMAX] = create_process(&dev_state[i], &ss_array[i - UPROCMAX]);    
+            printer_pcbs[i - UPROCMAX] = create_process(&dev_state[i], NULL);                   // pid 5
         // klog_print_hex((memaddr) curr);
         // klog_print("\n");
         curr -= PAGESIZE;

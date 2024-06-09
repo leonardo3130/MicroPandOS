@@ -71,8 +71,8 @@ void SSILoop(){
         //attesa di una richiesta da parte di un client attraverso SYS2
         pcb_t *sender;
         sender = SYSCALL(RECEIVEMESSAGE, ANYMESSAGE, (unsigned int)(&payload), 0);
-        klog_print(" SSI ");
-        klog_print_dec(sender->p_pid);
+        // klog_print(" SSI ");
+        // klog_print_dec(sender->p_pid);
 
         //tentativo di soddisfare la richiesta 
         unsigned int ret = SSIRequest(sender, (ssi_payload_t *)payload);

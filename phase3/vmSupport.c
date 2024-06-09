@@ -87,6 +87,8 @@ static void kill_proc(){
     SYSCALL(RECEIVEMESSAGE, (unsigned int)ssi_pcb, 0, 0);
 }
 
+void me(){}
+
 void pager(){
     //prendo la support struct
     support_t *sup_st;
@@ -98,6 +100,7 @@ void pager(){
     SYSCALL(RECEIVEMESSAGE, (unsigned int)ssi_pcb, (unsigned int)(&sup_st), 0);
     
     
+
     // TLB-Modification exception
     // If the Cause is a TLB-Modification exception, treat this exception as a program trap
     //if(sup_st->sup_exceptState[PGFAULTEXCEPT].cause == 1){ //!!! --> cause va elaborato per avere il code
@@ -105,13 +108,13 @@ void pager(){
     if((cause & GETEXECCODE) >> CAUSESHIFT == 1){
         kill_proc();
     } else {
-
+        me();
         // Vedo se posso PRENDERE la MUTUA ESCLUSIONE mandando allo swap_mutex_process e attendo un riscontro.
         SYSCALL(SENDMESSAGE, (unsigned int)swap_mutex_process, 0, 0);
         
         // Attendo la risposta dallo swap_mutex_process per ottenere la mutua esclusione
         SYSCALL(RECEIVEMESSAGE, (unsigned int)swap_mutex_process, 0, 0); 
-        
+        me();
 
         // Prendo la pagina virtuale dalla entry_hi supp_p->sup_exceptState[PGFAULTEXCEPT].entry_hi
         int p = GET_VPN(sup_st->sup_exceptState[PGFAULTEXCEPT].entry_hi);
