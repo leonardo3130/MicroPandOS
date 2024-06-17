@@ -53,7 +53,7 @@ static void cleanDirtyPage(int sp_index){
  * @return lo stato dell'operazione di I/O
  */
 static int RWBackingStore(int page_no, int asid, memaddr addr, int w) {
-    setSTATUS(getSTATUS() & (~IECON)); // disabilito interrupt per avere atomicita'
+    //setSTATUS(getSTATUS() & (~IECON)); // disabilito interrupt per avere atomicita'
     dtpreg_t *device_register = (dtpreg_t *)DEV_REG_ADDR(IL_FLASH, asid - 1);
     device_register->data0 = addr; 
 
@@ -72,7 +72,7 @@ static int RWBackingStore(int page_no, int asid, memaddr addr, int w) {
     SYSCALL(SENDMESSAGE, (unsigned int)ssi_pcb, (unsigned int)(&payload), 0);
     SYSCALL(RECEIVEMESSAGE, (unsigned int)ssi_pcb, (unsigned int)(&status), 0);
 
-    setSTATUS(getSTATUS() | IECON); // riabilito interrupt per rilasciare l'atomicita'
+    //setSTATUS(getSTATUS() | IECON); // riabilito interrupt per rilasciare l'atomicita'
     return status;
 }
 
@@ -87,6 +87,8 @@ static void kill_proc(){
     SYSCALL(RECEIVEMESSAGE, (unsigned int)ssi_pcb, 0, 0);
 }
 
+void pager_bp1(){}
+void pager_bp2(){}
 void pager(){
     //prendo la support struct
     support_t *sup_st;
@@ -97,7 +99,6 @@ void pager(){
     SYSCALL(SENDMESSAGE, (unsigned int)ssi_pcb, (unsigned int)(&getsup_payload), 0);
     SYSCALL(RECEIVEMESSAGE, (unsigned int)ssi_pcb, (unsigned int)(&sup_st), 0);
     
-    
     // TLB-Modification exception
     // If the Cause is a TLB-Modification exception, treat this exception as a program trap
     //if(sup_st->sup_exceptState[PGFAULTEXCEPT].cause == 1){ //!!! --> cause va elaborato per avere il code
@@ -105,7 +106,7 @@ void pager(){
     if((cause & GETEXECCODE) >> CAUSESHIFT == 1){
         kill_proc();
     } else {
-
+        pager_bp1();
         // Vedo se posso PRENDERE la MUTUA ESCLUSIONE mandando allo swap_mutex_process e attendo un riscontro.
         SYSCALL(SENDMESSAGE, (unsigned int)swap_mutex_process, 0, 0);
         
@@ -129,6 +130,7 @@ void pager(){
         swap_t *swap_pool_entry = &swap_pool_table[i];
 
         if(swap_pool_entry->sw_asid != -1){
+            pager_bp2();
             
             cleanDirtyPage(i); 
 
@@ -158,8 +160,10 @@ void pager(){
         setSTATUS(getSTATUS() & (~IECON)); // disabilito interrupt per avere atomicita'
         
         // 11 Update the Current Process's Page Table entry for page p to indicate it is now present (V bit) and occupying frame i (PFN field).
+        
         sup_st->sup_privatePgTbl[p].pte_entryLO |= VALIDON;
         sup_st->sup_privatePgTbl[p].pte_entryLO |= DIRTYON;
+        sup_st->sup_privatePgTbl[p].pte_entryLO &= 0xFFF; 
         sup_st->sup_privatePgTbl[p].pte_entryLO |= (victim_addr); 
 
         // klog_print_hex((memaddr) sup_st->sup_privatePgTbl[p].pte_entryLO);
@@ -179,9 +183,6 @@ void pager(){
         LDST(&(sup_st->sup_exceptState[PGFAULTEXCEPT]));
     }
 }
-//void bp(){}
-
-
 
 void uTLB_RefillHandler(){
     // prendo l'exception_state dalla BIOSDATAPAGE al fine di trovare 

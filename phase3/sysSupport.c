@@ -1,7 +1,7 @@
 #include "include/sysSupport.h"
 
 void programTrapExceptionHandler(state_t *exception_state) {
-  SYSCALL(SENDMESSAGE, (unsigned int)swap_mutex_process, 0, 0);
+  //SYSCALL(SENDMESSAGE, (unsigned int)swap_mutex_process, 0, 0);
   ssi_payload_t term_process_payload = {
       .service_code = TERMPROCESS,
       .arg = NULL,
@@ -10,6 +10,7 @@ void programTrapExceptionHandler(state_t *exception_state) {
   SYSCALL(RECEIVEMESSAGE, (unsigned int)ssi_pcb, 0, 0);
 }
 
+void bp() {}
 void supSyscallExceptionHandler(state_t *exception_state) { 
   if(exception_state->reg_a0 == SENDMSG) {
     if(exception_state->reg_a1 == PARENT)
@@ -23,10 +24,10 @@ void supSyscallExceptionHandler(state_t *exception_state) {
     bp();
   }
 }
-void bp() {}
 
-
+void general_bp(){}
 void generalExceptionHandler(){
+  general_bp();
   support_t *sup_struct_ptr;
   ssi_payload_t getsup_payload = {
     .service_code = GETSUPPORTPTR,
@@ -39,10 +40,6 @@ void generalExceptionHandler(){
 
 	exception_state->pc_epc += WORDLEN;
   int val = (exception_state->cause & GETEXECCODE) >> CAUSESHIFT;
-
-  klog_print("\n");
-  klog_print_dec(val);
-  klog_print("\n");
 
   switch(val){
     case SYSEXCEPTION:

@@ -226,8 +226,8 @@ void print(int device_number, unsigned int *base_address)
         
         // klog_print_hex((unsigned int)current_process);
         // klog_print("\n");
-        klog_print_hex((unsigned int)sender) ;
-        klog_print(" Ok send \n");
+        // klog_print_hex((unsigned int)sender) ;
+        // klog_print(" Ok send \n");
     }
 }
 
@@ -343,6 +343,8 @@ void test()
     for (int i = 0; i < UPROCMAX; i++)
         SYSCALL(RECEIVEMESSAGE, (unsigned int)sst_array[i], 0, 0);
 
+    klog_print("\nfine1");
+
     // chiedo al processo SSI la terminazione del processo di test
     ssi_payload_t payload = {
         .service_code = TERMPROCESS,
@@ -351,6 +353,7 @@ void test()
     SYSCALL(SENDMESSAGE, (unsigned int)ssi_pcb, (unsigned int)&payload, 0);
     SYSCALL(RECEIVEMESSAGE, (unsigned int)ssi_pcb, 0, 0);
 
+    klog_print("\nfine");
     // Qui i processi test, swap mutex, dispositivi, SST e utente non dovrebbero più esistere
     // Rimane solo il processo SSI in stato di HALT
 }

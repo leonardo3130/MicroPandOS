@@ -104,7 +104,9 @@ static void syscallExceptionHandler(state_t *exception_state){
                 if(msg->m_payload != (unsigned int)NULL) {
                     //accedo all'area di memoria in cui andare a caricare il payload del messaggio
                     unsigned int *a2 = (unsigned int *)exception_state->reg_a2;
-                    *a2 = msg->m_payload;
+                    if(a2 != NULL) {
+                        *a2 = msg->m_payload;
+                    }
                 }
                 freeMsg(msg); //il messaggio non serve più, lo libero
                 exception_state->pc_epc += WORDLEN; //non bloccante

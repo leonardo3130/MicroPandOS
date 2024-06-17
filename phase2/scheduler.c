@@ -1,5 +1,5 @@
 #include "./include/scheduler.h"
-void bb(){}
+void scheduler_bp(){}
 void scheduler(){
     if(emptyProcQ(&Ready_Queue) == 0){
 
@@ -12,7 +12,7 @@ void scheduler(){
 
         // }
         // if(current_process->p_pid == 1){
-        //     bb();
+        scheduler_bp();
         // }
 
         //  2. carico il processo localt timer a 5ms [Section 4.1.4-pops].

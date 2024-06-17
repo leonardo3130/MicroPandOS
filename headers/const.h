@@ -196,7 +196,7 @@
 #define FLASHBACK    0
 #define BACKINGSTORE FLASHBACK
 
-#define UPROCMAX 1
+#define UPROCMAX 3
 #define POOLSIZE (UPROCMAX * 2)
 /* End of Mikeyg constants */
 
