@@ -209,6 +209,10 @@
 #define GET_VPN(x) MIN(ENTRYHI_GET_VPN(x), 31)
 
 
+#define CAUSEINTMASK 0xFD00
+#define IEPBITON 0x4
+
+
 
 
 #endif

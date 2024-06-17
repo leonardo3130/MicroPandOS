@@ -73,7 +73,7 @@ void klog_print_hex(unsigned int num) {
  *
  * @param address L'indirizzo di memoria da stampare.
  */
-void printBinary(memaddr address) {
+void printBinary(unsigned int address) {
     for (int i = sizeof(address) * 8 - 1; i >= 0; i--) {
         unsigned int bit = (address >> i) & 1;
         klog_print_dec(bit);

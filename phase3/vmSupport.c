@@ -78,6 +78,7 @@ static int RWBackingStore(int page_no, int asid, memaddr addr, int w) {
 
 static void kill_proc(){
     SYSCALL(SENDMESSAGE, (unsigned int)swap_mutex_process, 0, 0);
+
     ssi_payload_t term_process_payload = {
         .service_code = TERMPROCESS,
         .arg = NULL,
@@ -89,6 +90,7 @@ static void kill_proc(){
 
 void pager_bp1(){}
 void pager_bp2(){}
+
 void pager(){
     //prendo la support struct
     support_t *sup_st;
@@ -112,7 +114,6 @@ void pager(){
         
         // Attendo la risposta dallo swap_mutex_process per ottenere la mutua esclusione
         SYSCALL(RECEIVEMESSAGE, (unsigned int)swap_mutex_process, 0, 0); 
-        
 
         // Prendo la pagina virtuale dalla entry_hi supp_p->sup_exceptState[PGFAULTEXCEPT].entry_hi
         int p = GET_VPN(sup_st->sup_exceptState[PGFAULTEXCEPT].entry_hi);

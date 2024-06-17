@@ -1,5 +1,7 @@
 #include "include/exceptions.h"
 
+memaddr counter = 0;
+
 //funzione per copia dello stato
 void saveState(state_t* dest, state_t* to_copy) {
     //copia di tutti i parametri di uno stato nell'altro
@@ -30,8 +32,10 @@ int send(pcb_t *sender, pcb_t *dest, unsigned int payload) {
 delle trap*/
 static void passUpOrDie(int i, state_t *exception_state) {
     if(current_process) { //per sicurezzza
+
         if(current_process->p_supportStruct != NULL) {
             saveState(&(current_process->p_supportStruct->sup_exceptState[i]), exception_state); //salvataggio stato 
+            
             //caricamento nella CPU di stack pointer, status e program counter
             LDCXT(current_process->p_supportStruct->sup_exceptContext[i].stackPtr,        
                   current_process->p_supportStruct->sup_exceptContext[i].status,
@@ -55,6 +59,9 @@ static int findPCB(pcb_t* p, struct list_head *list) {
     return 0;     //non trovato
 }
 
+void p1(){}
+void p2(){}
+
 static void syscallExceptionHandler(state_t *exception_state){
     if((exception_state->status << 30) >> 31) { //controllo che il processo non sia in kernel-mode
       //scrivo come codice dell'eccezione il valore EXC_RI e invoco il Pass Up or Die
@@ -64,6 +71,14 @@ static void syscallExceptionHandler(state_t *exception_state){
     else {
         //SYS1  
         if(exception_state->reg_a0 == SENDMESSAGE) {
+            klog_print("pid SEND: ");
+            klog_print_dec(current_process->p_pid);
+            klog_print("  ");  
+            klog_print_dec(counter++);
+            klog_print("    \n");
+            p1();
+
+
             int nogood;     //valore di ritorno da inserire in reg_v0
             int ready;      //se uguale a 1 il destinatario è nella ready queue, 0 altrimenti
             int not_exists; //se uguale a 1 il destinatario è nella lista pcbFree_h
@@ -88,6 +103,12 @@ static void syscallExceptionHandler(state_t *exception_state){
         }
         //SYS2
         else if(exception_state->reg_a0 == RECEIVEMESSAGE) {
+            klog_print("pid RECV: ");
+            klog_print_dec(current_process->p_pid);
+            klog_print("  ");  
+            klog_print_dec(counter++);
+            klog_print("    \n");
+            p2();
             struct list_head *msg_inbox = &(current_process->msg_inbox);                        //inbox del ricevente
             unsigned int from = exception_state->reg_a1;                                        //da chi voglio ricevere
             msg_t *msg = popMessage(msg_inbox, (from == ANYMESSAGE ? NULL : (pcb_t *)(from)));  //rimozione messaggio dalla inbox del ricevente
@@ -124,27 +145,32 @@ void exceptionHandler() {
 	state_t *exception_state = (state_t *)BIOSDATAPAGE;
 	int cause = getCAUSE();
 
-  switch((cause & GETEXECCODE) >> CAUSESHIFT){
-		  case IOINTERRUPTS:
-			    interruptHandler(cause, exception_state);
-			    break;
-		  case 1 ... 3:
-			    //TLB exceptions --> passo controllo al rispettivo gestore
-          passUpOrDie(PGFAULTEXCEPT, exception_state);
-			    break;
-		  case SYSEXCEPTION:
-          syscallExceptionHandler(exception_state);
-			    break;
-      case 4 ... 7:
-          //Program traps --> passo controllo al rispettivo gestore
-          passUpOrDie(GENERALEXCEPT, exception_state);
-			    break;
-      case 9 ... 12:
-			    //Program traps --> passo controllo al rispettivo gestore
-          passUpOrDie(GENERALEXCEPT, exception_state);
-			    break;
-		  default: 
-          PANIC();
+    switch((cause & GETEXECCODE) >> CAUSESHIFT){
+        case IOINTERRUPTS:
+            interruptHandler(cause, exception_state);
+            break;
+
+        case 1 ... 3:
+            //TLB exceptions --> passo controllo al rispettivo gestore
+            passUpOrDie(PGFAULTEXCEPT, exception_state);
+			break;
+            
+        case SYSEXCEPTION:
+            syscallExceptionHandler(exception_state);
+            break;
+
+        case 4 ... 7:
+            //Program traps --> passo controllo al rispettivo gestore
+            passUpOrDie(GENERALEXCEPT, exception_state);
+            break;
+    
+        case 9 ... 12:
+            //Program traps --> passo controllo al rispettivo gestore
+            passUpOrDie(GENERALEXCEPT, exception_state);
+            break;
+    
+        default: 
+            PANIC();
  }
 }
 

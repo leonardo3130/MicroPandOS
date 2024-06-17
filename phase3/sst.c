@@ -43,7 +43,7 @@ unsigned int sst_terminate(int asid){
     SYSCALL(RECEIVEMESSAGE, (unsigned int)ssi_pcb, (unsigned int)(&ret), 0);
     klog_print("\nnon morte");
 
-    return (unsigned int)ret;
+    return 1;
 }
 
 /**
@@ -54,9 +54,8 @@ unsigned int sst_terminate(int asid){
  * @return 1.
  */
 unsigned int sst_write(support_t *sup, unsigned int device_type, sst_print_t *payload){
-    // if(payload->string[payload->length] != '\0'){
-    //     payload->string[payload->length] = '\0';
-    // }
+    if(payload->string[payload->length] != '\0')
+        payload->string[payload->length] = '\0';
     
     pcb_t *dest = NULL;
     switch(device_type){
@@ -72,10 +71,10 @@ unsigned int sst_write(support_t *sup, unsigned int device_type, sst_print_t *pa
 
     SYSCALL(SENDMESSAGE, (unsigned int)dest, (unsigned int)payload->string, 0);
 
-    klog_print("\nSST WRITE: SEND\n");
+    klog_print("\nSSTW S\n");
     SYSCALL(RECEIVEMESSAGE, (unsigned int) dest, 0, 0);
+    klog_print("\nSSTW R\n");
 
-    klog_print("\nSST WRITE: RECV\n");
 
     return 1;
 }
@@ -105,7 +104,6 @@ void SST_loop(){
         sst_bp();
         sender = SYSCALL(RECEIVEMESSAGE, ANYMESSAGE, (unsigned int)(&payload), 0);  // SI BLOCCA QUI IN ATTESA DELLA SECONDA RECEVE
         klog_print("SSTLOOP DOPO DI RECEIVE\n");
-
         // klog_print("SST LOOP code: ");
         // klog_print_hex(payload->service_code);
         // klog_print(".\n");
@@ -113,9 +111,8 @@ void SST_loop(){
         // Tentativo di soddisfare la richiesta 
         unsigned int ret = SSTRequest(sup, payload);
 
-        // Se necessario, restituzione di un messaggio di ritorno attraverso SYS1
-        if(ret != -1)
-            SYSCALL(SENDMESSAGE, sender, ret, 0);
+        // Se necessario, restituisco ret (specialmente nel caso sia getTOD, altrimenti basta un valore a caso solo per ACK)
+        SYSCALL(SENDMESSAGE, (unsigned int)sender, ret, 0);  
     }
 }
 
@@ -137,7 +134,7 @@ unsigned int SSTRequest(support_t *sup, ssi_payload_t *payload){
             ret = getTOD();
             break;
 
-        case TERMINATE:
+        case TERMINATE:             // DA levare poichè coincide con default
             ret = sst_terminate(sup->sup_asid);
             break;
 
@@ -149,9 +146,10 @@ unsigned int SSTRequest(support_t *sup, ssi_payload_t *payload){
             ret = sst_write(sup, 7, (sst_print_t *)payload->arg);
             break;
 
-        default:
+        default:    // per case TERMINATE e tutti gli altri
             ret = sst_terminate(sup->sup_asid);
             break;
     }
+
     return ret;
 }
