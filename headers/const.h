@@ -196,7 +196,7 @@
 #define FLASHBACK    0
 #define BACKINGSTORE FLASHBACK
 
-#define UPROCMAX 1
+#define UPROCMAX 3
 #define POOLSIZE (UPROCMAX * 2)
 /* End of Mikeyg constants */
 
@@ -205,10 +205,14 @@
 /* Inizio indirizzo di device registers */
 #define START_DEVREG		0x10000054
 
-/*
-    COSTANTI PER SWAP_POOL
-*/
-#define P 0
-#define V 1
+/* Macro e funzioni usate per prendere il VPN, anche nel caso sfori i 31*/
+#define GET_VPN(x) MIN(ENTRYHI_GET_VPN(x), 31)
+
+
+#define CAUSEINTMASK 0xFD00
+#define IEPBITON 0x4
+
+
+
 
 #endif

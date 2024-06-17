@@ -69,7 +69,8 @@ void SSILoop(){
         unsigned int payload;
 
         //attesa di una richiesta da parte di un client attraverso SYS2
-        unsigned int sender = SYSCALL(RECEIVEMESSAGE, ANYMESSAGE, (unsigned int)(&payload), 0);
+        unsigned int sender;
+        sender = SYSCALL(RECEIVEMESSAGE, ANYMESSAGE, (unsigned int)(&payload), 0);
 
         //tentativo di soddisfare la richiesta 
         unsigned int ret = SSIRequest((pcb_t *)sender, (ssi_payload_t *)payload);

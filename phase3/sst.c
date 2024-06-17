@@ -1,8 +1,14 @@
+/**
+ * @file sst.c
+ * @brief Implementazione delle funzioni per SST.
+ */
+
 #include "include/sst.h"
 
-typedef unsigned int devregtr;
-
-/* richiesta del proprio support_t alla ssi */
+/**
+ * @brief Richiede il puntatore al supporto del processo SST alla SSI (System Support Interface).
+ * @return Il puntatore al supporto del processo SST.
+ */
 support_t *support_request(){
     support_t *sup;
     ssi_payload_t payload = {
@@ -14,13 +20,20 @@ support_t *support_request(){
     return sup;
 }
 
+/**
+ * @brief Termina il processo SST.
+ * @param asid L'ASID (Address Space Identifier) del processo SST.
+ * @return Il valore di ritorno della terminazione del processo SST.
+ */
 unsigned int sst_terminate(int asid){
-    //mandare messaggio al test per comunicare terminazione SST
+    // Mandare messaggio al test per comunicare la terminazione del processo SST
     for (int i = 0; i < POOLSIZE; ++i)
         if (swap_pool_table[i].sw_asid == asid)
-            swap_pool_table[i].sw_asid = -1; // libero il frame
+            swap_pool_table[i].sw_asid = -1; // Libero il frame
     SYSCALL(SENDMESSAGE, (unsigned int)test_pcb, 0, 0);
-    //richesta termprocess alla ssi
+    klog_print("\nmorte");
+
+    // Richiesta di terminazione del processo alla SSI
     int ret;
     ssi_payload_t payload = {
         .service_code = TERMPROCESS,
@@ -28,78 +41,115 @@ unsigned int sst_terminate(int asid){
     };
     SYSCALL(SENDMESSAGE, (unsigned int)ssi_pcb, (unsigned int)&payload, 0);
     SYSCALL(RECEIVEMESSAGE, (unsigned int)ssi_pcb, (unsigned int)(&ret), 0);
+    klog_print("\nnon morte");
 
-    return (unsigned int)ret;
-}
-
-unsigned int sst_write(support_t *sup, unsigned int device_type, sst_print_t *payload){
-
-    //controllo lunghezza stringa
-    if(payload->string[payload->length] != '\0'){
-        payload->string[payload->length] = '\0';
-    }
-    
-    unsigned int dest;
-    switch(device_type){
-        case 6:
-            dest = (unsigned int)printer_pcbs[sup->sup_asid-1];
-        case 7:
-            dest = (unsigned int)terminal_pcbs[sup->sup_asid-1];
-        default:
-            break;
-    }
-    
-    SYSCALL(SENDMESSAGE, dest, (unsigned int)payload->string, 0);
-    SYSCALL(RECEIVEMESSAGE, dest, 0, 0);
     return 1;
 }
 
-/*  Esecuzione continua del processo SST attraverso un ciclo while   */
+/**
+ * @brief Scrive una stringa su un dispositivo specificato.
+ * @param sup Il puntatore al supporto del processo SST.
+ * @param device_type Il tipo di dispositivo su cui scrivere (6 per la stampante, 7 per il terminale).
+ * @param payload Il payload contenente la stringa da scrivere.
+ * @return 1.
+ */
+unsigned int sst_write(support_t *sup, unsigned int device_type, sst_print_t *payload){
+    if(payload->string[payload->length] != '\0')
+        payload->string[payload->length] = '\0';
+    
+    pcb_t *dest = NULL;
+    switch(device_type){
+        case 6:
+            dest = printer_pcbs[sup->sup_asid - 1];
+            break;
+        case 7:
+            dest = terminal_pcbs[sup->sup_asid - 1];
+            break;
+        default:
+            break;
+    }
+
+    SYSCALL(SENDMESSAGE, (unsigned int)dest, (unsigned int)payload->string, 0);
+
+    klog_print("\nSSTW S\n");
+    SYSCALL(RECEIVEMESSAGE, (unsigned int) dest, 0, 0);
+    klog_print("\nSSTW R\n");
+
+
+    return 1;
+}
+
+
+void sst_bp(){}
+
+/**
+ * @brief loop del SST, che è sempre in attesa di nuove richieste.
+ */
 void SST_loop(){
     support_t *sup = support_request(); 
     state_t *state = &UProc_state[sup->sup_asid - 1];
     
-    //klog_print_dec(sup->sup_asid - 1);
-    create_process(state, sup);
+    pcb_t *sst_child;
+    sst_child = create_process(state, sup);     // causa la trap e viene killato
+
+    // klog_print("sst_child: ");
+    // klog_print_dec(sst_child->p_pid);
+    // klog_print("\n");
     
-    //klog_print_dec(sup->sup_asid - 1);
-
     while(TRUE){
-        //klog_print_dec(sup->sup_asid - 1);
-        unsigned int payload;
+        ssi_payload_t *payload; 
+        unsigned int sender;
 
-        //attesa di una richiesta da parte del figlio attraverso SYS2
-        unsigned int sender = SYSCALL(RECEIVEMESSAGE, ANYMESSAGE, (unsigned int)(&payload), 0);
-        //klog_print_dec(sup->sup_asid - 1);
+        klog_print("SSTLOOP PRIMA DI RECEIVE\n");
+        sst_bp();
+        sender = SYSCALL(RECEIVEMESSAGE, ANYMESSAGE, (unsigned int)(&payload), 0);  // SI BLOCCA QUI IN ATTESA DELLA SECONDA RECEVE
+        klog_print("SSTLOOP DOPO DI RECEIVE\n");
+        // klog_print("SST LOOP code: ");
+        // klog_print_hex(payload->service_code);
+        // klog_print(".\n");
 
-        //tentativo di soddisfare la richiesta 
-        unsigned int ret = SSTRequest(sup, (ssi_payload_t *)payload);
+        // Tentativo di soddisfare la richiesta 
+        unsigned int ret = SSTRequest(sup, payload);
 
-        //se necessario restituzione di messaggio di ritorno attraverso SYS1
-        if(ret != -1)
-            SYSCALL(SENDMESSAGE, (unsigned int)sender, ret, 0);
+        // Se necessario, restituisco ret (specialmente nel caso sia getTOD, altrimenti basta un valore a caso solo per ACK)
+        SYSCALL(SENDMESSAGE, (unsigned int)sender, ret, 0);  
     }
 }
 
-/*  Funzione che gestisce mediante il payload ricevuto dal sender la richiesta di un servizio   */
+
+/**
+ * @brief Funzione di supporto per la gestione delle richieste del processo SST.
+ * @param sup Il puntatore al supporto del processo SST.
+ * @param payload Il payload contenente la richiesta di servizio.
+ * @return Il valore di ritorno della richiesta di servizio.
+ */
 unsigned int SSTRequest(support_t *sup, ssi_payload_t *payload){
     unsigned int ret = 0;
+    // klog_print("SSTRequest code= ");
+    // klog_print_dec(payload->service_code);
+    // klog_print("\n");
+
     switch(payload->service_code){
         case GET_TOD:
             ret = getTOD();
+            break;
 
-        case TERMINATE:
+        case TERMINATE:             // DA levare poichè coincide con default
             ret = sst_terminate(sup->sup_asid);
+            break;
 
         case WRITEPRINTER:
-            ret = sst_write(sup, 6, (sst_print_t *)payload);
+            ret = sst_write(sup, 6, (sst_print_t *)payload->arg);
+            break;
 
-        case WRITETERMINAL:
-            ret = sst_write(sup, 7, (sst_print_t *)payload);
+        case WRITETERMINAL:     // ARRIVA QUI SOLO UNA VOLTA
+            ret = sst_write(sup, 7, (sst_print_t *)payload->arg);
+            break;
 
-        default:
+        default:    // per case TERMINATE e tutti gli altri
             ret = sst_terminate(sup->sup_asid);
             break;
     }
+
     return ret;
 }

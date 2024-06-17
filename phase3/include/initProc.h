@@ -22,7 +22,7 @@
 #define TERMSTATMASK 0xFF
 #define RECVD 5
 #define READY 1
-#define SWAP_POOL_AREA 0x20020000
+#define SWAP_POOL_AREA 0x2000C000
 
 extern support_t ss_array[UPROCMAX]; //support struct array
 extern state_t UProc_state[UPROCMAX];

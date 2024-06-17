@@ -260,4 +260,19 @@ static inline struct list_head *list_prev(const struct list_head *current) {
     for (pos = container_of((head)->prev, typeof(*pos), member); &pos->member != (head);                               \
          pos = container_of(pos->member.prev, typeof(*pos), member))
 
+
+/*
+    Macro usata per ottenere la lunghezza di una lista
+*/
+#define list_size(head)                                                                                                 \
+    ({                                                                                                                 \
+        size_tt size = 0;                                                                                              \
+        struct list_head *pos;                                                                                         \
+        list_for_each(pos, head) {                                                                                     \
+            size++;                                                                                                     \
+        }                                                                                                              \
+        size;                                                                                                          \
+    })
+
+
 #endif

@@ -4,7 +4,7 @@
 static int getPage(){
     
     for (int i = 0; i < POOLSIZE; i++)
-        if (swap_pool_table[i].sw_asid == -1)   // -1 significa che la pagina e' libera
+        if (swap_pool_table[i].sw_asid == NOPROC)   // -1 significa che la pagina e' libera
             return i;
 
     // se non c'e' una pagina libera, use un algoritmo FIFO per trovare una pagina da rimpiazzare
@@ -24,6 +24,12 @@ static void updateTLB(pteEntry_t p){
     if((getINDEX() & PRESENTFLAG) == 0){
         setENTRYHI(p.pte_entryHI);
         setENTRYLO(p.pte_entryLO);
+        
+        /**
+         * Esegue l'operazione TLBWI (Translation Lookaside Buffer Write Index).
+         * Questa operazione scrive l'entry corrente della TLB (Translation Lookaside Buffer)
+         * nell'indice specificato dal registro EntryHi.
+         */
         TLBWI();
     } 
 }
@@ -31,14 +37,23 @@ static void updateTLB(pteEntry_t p){
 static void cleanDirtyPage(int sp_index){
     setSTATUS(getSTATUS() & (~IECON)); // disabilito interrupt per avere atomicità
     
-    swap_pool_table[sp_index].sw_pte->pte_entryLO &= !VALIDON; // invalido la pagina
+    swap_pool_table[sp_index].sw_pte->pte_entryLO &= (~VALIDON); // invalido la pagina
     updateTLB(*(swap_pool_table[sp_index].sw_pte));
 
     setSTATUS(getSTATUS() | IECON); // riabilito interrupt per rilasciare l'atomicita'
 }
 
+/**
+ * Funzione per la lettura o scrittura di una pagina nel backing store.
+ *
+ * @param page_no il numero della pagina da leggere o scrivere
+ * @param asid l'ID dell'address space
+ * @param addr l'indirizzo di memoria virtuale
+ * @param w flag che indica se l'operazione è di scrittura (w = 1) o lettura (w = 0)
+ * @return lo stato dell'operazione di I/O
+ */
 static int RWBackingStore(int page_no, int asid, memaddr addr, int w) {
-    setSTATUS(getSTATUS() & (~IECON)); // disabilito interrupt per avere atomicita'
+    //setSTATUS(getSTATUS() & (~IECON)); // disabilito interrupt per avere atomicita'
     dtpreg_t *device_register = (dtpreg_t *)DEV_REG_ADDR(IL_FLASH, asid - 1);
     device_register->data0 = addr; 
 
@@ -56,12 +71,14 @@ static int RWBackingStore(int page_no, int asid, memaddr addr, int w) {
     
     SYSCALL(SENDMESSAGE, (unsigned int)ssi_pcb, (unsigned int)(&payload), 0);
     SYSCALL(RECEIVEMESSAGE, (unsigned int)ssi_pcb, (unsigned int)(&status), 0);
-    setSTATUS(getSTATUS() | IECON); // riabilito interrupt per rilasciare l'atomicita'
+
+    //setSTATUS(getSTATUS() | IECON); // riabilito interrupt per rilasciare l'atomicita'
     return status;
 }
 
 static void kill_proc(){
     SYSCALL(SENDMESSAGE, (unsigned int)swap_mutex_process, 0, 0);
+
     ssi_payload_t term_process_payload = {
         .service_code = TERMPROCESS,
         .arg = NULL,
@@ -70,6 +87,9 @@ static void kill_proc(){
     SYSCALL(SENDMESSAGE, (unsigned int)ssi_pcb, (unsigned int)(&term_process_payload), 0);
     SYSCALL(RECEIVEMESSAGE, (unsigned int)ssi_pcb, 0, 0);
 }
+
+void pager_bp1(){}
+void pager_bp2(){}
 
 void pager(){
     //prendo la support struct
@@ -81,7 +101,6 @@ void pager(){
     SYSCALL(SENDMESSAGE, (unsigned int)ssi_pcb, (unsigned int)(&getsup_payload), 0);
     SYSCALL(RECEIVEMESSAGE, (unsigned int)ssi_pcb, (unsigned int)(&sup_st), 0);
     
-    
     // TLB-Modification exception
     // If the Cause is a TLB-Modification exception, treat this exception as a program trap
     //if(sup_st->sup_exceptState[PGFAULTEXCEPT].cause == 1){ //!!! --> cause va elaborato per avere il code
@@ -89,29 +108,34 @@ void pager(){
     if((cause & GETEXECCODE) >> CAUSESHIFT == 1){
         kill_proc();
     } else {
-        // INIZIO MUTUA ESCLUSIONE
-        // Gain mutual exclusion over the Swap Pool table sending a message to the swap_table PCB and waiting for a response.
+        pager_bp1();
+        // Vedo se posso PRENDERE la MUTUA ESCLUSIONE mandando allo swap_mutex_process e attendo un riscontro.
         SYSCALL(SENDMESSAGE, (unsigned int)swap_mutex_process, 0, 0);
-        SYSCALL(RECEIVEMESSAGE, (unsigned int)swap_mutex_process, 0, 0); //qui si blocca se value == 0
         
-        // Prendo la pagina dalla entry_hi supp_p->sup_exceptState[PGFAULTEXCEPT].entry_hi
-        int p = ENTRYHI_GET_VPN(sup_st->sup_exceptState[PGFAULTEXCEPT].entry_hi);
+        // Attendo la risposta dallo swap_mutex_process per ottenere la mutua esclusione
+        SYSCALL(RECEIVEMESSAGE, (unsigned int)swap_mutex_process, 0, 0); 
+
+        // Prendo la pagina virtuale dalla entry_hi supp_p->sup_exceptState[PGFAULTEXCEPT].entry_hi
+        int p = GET_VPN(sup_st->sup_exceptState[PGFAULTEXCEPT].entry_hi);
         
         // Uso il mio algoritmo di rimpiazzamento per trovare la pagina da sostituire
         int i = getPage(); //pagina vittima
 
-        swap_t *swap_pool_entry = &swap_pool_table[i];
-        memaddr victim_addr = SWAP_POOL_AREA + i * PAGESIZE;
+        // calcolo l'indirizzo della pagina tenendo conto dell'offset SWAP_POOL_AREA e ogni singola pagina fino alla i-esima
+        memaddr victim_addr = SWAP_POOL_AREA + (i * PAGESIZE);
 
         // è necessario aggiornare la pagina se questa era occupata da un altro frame appartenente ad un altro processo
         // e in caso serve "pulirna" poichè ormai obsoleta (ovviamente tutto ciò in modo atomico per evitare inconsistenza)
         int status;
 
-        if(swap_pool_table[i].sw_asid != -1){
+        swap_t *swap_pool_entry = &swap_pool_table[i];
+
+        if(swap_pool_entry->sw_asid != -1){
+            pager_bp2();
             
             cleanDirtyPage(i); 
-            //write backing store/flash
-            
+
+            //write backing store/flash            
             status = RWBackingStore(swap_pool_entry->sw_pageNo, swap_pool_entry->sw_asid, victim_addr, 1);
             
             if(status != 1) {
@@ -125,53 +149,64 @@ void pager(){
             kill_proc(); //tratto gli errori come se fossere program trap
         }
 
-        // 10
-        //Update the Swap Pool table’s entry i to reflect frame i’s new contents: page p belonging to the
-        //Current Process’s ASID, and a pointer to the Current Process’s Page Table entry for page p.
+        /*
+            Aggiorna l'entry i nella Swap Pool table per riflettere i nuovi contenuti del frame i:
+            la pagina p appartenente all'ASID del processo corrente e un puntatore all'entry della tabella delle pagine del 
+            processo corrente per la pagina p.
+        */
         swap_pool_entry->sw_asid = sup_st->sup_asid; 
         swap_pool_entry->sw_pageNo = p;  
         swap_pool_entry->sw_pte = &(sup_st->sup_privatePgTbl[p]);
 
-        //bp();
-
         setSTATUS(getSTATUS() & (~IECON)); // disabilito interrupt per avere atomicita'
+        
         // 11 Update the Current Process's Page Table entry for page p to indicate it is now present (V bit) and occupying frame i (PFN field).
+        
         sup_st->sup_privatePgTbl[p].pte_entryLO |= VALIDON;
         sup_st->sup_privatePgTbl[p].pte_entryLO |= DIRTYON;
+        sup_st->sup_privatePgTbl[p].pte_entryLO &= 0xFFF; 
         sup_st->sup_privatePgTbl[p].pte_entryLO |= (victim_addr); 
+
+        // klog_print_hex((memaddr) sup_st->sup_privatePgTbl[p].pte_entryLO);
+        // klog_print("\n");
+        // klog_print_hex((memaddr) victim_addr);
+        // klog_print("\n");
 
         // 12 Update the TLB. The cached entry in the TLB for the Current Process's page p is clearly out of date; it was just updated in the previous step.
         updateTLB(sup_st->sup_privatePgTbl[p]);
 
         setSTATUS(getSTATUS() | IECON); // riabilito interrupt per rilasciare l'atomicita'
         
-        //bp();
         // 13 RILASCIARE MUTUA ESCLUSIONE
         SYSCALL(SENDMESSAGE, (unsigned int)swap_mutex_process, 0, 0);
             
         //FINE MUTUA ESCLUSIONE
-
         LDST(&(sup_st->sup_exceptState[PGFAULTEXCEPT]));
     }
 }
-void bp(){}
+
 void uTLB_RefillHandler(){
     // prendo l'exception_state dalla BIOSDATAPAGE al fine di trovare 
     state_t* exception_state = (state_t *) BIOSDATAPAGE;
-    int p = ENTRYHI_GET_VPN(exception_state -> entry_hi);
-    klog_print_dec(p);
-    klog_print("\n");
+    int p = GET_VPN(exception_state->entry_hi);
 
-    bp();
+    // klog_print("TLB refill: \n");
+    // klog_print_dec((memaddr) current_process->p_supportStruct->sup_privatePgTbl[p].pte_entryHI);
+    // klog_print("\n");
+    // klog_print_dec((memaddr) current_process->p_supportStruct->sup_privatePgTbl[p].pte_entryLO);
+    // printBinary((memaddr) current_process->p_supportStruct->sup_privatePgTbl[p].pte_entryHI);
+    // printBinary((memaddr) current_process->p_supportStruct->sup_privatePgTbl[p].pte_entryLO);
+    // klog_print("\n");
+    
+    // scrivo nel TLB la entryHI e entryLO della pagina p-esima del processo corrente
     setENTRYHI(current_process->p_supportStruct->sup_privatePgTbl[p].pte_entryHI);
     setENTRYLO(current_process->p_supportStruct->sup_privatePgTbl[p].pte_entryLO);
-    
-    // scrivo nel TLB
-    TLBWR();  
-    //qua parte il loop delle eccezioni
-    bp();      
+    TLBWR();
+
+    // qua parte il loop delle eccezioni
+    // bp();      
 
     //Return control to the Current Process to retry the instruction that caused the TLB-Refill event:
-    //LDST on the saved exception state located at the start of the BIOS Data Page.                                                                                                                                                                                                                                                                                                                                                                                             
+    //LDST on the saved exception state located at the start of the BIOS Data Page.                                                             
     LDST(exception_state);
 }

@@ -68,6 +68,20 @@ void klog_print_hex(unsigned int num) {
 }
 
 
+/**
+ * Stampa la rappresentazione binaria di un indirizzo di memoria.
+ *
+ * @param address L'indirizzo di memoria da stampare.
+ */
+void printBinary(unsigned int address) {
+    for (int i = sizeof(address) * 8 - 1; i >= 0; i--) {
+        unsigned int bit = (address >> i) & 1;
+        klog_print_dec(bit);
+    }
+    klog_print("\n");
+}
+
+
 // Move onto the next character (and into the next line if the current one overflows)
 static void next_char(void) {
     if (++klog_char_index >= KLOG_LINE_SIZE) {
