@@ -101,6 +101,7 @@ unsigned int ssi_new_process(ssi_create_process_t *p_info, pcb_t* parent){
     return (unsigned int)child;
 }
 
+void term_bp(){}
 /*  Funzione ricorsiva che termina il processo sender e la prole di questo  */
 void ssi_terminate_process(pcb_t* proc){
     if(!(proc == NULL)){
@@ -121,7 +122,8 @@ void ssi_terminate_process(pcb_t* proc){
         outProcQ(&Locked_pseudo_clock, proc) != NULL    ){
             soft_blocked_count--;  
         }
-        
+    
+    outProcQ(&Ready_Queue, proc);
     outChild(proc);
     freePcb(proc);
 }
@@ -155,6 +157,7 @@ unsigned int SSIRequest(pcb_t* sender, ssi_payload_t *payload){
 
         case TERMPROCESS:
             //terminates the sender process if arg is NULL, otherwise terminates arg
+            term_bp();
             if(payload->arg == NULL) {
                 ssi_terminate_process(sender);
                 ret = -1;

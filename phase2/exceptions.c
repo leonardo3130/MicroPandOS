@@ -71,12 +71,14 @@ static void syscallExceptionHandler(state_t *exception_state){
     else {
         //SYS1  
         if(exception_state->reg_a0 == SENDMESSAGE) {
-            klog_print("pid SEND: ");
-            klog_print_dec(current_process->p_pid);
-            klog_print("  ");  
-            klog_print_dec(counter++);
-            klog_print("    \n");
-            p1();
+            // klog_print("pid SEND: ");
+            // klog_print_dec(current_process->p_pid);
+            // klog_print("  ");  
+            // klog_print_dec(counter++);
+            // klog_print("    \n");
+            // p1();
+            int dim = list_size(&Ready_Queue);
+            klog_print_dec(dim);
 
 
             int nogood;     //valore di ritorno da inserire in reg_v0
@@ -103,12 +105,12 @@ static void syscallExceptionHandler(state_t *exception_state){
         }
         //SYS2
         else if(exception_state->reg_a0 == RECEIVEMESSAGE) {
-            klog_print("pid RECV: ");
-            klog_print_dec(current_process->p_pid);
-            klog_print("  ");  
-            klog_print_dec(counter++);
-            klog_print("    \n");
-            p2();
+            // klog_print("pid RECV: ");
+            // klog_print_dec(current_process->p_pid);
+            // klog_print("  ");  
+            // klog_print_dec(counter++);
+            // klog_print("    \n");
+            // p2();
             struct list_head *msg_inbox = &(current_process->msg_inbox);                        //inbox del ricevente
             unsigned int from = exception_state->reg_a1;                                        //da chi voglio ricevere
             msg_t *msg = popMessage(msg_inbox, (from == ANYMESSAGE ? NULL : (pcb_t *)(from)));  //rimozione messaggio dalla inbox del ricevente

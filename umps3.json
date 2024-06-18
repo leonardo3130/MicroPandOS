@@ -6,15 +6,15 @@
     "bootstrap-rom": "/usr/share/umps3/coreboot.rom.umps",
     "clock-rate": 1,
     "devices": {
-        "flash0": {
+        "flash5": {
             "enabled": true,
             "file": "testers/todTest.umps"
         },
-        "flash1": {
+        "flash6": {
             "enabled": true,
             "file": "testers/terminalTest1.umps"
         },
-        "flash2": {
+        "flash7": {
             "enabled": true,
             "file": "testers/terminalTest2.umps"
         },
@@ -26,15 +26,15 @@
             "enabled": true,
             "file": "testers/terminalTest4.umps"
         },
-        "flash5": {
+        "flash0": {
             "enabled": true,
             "file": "testers/fibEight.umps"
         },
-        "flash6": {
+        "flash1": {
             "enabled": true,
             "file": "testers/fibEleven.umps"
         },
-        "flash7": {
+        "flash2": {
             "enabled": true,
             "file": "testers/printerTest.umps"
         },

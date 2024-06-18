@@ -182,10 +182,10 @@ void my_print(int device_number, unsigned int *base_address)
 
         
         
-        klog_print("Da stampare ");
-        klog_print(s);
-        klog_print("\n");
-        br();
+        // klog_print("Da stampare ");
+        // klog_print(s);
+        // klog_print("\n");
+        // br();
         
         unsigned int *base = base_address + 4 * device_number;
         unsigned int *command;
@@ -309,6 +309,7 @@ static void initDevProc()
  * Infine, aspetta che tutti i processi SST e utente terminino e termina il processo di test 
  * mandando il sistema in HALT (in caso di corretta terminazione).
  */
+void init_bp(){}
 void test() 
 {
     test_pcb = current_process; 
@@ -356,16 +357,16 @@ void test()
         SYSCALL(RECEIVEMESSAGE, (unsigned int)sst_array[i], 0, 0);
 
     klog_print("\nfine1");
+    init_bp();
 
     // chiedo al processo SSI la terminazione del processo di test
     ssi_payload_t payload = {
         .service_code = TERMPROCESS,
         .arg = NULL,
     };
-    SYSCALL(SENDMESSAGE, (unsigned int)ssi_pcb, (unsigned int)&payload, 0);
+    SYSCALL(SENDMESSAGE, (unsigned int)ssi_pcb, (unsigned int)(&payload), 0);
     SYSCALL(RECEIVEMESSAGE, (unsigned int)ssi_pcb, 0, 0);
 
-    klog_print("\nfine");
     // Qui i processi test, swap mutex, dispositivi, SST e utente non dovrebbero più esistere
     // Rimane solo il processo SSI in stato di HALT
 }

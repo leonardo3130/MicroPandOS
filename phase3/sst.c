@@ -31,7 +31,6 @@ unsigned int sst_terminate(int asid){
         if (swap_pool_table[i].sw_asid == asid)
             swap_pool_table[i].sw_asid = -1; // Libero il frame
     SYSCALL(SENDMESSAGE, (unsigned int)test_pcb, 0, 0);
-    klog_print("\nmorte");
 
     // Richiesta di terminazione del processo alla SSI
     int ret;
@@ -41,7 +40,6 @@ unsigned int sst_terminate(int asid){
     };
     SYSCALL(SENDMESSAGE, (unsigned int)ssi_pcb, (unsigned int)&payload, 0);
     SYSCALL(RECEIVEMESSAGE, (unsigned int)ssi_pcb, (unsigned int)(&ret), 0);
-    klog_print("\nnon morte");
 
     return 1;
 }
@@ -71,9 +69,9 @@ unsigned int sst_write(support_t *sup, unsigned int device_type, sst_print_t *pa
 
     SYSCALL(SENDMESSAGE, (unsigned int)dest, (unsigned int)payload->string, 0);
 
-    klog_print("\nSSTW S\n");
+    // klog_print("\nSSTW S\n");
     SYSCALL(RECEIVEMESSAGE, (unsigned int) dest, 0, 0);
-    klog_print("\nSSTW R\n");
+    // klog_print("\nSSTW R\n");
 
 
     return 1;
@@ -100,10 +98,10 @@ void SST_loop(){
         ssi_payload_t *payload; 
         unsigned int sender;
 
-        klog_print("SSTLOOP PRIMA DI RECEIVE\n");
+        // klog_print("SSTLOOP PRIMA DI RECEIVE\n");
         sst_bp();
         sender = SYSCALL(RECEIVEMESSAGE, ANYMESSAGE, (unsigned int)(&payload), 0);  // SI BLOCCA QUI IN ATTESA DELLA SECONDA RECEVE
-        klog_print("SSTLOOP DOPO DI RECEIVE\n");
+        // klog_print("SSTLOOP DOPO DI RECEIVE\n");
         // klog_print("SST LOOP code: ");
         // klog_print_hex(payload->service_code);
         // klog_print(".\n");
@@ -142,7 +140,7 @@ unsigned int SSTRequest(support_t *sup, ssi_payload_t *payload){
             ret = sst_write(sup, 6, (sst_print_t *)payload->arg);
             break;
 
-        case WRITETERMINAL:     // ARRIVA QUI SOLO UNA VOLTA
+        case WRITETERMINAL:     
             ret = sst_write(sup, 7, (sst_print_t *)payload->arg);
             break;
 
