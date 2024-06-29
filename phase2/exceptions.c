@@ -59,8 +59,8 @@ static int findPCB(pcb_t* p, struct list_head *list) {
     return 0;     //non trovato
 }
 
-void p1(){}
-void p2(){}
+void blocking_bp(){}
+void non_blocking_bp(){}
 
 static void syscallExceptionHandler(state_t *exception_state){
     if((exception_state->status << 30) >> 31) { //controllo che il processo non sia in kernel-mode
@@ -77,14 +77,18 @@ static void syscallExceptionHandler(state_t *exception_state){
             // klog_print_dec(counter++);
             // klog_print("    \n");
             // p1();
-            int dim = list_size(&Ready_Queue);
-            klog_print_dec(dim);
-
 
             int nogood;     //valore di ritorno da inserire in reg_v0
             int ready;      //se uguale a 1 il destinatario è nella ready queue, 0 altrimenti
             int not_exists; //se uguale a 1 il destinatario è nella lista pcbFree_h
             pcb_t *dest = (pcb_t *)(exception_state->reg_a1);
+            if(dest->p_pid >= 14 || dest->p_pid == 12) {
+                klog_print("S: ");
+                klog_print_dec(current_process->p_pid);
+                klog_print(" ");
+                klog_print_dec(dest->p_pid);
+                klog_print("\n");
+            }
             ready = findPCB(dest, &Ready_Queue);
             not_exists = findPCB(dest, &pcbFree_h);
 
@@ -106,8 +110,10 @@ static void syscallExceptionHandler(state_t *exception_state){
         //SYS2
         else if(exception_state->reg_a0 == RECEIVEMESSAGE) {
             // klog_print("pid RECV: ");
-            // klog_print_dec(current_process->p_pid);
-            // klog_print("  ");  
+            // if (current_process->p_pid >= 12) {
+            //     klog_print_dec(current_process->p_pid);
+            //     klog_print("\n");
+            // }
             // klog_print_dec(counter++);
             // klog_print("    \n");
             // p2();
@@ -115,14 +121,23 @@ static void syscallExceptionHandler(state_t *exception_state){
             unsigned int from = exception_state->reg_a1;                                        //da chi voglio ricevere
             msg_t *msg = popMessage(msg_inbox, (from == ANYMESSAGE ? NULL : (pcb_t *)(from)));  //rimozione messaggio dalla inbox del ricevente
             
-            if(!msg) { 
+            if(!msg) {
+                blocking_bp();
                 //receive bloccante
                 saveState(&(current_process->p_s), exception_state);
                 updateCPUtime(current_process);
                 scheduler();       
             }
             else {
+                non_blocking_bp();
                 //receive non bloccante
+                if(current_process->p_pid >= 14 || current_process->p_pid == 12) {
+                    klog_print("NB: ");
+                    klog_print_dec(msg->m_sender->p_pid);
+                    klog_print(" ");
+                    klog_print_dec(current_process->p_pid);
+                    klog_print("\n");
+                }
                 exception_state->reg_v0 = (memaddr)(msg->m_sender);
                 if(msg->m_payload != (unsigned int)NULL) {
                     //accedo all'area di memoria in cui andare a caricare il payload del messaggio
@@ -138,6 +153,9 @@ static void syscallExceptionHandler(state_t *exception_state){
         }
         //valore registro a0 non corretto
         else if(exception_state->reg_a0 >= 1) {
+            klog_print("\nPUD  ");
+            klog_print_dec(current_process->p_pid);
+            klog_print("\n");
             passUpOrDie(GENERALEXCEPT, exception_state);
         }
     }

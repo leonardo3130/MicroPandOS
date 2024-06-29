@@ -88,8 +88,9 @@ static void kill_proc(){
     SYSCALL(RECEIVEMESSAGE, (unsigned int)ssi_pcb, 0, 0);
 }
 
-void pager_bp1(){}
+void pager_bp(){}
 void pager_bp2(){}
+void utlb_bp(){}
 
 void pager(){
     //prendo la support struct
@@ -108,12 +109,12 @@ void pager(){
     if((cause & GETEXECCODE) >> CAUSESHIFT == 1){
         kill_proc();
     } else {
-        pager_bp1();
         // Vedo se posso PRENDERE la MUTUA ESCLUSIONE mandando allo swap_mutex_process e attendo un riscontro.
         SYSCALL(SENDMESSAGE, (unsigned int)swap_mutex_process, 0, 0);
         
         // Attendo la risposta dallo swap_mutex_process per ottenere la mutua esclusione
         SYSCALL(RECEIVEMESSAGE, (unsigned int)swap_mutex_process, 0, 0); 
+        pager_bp();
 
         // Prendo la pagina virtuale dalla entry_hi supp_p->sup_exceptState[PGFAULTEXCEPT].entry_hi
         int p = GET_VPN(sup_st->sup_exceptState[PGFAULTEXCEPT].entry_hi);
@@ -165,7 +166,12 @@ void pager(){
         sup_st->sup_privatePgTbl[p].pte_entryLO |= VALIDON;
         sup_st->sup_privatePgTbl[p].pte_entryLO |= DIRTYON;
         sup_st->sup_privatePgTbl[p].pte_entryLO &= 0xFFF; 
-        sup_st->sup_privatePgTbl[p].pte_entryLO |= (victim_addr); 
+        sup_st->sup_privatePgTbl[p].pte_entryLO |= (victim_addr);
+        
+        // klog_print("\n");
+        // klog_print_hex(victim_addr);
+        // klog_print("\n");
+        // klog_print("1");
 
         // klog_print_hex((memaddr) sup_st->sup_privatePgTbl[p].pte_entryLO);
         // klog_print("\n");
@@ -176,6 +182,7 @@ void pager(){
         updateTLB(sup_st->sup_privatePgTbl[p]);
 
         setSTATUS(getSTATUS() | IECON); // riabilito interrupt per rilasciare l'atomicita'
+        pager_bp();
         
         // 13 RILASCIARE MUTUA ESCLUSIONE
         SYSCALL(SENDMESSAGE, (unsigned int)swap_mutex_process, 0, 0);
@@ -186,6 +193,7 @@ void pager(){
 }
 
 void uTLB_RefillHandler(){
+    utlb_bp();
     // prendo l'exception_state dalla BIOSDATAPAGE al fine di trovare 
     state_t* exception_state = (state_t *) BIOSDATAPAGE;
     int p = GET_VPN(exception_state->entry_hi);
@@ -203,8 +211,7 @@ void uTLB_RefillHandler(){
     setENTRYLO(current_process->p_supportStruct->sup_privatePgTbl[p].pte_entryLO);
     TLBWR();
 
-    // qua parte il loop delle eccezioni
-    // bp();      
+    utlb_bp();
 
     //Return control to the Current Process to retry the instruction that caused the TLB-Refill event:
     //LDST on the saved exception state located at the start of the BIOS Data Page.                                                             

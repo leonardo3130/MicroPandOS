@@ -12,14 +12,17 @@ void scheduler(){
 
         // }
         // if(current_process->p_pid == 1){
-        scheduler_bp();
+        // scheduler_bp();
         // }
 
         //  2. carico il processo localt timer a 5ms [Section 4.1.4-pops].
         setPLT(TIMESLICE * (*((cpu_t *)TIMESCALEADDR)));
 
         //  3. Eseguo un Load Processor State (LDST) sul Current Process (p_s).
-        start = getTOD(); 
+        start = getTOD();
+        scheduler_bp();
+        // klog_print_dec(current_process->p_pid);
+        // klog_print(" ");
         LDST(&(current_process->p_s));
     }
     else{
@@ -47,6 +50,7 @@ void scheduler(){
             // klog_print_dec(list_size(&Ready_Queue));
             // klog_print("\n");
             // klog_print("\n");
+            scheduler_bp();
 
             PANIC();
         }

@@ -76,8 +76,14 @@ void SSILoop(){
         unsigned int ret = SSIRequest((pcb_t *)sender, (ssi_payload_t *)payload);
 
         //se necessario restituzione di messaggio di ritorno attraverso SYS1
-        if(ret != -1)
+        if(ret != -1) {
             SYSCALL(SENDMESSAGE, (unsigned int)sender, ret, 0);
+            if(((pcb_t *)sender)->p_pid >= 14 || ((pcb_t *)sender)->p_pid == 12) {
+                klog_print("C: ");
+                klog_print_dec(((ssi_payload_t *)payload)->service_code);
+                klog_print("\n");
+            }
+        }
     }
 }
 
@@ -150,6 +156,12 @@ void ssi_doio(pcb_t *sender, ssi_do_io_t *doio){
 /*  Funzione che gestisce mediante il payload ricevuto dal sender la richiesta di un servizio   */
 unsigned int SSIRequest(pcb_t* sender, ssi_payload_t *payload){
     unsigned int ret = 0;
+    // klog_print("S: ");
+    // klog_print_dec(payload->service_code);
+    // klog_print(" ");
+    // klog_print_dec(sender->p_pid);
+    // klog_print(" :S");
+    // klog_print("\n");
     switch(payload->service_code){
         case CREATEPROCESS:
             ret = (emptyProcQ(&pcbFree_h) ? NOPROC : (unsigned int) ssi_new_process((ssi_create_process_PTR)payload->arg, sender));

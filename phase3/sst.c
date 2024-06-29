@@ -90,15 +90,18 @@ void SST_loop(){
     pcb_t *sst_child;
     sst_child = create_process(state, sup);     // causa la trap e viene killato
 
-    // klog_print("sst_child: ");
-    // klog_print_dec(sst_child->p_pid);
-    // klog_print("\n");
+    klog_print("sst_child: ");
+    klog_print_dec(sst_child->p_pid);
+    klog_print("\n");
     
     while(TRUE){
         ssi_payload_t *payload; 
         unsigned int sender;
 
         // klog_print("SSTLOOP PRIMA DI RECEIVE\n");
+        // sst_bp();
+        // klog_print_dec(sup->sup_asid);
+        // klog_print("\n");
         sst_bp();
         sender = SYSCALL(RECEIVEMESSAGE, ANYMESSAGE, (unsigned int)(&payload), 0);  // SI BLOCCA QUI IN ATTESA DELLA SECONDA RECEVE
         // klog_print("SSTLOOP DOPO DI RECEIVE\n");

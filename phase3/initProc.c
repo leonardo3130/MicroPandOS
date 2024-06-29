@@ -353,6 +353,16 @@ void test()
     // klog_print("\n");                            pid 6
 
     // attendo la terminazione di tutti i processi SST e utente
+    // klog_print_dec(process_count);
+    // klog_print_dec(sst_array[0]->p_pid); // pid 6
+    // klog_print(" ");
+    // klog_print_dec(sst_array[1]->p_pid); // pid 6
+    // klog_print(" ");
+    // klog_print_dec(sst_array[2]->p_pid); // pid 6
+    // klog_print(" ");
+    // klog_print_dec(sst_array[3]->p_pid); // pid 6
+    // klog_print(" ");
+    init_bp();
     for (int i = 0; i < UPROCMAX; i++)
         SYSCALL(RECEIVEMESSAGE, (unsigned int)sst_array[i], 0, 0);
 
