@@ -18,7 +18,7 @@
             "enabled": true,
             "file": "testers/terminalTest2.umps"
         },
-        "flash5": {
+        "flash3": {
             "enabled": true,
             "file": "testers/terminalTest3.umps"
         },
@@ -26,7 +26,7 @@
             "enabled": true,
             "file": "testers/terminalTest4.umps"
         },
-        "flash3": {
+        "flash5": {
             "enabled": true,
             "file": "testers/fibEight.umps"
         },

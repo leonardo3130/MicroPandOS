@@ -20,3 +20,7 @@ pager1 --> utlb --> scrittura TLb con pagina per uproc 4 con D = 1 e V = 0 (entr
 4 bp su sst poi scheduler --> scheduling di pid 14 (uproc con asid 1)
 e fa receive non bloccante senza passare dagli handler di livello utente
 --> appena finisce la syscall c'è la trap
+
+trap dopo send rilascio mutex: 
+1-send --> rilascio mutex
+2-trap --> subito dopo
