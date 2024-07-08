@@ -62,8 +62,6 @@ pcb_t *allocPcb() {
 
     p->from = 0;
 
-    p->mutex_holder = NULL;
-
     return p;
   }
 }

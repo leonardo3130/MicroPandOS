@@ -109,7 +109,7 @@ In questo modulo abbiamo delle funzioni/procedure ausiliarie richiamate degli al
 \end{itemize}
 
 \subsection{Inizializzazione nucleo}
-\subsubsection{Dichiarazione e inizializazione variabili globali}
+\subsubsection{Dichiarazione e inizializzazione variabili globali}
 Nel modulo \texttt{\textbf{initial.c}} viene implementato il \textbf{main()}, la dichiarazione delle variabili globali:
 \begin{itemize}
     \item \texttt{\textbf{int process\_count}} ossia il contatore dei processi attivi;
@@ -121,7 +121,7 @@ Nel modulo \texttt{\textbf{initial.c}} viene implementato il \textbf{main()}, la
     
 \end{itemize}
 
-\subsubsection{Dichiarazione e inizializazione strutture dati}
+\subsubsection{Dichiarazione e inizializzazione strutture dati}
 Vengono inoltre implementate le strutture dati principali: 
 \begin{itemize}
     \item attraverso le funzioni  \texttt{\textbf{initPcbs()}} e \texttt{\textbf{initMsgs()}} vengono inizializzate le strutture della fase 1;
@@ -291,10 +291,151 @@ Se il processo è in kernel-mode allora si continua e si controlla il registro a
 
 \newpage
 
-\section{Fase 3 - ...}
+\section{Fase 3 - Il livello di supporto}
+\subsection{Inizializzazione}
+L'inizializzazione viene realizzata nel file initProc.c, in questo file il primo processo si occupa di creare tutti i processi necessari e di inizializzare le strutture dati necessarie al  livello di supporto.  
+Il codice di inizializzazione si trova nel file phase3/initProc.c, l'header corrispondente
+si trove nel file phase3/include/initProc.h .
+\subsubsection{Inizializzazione Swap Pool Table}
+La funzione che si occupa di questa operazione impostra l'asid di ogni entry della tabella
+al valore costante \texttt{\textbf{NOPROC}}.
+\subsubsection{Inizializzazione U-proc}
+In seguito viene realizzata l'inizializzazione delle strutture di supporto per gli U-proc.
+Per farlo allochiamo consecutivamente blocchi di memoria di dimensione fissa \texttt{\textbf{PAGESIZE}}. 
+La memoria viene allocata a partire dall'indirizzo \texttt{\textbf{RAMTOP - 3 * PAGESIZE}}, 
+ovvero il primo indirizzo disponibile, poiché i primi tre frame sono occupati dal 
+processo ssi e dal processo test. In questa funzione, vengono assegnati alle support struct gli indirizzi dei gestori
+delle eccezioni del livello di support (\texttt{\textbf{pager}} e \texttt{\textbf{generalExceptionHandler}}).
+Nel frattempo anche gli stati dei vari u-proc vengono inizializzati, in particolare per questi processi si usa il 
+medesimo indirizzo per lo stack pointer(\texttt{\textbf{USERSTACKTOP}}) e il medesimo indirizzo per il program counter 
+(\texttt{\textbf{USERPROCSTARTADDR}}), in quanto essi fanno uso di 
+indirizzo logici. Le strutture di supporto e gli stati vengono memorizzati in array, affinché gli sst possano poi 
+creare gli u-proc, reperendo lo stato e la struttura di supporto corretti con facilità.
+Infine per ciascuna struttura di supporto avviene l'inizializzazione della rispettiva tabella delle pagine, impostando
+per ogni entry della tabella i valori per \texttt{\textbf{pte\_entryHI}} (calcolo indirizzo logico) e 
+\texttt{\textbf{pte\_entryLO}} (accesione dirty bit).
+\subsubsection{Processo swap mutex}
+Per mantenere mutua esclusione sulla swap pool table si utilizza un processo che realizza tramite message passing un 
+semaforo binario. Nella funzione \texttt{\textbf{initSwapMutex()}} viene allocata memoria per questo processo e 
+al suo program counter viene assegnando l'indirizzo della funzione \texttt{\textbf{swapMutex}}, che implementa il 
+semaforo eseguendo:
+\begin{enumerate}
+    \item Receive senza mittente specificato (in questo modo il semaforo riceve le richieste da tutti i processi) 
+    \item Send al mittente del messaggio ricevuto nel punto 1. (questo messaggio concede la mutua esclusione)
+    \item Receive dal mittente del messaggio ricevuto nel punto 1. (il semaforo attende il rilascio della mutua esclusione)
+\end{enumerate}
+\subsubsection{Inizializzazione processi device}
+Questi processi sono processi che ricevono dal rispettivo sst la stringa da stampare in output e questi 
+realizzano un loop in cui ad ogni iterazione viene inviata una richiesta alla ssi per il servizio 
+\texttt{\textbf{DOIO}} per la stampa del carattere della stringa in questione.
+Di questi processi ne sono stati realizzati 16 (8 terminali e altrettante stampanti). 
+Eseguono tutti lo stesso codice, consistente in una funzione con segnatura 
+\texttt{\textbf{void print(int device\_number, unsigned int *base\_address)}} che calcola i registri del 
+dispositivo partendo da \texttt{\textbf{base\_address}} (indirizzo della prima stampante o del primo 
+terminale) calcola l'indirizzo del dispositivo in questione utilizzando la seguente formula: \newline 
+\texttt{\textbf{base\_address + device\_number * 4}} \newline
+Poi dall'indirizzo calcolato si calcolano il registo di comando, e (nel caso delle stampanti) anche il 
+registro data0 nel quale andare ad inserire il carattere della stringa da stampare.
+Una volta realizzate queste operazioni preliminari può avvenire la ricezione della stringa e la conseguente 
+procedura di I/O. \newline
+In seguito per ciascun dispositivo si realizza una funzione wrapper che chiama la funzione parametrizzata 
+qui sopra discussa, in modo da conferire dei nomi chiari e che consentano il raccoglimento di queste 
+funzioni con un array di puntatori ad esse. Questo procedimento è stato implementato con il seguente codice:
+
+\texttt{\textbf{void print\_term0() \{ print(0, (unsigned int *)TERM0ADDR); \}}}
+\newline
+\texttt{\textbf{void print\_term1() \{ print(1, (unsigned int *)TERM0ADDR); \}}}
+\newline
+\texttt{\textbf{void print\_term2() \{ print(2, (unsigned int *)TERM0ADDR); \}}}
+\newline
+\texttt{\textbf{void print\_term3() \{ print(3, (unsigned int *)TERM0ADDR); \}}}
+\newline
+\texttt{\textbf{void print\_term4() \{ print(4, (unsigned int *)TERM0ADDR); \}}}
+\newline
+\texttt{\textbf{void print\_term5() \{ print(5, (unsigned int *)TERM0ADDR); \}}}
+\newline
+\texttt{\textbf{void print\_term6() \{ print(6, (unsigned int *)TERM0ADDR); \}}}
+\newline
+\texttt{\textbf{void print\_term7() \{ print(7, (unsigned int *)TERM0ADDR); \}}}
+\newline
+
+\texttt{\textbf{void printer0() \{ print(0, (unsigned int *)PRINTER0ADDR); \}}}
+\newline
+\texttt{\textbf{void printer1() \{ print(1, (unsigned int *)PRINTER0ADDR); \}}}
+\newline
+\texttt{\textbf{void printer2() \{ print(2, (unsigned int *)PRINTER0ADDR); \}}}
+\newline
+\texttt{\textbf{void printer3() \{ print(3, (unsigned int *)PRINTER0ADDR); \}}}
+\newline
+\texttt{\textbf{void printer4() \{ print(4, (unsigned int *)PRINTER0ADDR); \}}}
+\newline
+\texttt{\textbf{void printer5() \{ print(5, (unsigned int *)PRINTER0ADDR); \}}}
+\newline
+\texttt{\textbf{void printer6() \{ print(6, (unsigned int *)PRINTER0ADDR); \}}}
+\newline
+\texttt{\textbf{void printer7() \{ print(7, (unsigned int *)PRINTER0ADDR); \}}}\newline\newline
+\texttt{\textbf{
+void (*terminals[8])() = \{print\_term0, print\_term1, print\_term2, print\_term3,
+print\_term4, print\_term5, print\_term6, print\_term7\}; }}
+\newline
+\texttt{\textbf{
+void (*printers[8])() = \{printer0, printer1, printer2, printer3,
+printer4, printer5, printer6, printer7\};}}
+
+In questo modo nell'inizializzazione che seguirà sarà possibile assegnare il program counter 
+accedendo agli elementi di questi array.
+
+\subsubsection{Inizializzazione SST}
+Dopo i processi device l'inizializzazione continua, sempre allocando la memoria dalla RAM, decrementando 
+il valore di \texttt{\textbf{curr}} ad ogni iterazione. Anche qui si inizializza lo stato per ogni SST, in 
+particolare il program counter ha valore \texttt{\textbf{SST\_loop}}, che è la funzione che implementa 
+gli SST.
+
+\subsubsection{Terminazione}
+Dopo questa serie di inizializzazioni, il processo test rimane in attesa (tramite receive) che ciascun SST 
+comunichi ad esso la fine della propria esecuzione. Una volta che tutti gli SST hanno finito l'esecuzione, 
+il processo test richiede la propria terminazione all'SSI. In seguito l'SSI sarà l'unico processo nel 
+sistema e si avrà lo stato di HALT.
 
 \newpage
+\subsection{Gestore delle eccezione a livello di supporto}
+La funzioen che si occupa della gestione delle eccezioni a livello di supporto è la funzione 
+\texttt{\textbf{void generalExceptionHandler();}} che prima di poter realizzare una corretta gestione 
+della trap, deve ottenere dalla SSI (servizio \texttt{\textbf{GETSUPPORTPTR}}) la support struct 
+dell'u-proc interessato. Da questa si ottiene lo state nel modo seguente: \newline 
+\texttt{\textbf{state\_t* eception\_state = \&(sup\_struct\_ptr->sup\_exceptState[GENERALEXCEPT]);}}.
+Dopodiché si osserva il codice dell'eccezione dal cause register in questo modo: \newline
+\texttt{\textbf{int val = (exception\_state->cause \& GETEXECCODE) >> CAUSESHIFT;}} \newline
+In base al codice ricavato viene eseguito l'handler associato. Prima di ciò viene incrementato il program 
+counter dello state ottenuto in precedenza.
 
+\subsubsection{Gestore eccezioni causate da SYSCALL}
+In base al valore contenuto nel registro a0, uno dei due servizi sarà eseguito:
+\begin{itemize}
+  \item \texttt{\textbf{reg\_a0 = SENDMSG}}: il processo corrente vuole eseguire una \texttt{\textbf{SYS1}},
+    in questo caso serve controllare il registo a1 per verificare a chi inviare il messaggio:
+    \begin{itemize}
+      \item \texttt{\textbf{reg\_a1 = PARENT}}, in questo caso l'u-proc sta cercando di inviare 
+        un messaggio al suo SST, per farlo viene quindi eseguita l'istruzione seguente: 
+
+        \texttt{\textbf{SYSCALL(SENDMESSAGE, (unsigned int)current\_process->p\_parent, \newline 
+        exception\_state->reg\_a2, 0);}}
+      \item \texttt{\textbf{reg\_a1 != PARENT}}, in questo caso l'u-proc sta semplicemente inviando un 
+        messaggio a un altro processo, per farlo viene eseguita l'istruzione seguente: \newline
+        \texttt{\textbf{SYSCALL(SENDMESSAGE, exception\_state->reg\_a1, \newline 
+        exception\_state->reg\_a2, 0);}}
+    \end{itemize}
+  \item \texttt{\textbf{reg\_a0 = RECEIVEMSG}}: il processo corrente vuole eseguire una \texttt{\textbf{SYS2}}, viene quindi semplicemente eseguita questa istruzione: \newline 
+    \texttt{\textbf{SYSCALL(RECEIVEMESSAGE, exception\_state->reg\_a1, exception\_state->reg\_a2, 0);}}
+
+\end{itemize}
+\subsubsection{Gestore trap generiche a livello utente}
+Qualsiasi altro codice ricavato dal cause register viene interpretato come una trap inaspettata, di 
+conseguenza l'u-proc interessato verrà terminato, ma non prima di aver rilasciato la mutua esclusione 
+sulla swap pool, nel caso l'avesso precedentemente ottenuta.
+
+
+\newpage
 \section{Crediti}
 \subsection{Github}
 Il sorgente del progetto è reperibile nella seguente \href{https://github.com/aNdReA9111/PandOS.git}{\textcolor{blue}{repository}} su Github.
@@ -305,5 +446,7 @@ Il sorgente del progetto è reperibile nella seguente \href{https://github.com/a
     \item Po Leonardo, matricola: 0001069156, \href{mailto:leonardo.po@studio.unibo.it}{\textcolor{blue}{leonardo.po@studio.unibo.it}}
     \item Silvestri Luca, matricola: 0001080369, \href{mailto:luca.silvestri9@studio.unibo.it}{\textcolor{blue}{luca.silvestri9@studio.unibo.it}}
 \end{itemize}
+
+
 
 \end{document}
