@@ -33,6 +33,7 @@ extern pcb_t *terminal_pcbs[UPROCMAX];
 extern pcb_t *printer_pcbs[UPROCMAX];
 extern pcb_t *swap_mutex_process;
 extern pcb_t *test_pcb;
+extern pcb_t *mutex_holder;
 
 void test();
 pcb_t *create_process(state_t *s, support_t *sup);

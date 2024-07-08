@@ -18,6 +18,7 @@ pcb_t *terminal_pcbs[UPROCMAX];   // array di puntatori ai processi terminali
 pcb_t *printer_pcbs[UPROCMAX];    // array di puntatori ai processi stampanti
 pcb_t *swap_mutex_process;        // puntatore al processo mutex per lo swap
 pcb_t *test_pcb;                  // puntatore al processo di test
+pcb_t *mutex_holder; // puntatore al processo che ha la mutua esclusione
 
 state_t swap_mutex_state; // stato del processo mutex per lo swap
 memaddr curr;             // indirizzo corrente
@@ -54,8 +55,12 @@ pcb_t *create_process(state_t *s, support_t *sup) {
  */
 void swapMutex() {
   for (;;) {
+    // ricezione richieste di mutua esclusione
     unsigned int sender = SYSCALL(RECEIVEMESSAGE, ANYMESSAGE, 0, 0);
+    // concessione mutua esclusione
+    mutex_holder = (pcb_t *)sender;
     SYSCALL(SENDMESSAGE, (unsigned int)sender, 0, 0);
+    // attesa di rilascio della mutua esclusione
     SYSCALL(RECEIVEMESSAGE, sender, 0, 0);
   }
 }
@@ -115,7 +120,7 @@ static void initUProc() {
     ss_array[asid - 1].sup_exceptContext[GENERALEXCEPT].pc =
         (memaddr)generalExceptionHandler;
 
-    curr -= PAGESIZE; // general e tlb --> 2 pagine
+    curr -= PAGESIZE;
 
     // inizializzazione tabella delle pagine del processo
     for (int i = 0; i < USERPGTBLSIZE; i++)
@@ -135,7 +140,7 @@ static void initSST() {
     SST_state[asid - 1].status = ALLOFF | IEPON | IMON | TEBITON;
     SST_state[asid - 1].entry_hi = asid << ASIDSHIFT;
     sst_array[asid - 1] =
-        create_process(&SST_state[asid - 1], &ss_array[asid - 1]); // pid 6
+        create_process(&SST_state[asid - 1], &ss_array[asid - 1]);
     curr -= PAGESIZE;
   }
 }
@@ -163,16 +168,18 @@ void my_print(int device_number, unsigned int *base_address) {
   while (1) {
     char *s;
     unsigned int sender;
+    // ricezione richiesta di stampa
     sender = (unsigned int)SYSCALL(RECEIVEMESSAGE, ANYMESSAGE,
                                    (unsigned int)(&s), 0);
 
-    unsigned int *base = base_address + 4 * device_number;
+    unsigned int *base =
+        base_address + 4 * device_number; // indirizzo base del dispositivo
     unsigned int *command;
     if (base_address == (unsigned int *)TERM0ADDR)
       command = base + 3;
     else
       command = base + 1;
-    unsigned int *data0 = base + 2;
+    unsigned int *data0 = base + 2; // per stampanti
     unsigned int status;
 
     while (*s != EOS) // stampo finchè non incontro il terminatore della stringa
@@ -209,6 +216,7 @@ void my_print(int device_number, unsigned int *base_address) {
       s++; // passo al char successivo
     }
 
+    // comunico al sst la fine dell'operazione
     SYSCALL(SENDMESSAGE, (unsigned int)sender, 0, 0);
   }
 }
@@ -250,6 +258,7 @@ void (*printers[8])() = {printer0, printer1, printer2, printer3,
  *rispettivi device
  */
 static void initDevProc() {
+  // stati degli UPROCMAX * 2 processi device
   state_t dev_state[UPROCMAX * 2];
 
   for (int i = 0; i < UPROCMAX * 2; i++) {
@@ -316,5 +325,5 @@ void test() {
   SYSCALL(RECEIVEMESSAGE, (unsigned int)ssi_pcb, 0, 0);
 
   // Qui i processi test, swap mutex, dispositivi, SST e utente non dovrebbero
-  // più esistere Rimane solo il processo SSI in stato di HALT
+  // più esistere Rimane solo il processo SSI --> stato di HALT
 }

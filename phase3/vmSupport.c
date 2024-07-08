@@ -59,8 +59,6 @@ static void cleanDirtyPage(int sp_index) {
  * @return lo stato dell'operazione di I/O
  */
 static int RWBackingStore(int page_no, int asid, memaddr addr, int w) {
-  // setSTATUS(getSTATUS() &
-  // (~IECON)); // disabilito interrupt per avere atomicita'
   dtpreg_t *device_register = (dtpreg_t *)DEV_REG_ADDR(IL_FLASH, asid - 1);
   device_register->data0 = addr;
 
@@ -79,8 +77,6 @@ static int RWBackingStore(int page_no, int asid, memaddr addr, int w) {
 
   SYSCALL(SENDMESSAGE, (unsigned int)ssi_pcb, (unsigned int)(&payload), 0);
   SYSCALL(RECEIVEMESSAGE, (unsigned int)ssi_pcb, (unsigned int)(&status), 0);
-  // setSTATUS(getSTATUS() |
-  // IECON); // riabilito interrupt per rilasciare l'atomicita'
 
   return status;
 }
@@ -109,11 +105,8 @@ void pager() {
           0);
   SYSCALL(RECEIVEMESSAGE, (unsigned int)ssi_pcb, (unsigned int)(&sup_st), 0);
 
-  // TLB-Modification exception
-  // If the Cause is a TLB-Modification exception, treat this exception as a
-  // program trap
-  // if(sup_st->sup_exceptState[PGFAULTEXCEPT].cause == 1){ //!!! --> cause va
-  // elaborato per avere il code
+  // Se la cuasa è una TLB-Modification exception, la considero come
+  // una program trap
   int cause = sup_st->sup_exceptState[PGFAULTEXCEPT].cause;
   if ((cause & GETEXECCODE) >> CAUSESHIFT == 1) {
     kill_proc();
@@ -146,7 +139,7 @@ void pager() {
 
     swap_t *swap_pool_entry = &swap_pool_table[i];
 
-    if (swap_pool_entry->sw_asid != -1) {
+    if (swap_pool_entry->sw_asid != NOPROC) {
       cleanDirtyPage(i);
 
       // write backing store/flash
@@ -165,7 +158,7 @@ void pager() {
     }
 
     /*
-        Aggiorna l'entry i nella Swap Pool table per riflettere i nuovi
+      Aggiorna l'entry i nella Swap Pool table per riflettere i nuovi
        contenuti del frame i: la pagina p appartenente all'ASID del processo
        corrente e un puntatore all'entry della tabella delle pagine del processo
        corrente per la pagina p.
@@ -177,8 +170,8 @@ void pager() {
     setSTATUS(getSTATUS() &
               (~IECON)); // disabilito interrupt per avere atomicita'
 
-    // 11 Update the Current Process's Page Table entry for page p to indicate
-    // it is now present (V bit) and occupying frame i (PFN field).
+    // 11 Aggiorno la tabella delle pagine del processo corrente per la pagina
+    // p, indicando che la pagina e' presente (V bit) e occupa il frame i
 
     sup_st->sup_privatePgTbl[p].pte_entryLO |= VALIDON;
     sup_st->sup_privatePgTbl[p].pte_entryLO |= DIRTYON;
@@ -199,6 +192,7 @@ void pager() {
 
 void uTLB_RefillHandler() {
   // prendo l'exception_state dalla BIOSDATAPAGE al fine di trovare
+  // il numero della pagina dal registro entry_hi
   state_t *exception_state = (state_t *)BIOSDATAPAGE;
   int p = GET_VPN(exception_state->entry_hi);
 
@@ -206,8 +200,7 @@ void uTLB_RefillHandler() {
   setENTRYLO(current_process->p_supportStruct->sup_privatePgTbl[p].pte_entryLO);
   TLBWR();
 
-  // Return control to the Current Process to retry the instruction that caused
-  // the TLB-Refill event: LDST on the saved exception state located at the
-  // start of the BIOS Data Page.
+  // Restituisco il controllo al processo corrente per riprovare l'istruzione
+  // che aveva causato l'evento di TLB-Refill
   LDST(exception_state);
 }

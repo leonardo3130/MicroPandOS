@@ -115,7 +115,7 @@ unsigned int SSTRequest(support_t *sup, ssi_payload_t *payload) {
     ret = getTOD();
     break;
 
-  case TERMINATE: // DA levare poichè coincide con default
+  case TERMINATE:
     ret = sst_terminate(sup->sup_asid);
     break;
 
