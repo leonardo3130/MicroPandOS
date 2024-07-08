@@ -1,0 +1,26 @@
+17 processi a fine init (UPROCMAX = 4)
+--> swap mutex, 4 sst, 4 terminali, 4 stampanti, ssi, test
+--> 2 rimanenti --> 2 uproc gia creati --> sicuro
+pid sst: 12, 13, 15, 17 --> pid uproc: 14, 16, 18, 19
+processi killati: 14, 18, 19
+asid killati: 1, 3, 4
+TLB:
+uproc 1 ha una entry corretta --> D e V accesi
+uproc 2 ha una entry scorretta --> D acceso e V spento
+uproc 3 ha una entry scorretta --> D acceso e V spento
+uproc 4 ha una entry scorretta --> D acceso e V spento
+
+SEQUENZA MODIFICHE TLB:
+utlb --> scrittura TLb con pagina per uproc 1 con D = 1 e V = 0 (entry 11)
+pager1 --> utlb --> scrittura TLb con pagina per uproc 2 con D = 1 e V = 0 (entry 9)
+pager1 --> utlb --> scrittura TLb con pagina per uproc 3 con D = 1 e V = 0 (entry 14)
+pager1 (in realtà avviene tra utlb e pager ?) --> scrittura TLb con pagina per uproc 1 con D = 1 e V = 1 (entry 11)
+pager1 --> utlb --> scrittura TLb con pagina per uproc 4 con D = 1 e V = 0 (entry 8)
+
+4 bp su sst poi scheduler --> scheduling di pid 14 (uproc con asid 1)
+e fa receive non bloccante senza passare dagli handler di livello utente
+--> appena finisce la syscall c'è la trap
+
+trap dopo send rilascio mutex: 
+1-send --> rilascio mutex
+2-trap --> subito dopo
