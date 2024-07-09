@@ -435,6 +435,34 @@ conseguenza l'u-proc interessato verrà terminato, ma non prima di aver rilascia
 sulla swap pool, nel caso l'avesso precedentemente ottenuta.
 
 
+\subsection{System Service Thread (SST)}
+Ogni System Service Thread (SST) ha lo scopo di creare il proprio processo figlio u-proc, e successivamente fornire a questo i servizi richiesti. Dopo la creazione del proprio figlio, sst rimane costantemente in attesa di richieste da parte di questo. Quanto detto è implementato nell'apposito modulo sst.c, in particolare nella funzione \texttt{\textbf{SST\_Loop()}}, che implementa il polling dei processi SST e chiama la funzione SSTRequest per soddisfare la richiesta del processo figlio.
+
+ \subsubsection{\texttt{\textbf{SST\_loop()}}} 
+ In particolare \texttt{\textbf{SST\_loop()}} contiene:
+ \begin{itemize}
+     \item Inizializzazione delle strutture di supporto necessarie alla creazione del processo figlio;
+     \item Chiamata alla funzione \texttt{\textbf{create\_process()}} definita in \texttt{\textbf{initproc.c}}, la quale crea un nuovo processo facendo una richiesta alla \texttt{\textbf{SSI}};
+     \item While loop contente system call bloccante per l’attesa di nuove richieste, chiamata alla funzione \texttt{\textbf{SSTRequest}}, e system call per la restituzione al processo figlio di un eventuale valore di ritorno (utile per \texttt{\textbf{getTOD}}).
+ \end{itemize}
+
+\subsubsection{\texttt{\textbf{SSTRequest()}}}
+Attraverso l'utilizzo di uno switch sulla variabile \texttt{\textbf{service\_code}}, che determina il tipo di servizio richiesto da u-proc e viene passata all’interno della struct payload, questa funzione soddisfa la richiesta chiamando a sua volta apposite funzioni.
+Si distinguono in particolare i casi:
+
+\begin{itemize}
+\item \texttt{\textbf{GET\_TOD}}
+Viene invocata la funzione getTOD(), la quale consente di recuperare il numero di microsecondi trascorsi dall'ultima operazione del sistema avviato/ripristinato. In questo caso viene impostato come valore di ritorno il numero di microsecondi.
+
+\item {\texttt{\textbf{TERMINATE}}
+Viene invocata la funzione \texttt{\textbf{sst\_terminate()}} la quale effettua una richiesta di terminazione di u-proc alla ssi e si occupa di mandare un messaggio al test per comunicare la terminazione del processo.
+
+\item {\texttt{\textbf{WRITEPRINTER e WRITETERMINAL}}
+Viene invocata la funzione \texttt{\textbf{sst\_write()}} la quale attraverso una syscall manda la stringa da stampare alla stampante o al terminale con lo stesso ASID del mittente.
+A \texttt{\textbf{sst\_write()}} viene passato come argomento un parametro chiamato \texttt{\textbf{device\_type}}, il quale determina la tipologia del dispositivo su cui verrà stampata la stringa passata nel payload (stampante o terminale). Viene quindi utilizzato uno switch su quest’ultimo parametro per differenziare i due casi.
+\end{itemize}
+
+
 \newpage
 \section{Crediti}
 \subsection{Github}
