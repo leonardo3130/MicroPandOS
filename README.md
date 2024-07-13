@@ -28,13 +28,13 @@
 - `headers`: contains the costant and some usefull macro;
 - `phase1`: contains the definition of functions about pcb lists, pcbs trees, messages lists;
 - `phase2`: contains the Scheduler, SSI process, Exception and Interrupt handlers and the Nucleus initialization;
-- `phase3`: contains the support level [... work in progress ... \]
+- `phase3`: contains the support level (User process, swap mutex process and device process initialization, Exception handling at support level, System Service Thread and virtual memory).
 
 For more information about project and/or authors (`AUTHOR`), see the report: `Relazione.pdf`
 
 ## Makefile
 
-- To compile project:
+- To compile project use:
     ```sh
     make
     ```  
@@ -42,6 +42,16 @@ For more information about project and/or authors (`AUTHOR`), see the report: `R
     ```sh
     make clean
     ```  
+- To compile testers use:
+    ```sh
+    cd testers
+    make
+    ```  
+- To delete tersters use:
+    ```sh
+    cd testers
+    make clean
+    ``` 
   
 ## License
 This project is released under the Creative Commons License. See the `LICENSE` file for more details.
