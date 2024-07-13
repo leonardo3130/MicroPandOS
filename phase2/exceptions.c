@@ -85,8 +85,10 @@ static void syscallExceptionHandler(state_t *exception_state) {
         exception_state->reg_v0 = nogood;
       } else {
         nogood = send(current_process, dest, exception_state->reg_a2);
-        insertProcQ(&Ready_Queue, dest); // il processo era bloccato quindi lo
-                                         // inserisco sulla ready queue
+        do {
+          insertProcQ(&Ready_Queue, dest); // il processo era bloccato quindi lo
+                                           // inserisco sulla Ready Queue
+        } while (findPCB(dest, &Ready_Queue) == 0);
         exception_state->reg_v0 = nogood;
       }
 
