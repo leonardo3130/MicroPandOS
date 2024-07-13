@@ -435,6 +435,64 @@ conseguenza l'u-proc interessato verrà terminato, ma non prima di aver rilascia
 sulla swap pool, nel caso l'avesso precedentemente ottenuta.
 
 
+\newpage
+
+\subsection{Gestione memoria virtuale}
+In questa parte, i principali attori che rendono possibile il funzionamento della memoria virtuale sono:
+\begin{itemize}
+  \item Il TLB, una cache utilizzata dalle unità di gestione della memoria della CPU per velocizzare la traduzione degli indirizzi virtuali in indirizzi fisici;
+  \item Il TLB Refill Handler: quando un indirizzo virtuale non è presente nella TLB si verifica quello che in gergo è definito TLB Miss, ed entra in gioco proprio questo componente che sposta nel TLB la pagina che ha causato la trap per velocizzarne accessi futuri;
+  \item La swap pool table;
+  \item Il processo che permette di avere mutua esclusione (swap\_mutex, discusso prima).
+\end{itemize}
+
+Il codice che implementa il meccanismo di gestione della memoria virtuale è nel file \texttt{\textbf{vmSupport.c}}
+
+\subsubsection{Pager}
+Il pager è quel componente responsabile dell'avvicendamento della pagine in memoria, in particolare andando a esaminare nel dettaglio l'implementazione:
+\begin{itemize}
+  \item Come prima cosa, chiede la Support struct mandando un messaggio al processo SSI e attendendo una sua risposta; 
+  \item Una volta ottenuta, è necessario andare a vedere la causa dell'eccezione, in particolare se è una TLB-Modification exception procedo uccidendo il processo tramite la funzione apposita kill\_proc(), altrimenti proseguo;
+  \item è fondamentale per proseguire avere mutua esclusione, poichè queste sono operazioni sono molto delicate e non può essere che più di un processo entri nel pager; la mutua esclusione si ottiene mandando un messaggio al processo che se ne occupa e aspettando che questo risponda concedendola;
+  \item una volta ottenuta, prendo dalla support struct la pagina virtuale con la macro \texttt{\textbf{GET\_VPN()}}, e la pagina da rimpiazzare guardando prima fra quelle vuote e poi in caso facendo entrare in gioco l'algoritmo FIFO per selezionare una pagina vittima;
+  \item dato il numero della pagina vittima è necessario calcolare il suo indirizzo, tenendo conto della dimensione della singola pagina e dell'offset della swap area: 
+  
+  \begin{center}
+      \texttt{\textbf{memaddr victim\_addr = (memaddr)SWAP\_POOL\_AREA + (i * PAGESIZE)}}; 
+  \end{center}
+  
+  \item nel caso la pagina vittima fosse scelta dall'algoritmo di rimpiazzamento, è necessario aggiornarla poichè precedentemente occupata da un altro frame appartenente ad un altro processo; dunque serve "pulirla" poichè ormai obsoleta (ovviamente tutto ciò in modo atomico per evitare inconsistenza);
+
+  \item dopo aver letto il backing store del current\_process, modifico il contenuto della entryHI nella swap table per far si che sia aggiornata con nuovi contenuti; 
+
+  \item disabilito gli interrupt momentaneamente (per non essere disturbati durante questo procedimento) e aggiorno la tabella delle pagine del processo corrente per la pagina p, indicando che la pagina è presente (V bit) e occupa il frame i;
+
+  \item viene rilasciata la mutua esclusione restituendo il controllo al processo;
+\end{itemize}
+
+\newpage
+  
+\subsubsection{TLB Refill Handler}
+Quando avviene un cache-miss, il TLB ha come compito quello di inserire la voce mancante in tabella e far ripartire dall'ultima istruzione 
+
+\subsubsection{Algoritmo di rimpiazzamento}
+Nel caso in cui non ci siano pagine libere, (ossia scorrendo la swap table non troviamo nessuna pagina con asid -1 [\texttt{\textbf{NOPROC}}]), se serve caricarne una nuova in memoria è necessario trovare un modo per scegliere la pagina vittima da rimpiazzare; questa logica è implementata dalla funzione \texttt{\textbf{getPage()}}, che dopo aver verificato che tutte le pagine siano occupate, sceglie la pagina da rimpiazzare tramite l'algoritmo FIFO. Di seguito si riportano le righe di codice che implementano tale algoritmo:
+
+\begin{center}
+    \texttt{\textbf{static int i = -1;
+    return i = (i + 1) \% POOLSIZE;}}
+\end{center}
+
+\subsubsection{RWBackingStore} 
+Funzione ausiliaria che si occupa della DoIO sui vari flash device; fa ciò inserendo nel campo DATA0 del dispositivo flash l'indirizzo fisico iniziale del blocco da leggere o scrivere; successivamente utilizza il servizio DoIO del SSI per scrivere nel campo COMMAND del dispositivo flash; per capire se leggere o scrivere sulla pagina desiderata viene passato come parametro una variabile discreta (w, che prende come valori solo 0 e 1), in particolare è scrittura se [w = 1] o lettura se [w = 0].
+
+\subsubsection{kill\_proc}
+Funzione ausiliaria usata per gestire gli errori, che banalmente richiede la terminazione di un processo al SSI; prima di terminarlo libera tutte le pagine occupate da quest'ultimo.
+
+\subsubsection{cleanDirtyPage}
+Funzione ausiliaria usata dal pager che prende in input una pagina per invalidarla e aggiornare il TLB (in modo atomico disabilitando gli interrupt).
+
+\newpage
 \subsection{System Service Thread (SST)}
 Ogni System Service Thread (SST) ha lo scopo di creare il proprio processo figlio u-proc, e successivamente fornire a questo i servizi richiesti. Dopo la creazione del proprio figlio, sst rimane costantemente in attesa di richieste da parte di questo. Quanto detto è implementato nell'apposito modulo sst.c, in particolare nella funzione \texttt{\textbf{SST\_Loop()}}, che implementa il polling dei processi SST e chiama la funzione SSTRequest per soddisfare la richiesta del processo figlio.
 
@@ -457,13 +515,13 @@ Viene invocata la funzione getTOD(), la quale consente di recuperare il numero d
 \item {\texttt{\textbf{TERMINATE}}
 Viene invocata la funzione \texttt{\textbf{sst\_terminate()}} la quale effettua una richiesta di terminazione di u-proc alla ssi e si occupa di mandare un messaggio al test per comunicare la terminazione del processo.
 
-\item {\texttt{\textbf{WRITEPRINTER e WRITETERMINAL}}
+\item {\texttt{\textbf{WRITEPRINTER e WRITETERMINAL}}}
 Viene invocata la funzione \texttt{\textbf{sst\_write()}} la quale attraverso una syscall manda la stringa da stampare alla stampante o al terminale con lo stesso ASID del mittente.
 A \texttt{\textbf{sst\_write()}} viene passato come argomento un parametro chiamato \texttt{\textbf{device\_type}}, il quale determina la tipologia del dispositivo su cui verrà stampata la stringa passata nel payload (stampante o terminale). Viene quindi utilizzato uno switch su quest’ultimo parametro per differenziare i due casi.
 \end{itemize}
 
-
 \newpage
+
 \section{Crediti}
 \subsection{Github}
 Il sorgente del progetto è reperibile nella seguente \href{https://github.com/aNdReA9111/PandOS.git}{\textcolor{blue}{repository}} su Github.
@@ -474,7 +532,5 @@ Il sorgente del progetto è reperibile nella seguente \href{https://github.com/a
     \item Po Leonardo, matricola: 0001069156, \href{mailto:leonardo.po@studio.unibo.it}{\textcolor{blue}{leonardo.po@studio.unibo.it}}
     \item Silvestri Luca, matricola: 0001080369, \href{mailto:luca.silvestri9@studio.unibo.it}{\textcolor{blue}{luca.silvestri9@studio.unibo.it}}
 \end{itemize}
-
-
 
 \end{document}

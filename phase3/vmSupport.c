@@ -37,6 +37,12 @@ static void updateTLB(pteEntry_t p) {
   }
 }
 
+/**
+ * @brief Funzione ausiliaria usata per invalidare una pagina e aggiornare 
+ * il TLB (in modo atomico disabilitando gli interrupt)
+ * 
+ * @param sp_index indizio della pagina da invalidare
+ */
 static void cleanDirtyPage(int sp_index) {
   setSTATUS(getSTATUS() & (~IECON)); // disabilito interrupt per avere atomicità
 
@@ -49,14 +55,7 @@ static void cleanDirtyPage(int sp_index) {
 }
 
 /**
- * Funzione per la lettura o scrittura di una pagina nel backing store.
- *
- * @param page_no il numero della pagina da leggere o scrivere
- * @param asid l'ID dell'address space
- * @param addr l'indirizzo di memoria virtuale
- * @param w flag che indica se l'operazione è di scrittura (w = 1) o lettura (w
- * = 0)
- * @return lo stato dell'operazione di I/O
+ * Funzione per effettuare DoIO sui vari flash device tramite SSI
  */
 static int RWBackingStore(int page_no, int asid, memaddr addr, int w) {
   dtpreg_t *device_register = (dtpreg_t *)DEV_REG_ADDR(IL_FLASH, asid - 1);
@@ -82,6 +81,11 @@ static int RWBackingStore(int page_no, int asid, memaddr addr, int w) {
 }
 
 static void kill_proc() {
+  for(int i = 0; i < POOLSIZE; i++){
+      if(swap_pool_table[i].sw_asid == current_process->p_supportStruct->sup_asid)
+          swap_pool_table[i].sw_asid = NOPROC;
+  }
+
   SYSCALL(SENDMESSAGE, (unsigned int)swap_mutex_process, 0, 0);
 
   ssi_payload_t term_process_payload = {
@@ -144,7 +148,7 @@ void pager() {
 
       // write backing store/flash
       status = RWBackingStore(swap_pool_entry->sw_pageNo,
-                              swap_pool_entry->sw_asid, victim_addr, 1);
+                              swap_pool_entry->sw_asid, victim_addr, WRITE);
 
       if (status != 1) {
         kill_proc(); // tratto gli errori come se fossere program trap
@@ -152,7 +156,7 @@ void pager() {
     }
 
     // read backing store/flash
-    status = RWBackingStore(p, sup_st->sup_asid, victim_addr, 0);
+    status = RWBackingStore(p, sup_st->sup_asid, victim_addr, READ);
     if (status != 1) {
       kill_proc(); // tratto gli errori come se fossere program trap
     }

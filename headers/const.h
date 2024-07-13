@@ -209,4 +209,7 @@ device
 #define CAUSEINTMASK 0xFD00
 #define IEPBITON 0x4
 
+#define READ 0
+#define WRITE 1
+
 #endif
