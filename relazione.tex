@@ -11,13 +11,14 @@
 \setcounter{tocdepth}{4} % Set the depth for table of contents
 
 % Definizione di un nuovo comando per \subsubsubsection
-\titleclass{\subsubsubsection}{straight}[\subsection]
+\titleclass{\subsubsubsection}{straight}[
+\subsection{]}
 \newcounter{subsubsubsection}
 \renewcommand{\thesubsubsubsection}{\thesubsubsection.\arabic{subsubsubsection}}
 \titleformat{\subsubsubsection}
-  {\normalfont\normalsize\bfseries}{\thesubsubsubsection}{1em}{}
+{\normalfont\normalsize\bfseries}{\thesubsubsubsection}{1em}{}
 \titlespacing*{\subsubsubsection}
-  {0pt}{3.25ex plus 1ex minus .2ex}{1.5ex plus .2ex}
+{0pt}{3.25ex plus 1ex minus .2ex}{1.5ex plus .2ex}
 
 \makeatletter
 \def\toclevel@subsubsubsection{4}
@@ -25,512 +26,826 @@
 \makeatother
 
 % Impostazione dei margini
-\geometry{
-    left=3cm,
-    right=3cm,
-    top=2.5cm,
-    bottom=2.5cm,
-}
+\geometry{left=3cm, right=3cm, top=2.5cm, bottom=2.5cm,}
 
 \begin{document}
-
-\maketitle
-
-\tableofcontents
-\newpage
-\section{Cos'è?}
-µPandOS è un sistema operativo microkernel sviluppato per fini didattici; in particolare questa implementazione è fatta al fine di svolgere un progetto propedeutico all'esame per il corso \texttt{08574 - Sistemi Operativi} (anno accademico 2023/24) per l'università di Bologna.\\
-
-\section{Fase 1 - Definizione operazioni su liste di pcb e messaggi}
-\subsection{Obiettivi}
-In questa fase andremo a scrivere le basi per quanto riguarda questo progetto, ovvero definiremo i metodi di due strutture fondamentali per quanto riguarda PandOS, ossia i messaggi e i PCB
-
-\subsection{Prototipi delle funzioni}
-\subsubsection{Allocazione e deallocazione dei PCB:}
-\begin{itemize}
-    \item \texttt{void initPcbs():} tramite la funzione \texttt{freePcb}, vengono aggiunti in coda gli elementi della \texttt{pcbTable} (da 1 a MAXPROC) nella lista dei processi liberi;
-    \item \texttt{void freePcb(pcb\_t *p):} mette l'elemento puntato da \texttt{p} nella lista dei processi liberi;
-    \item \texttt{pcb\_t *allocPcb():} rimuove il primo elemento dei processi liberi, inizializza tutti i campi e ritorna un puntatore ad esso.
-\end{itemize}
-
-\subsubsection{PCB Queue:}
-\begin{itemize}
-    \item \texttt{void mkEmptyProcQ(struct list\_head *head):} inizializza una variabile come puntatore alla testa della coda dei processi;
-    \item \texttt{int emptyProcQ(struct list\_head *head):} se la coda la cui testa è puntata da \texttt{head} è vuota ritorna TRUE, altrimenti FALSE;
-    \item \texttt{void insertProcQ(struct list\_head *head, pcb\_t *p):} inserisce il PCB puntato da \texttt{p} in fondo alla coda dei processi puntata da \texttt{*head};
-    \item \texttt{pcb\_t *headProcQ(struct list\_head *head):} ritorna NULL se la coda dei processi è vuota, altrimenti il PCB in testa;
-    \item \texttt{pcb\_t *removeProcQ(struct list\_head *head):} rimuove la testa della coda dei processi puntata da \texttt{*head} e ritorna un puntatore dell'elemento in questione; se la lista è vuota ritorna NULL;
-    \item \texttt{pcb\_t *outProcQ(struct list\_head *head, pcb\_t *p):} cerca mediante un \texttt{for\_each} il PCB \texttt{p} nella lista puntata da \texttt{head} e lo rimuove; se lo trova ritorna \texttt{p} stesso, altrimenti NULL.
-\end{itemize}
-\newpage
-\subsubsection{PCB Trees:}
-\begin{itemize}
-    \item \texttt{int emptyChild(pcb\_t *p):} ritorna l'esito della chiamata alla funzione \texttt{list\_empty}, alla quale viene passato come parametro l'indirizzo del \texttt{list\_head} \texttt{p\_child} di \texttt{p};
-    \item \texttt{void insertChild(pcb\_t *prnt, pcb\_t *p):} si assegna \texttt{prnt} al puntatore \texttt{p\_parent} di \texttt{p}. Dopo si aggiunge \texttt{p} alla lista dei fratelli, tramite \texttt{list\_add} (se non ci sono altri figli) e \texttt{list\_add\_tail} (per rispettare la FIFOness), alle quali viene passato come parametro gli indirizzi del \texttt{list\_head} \texttt{p\_sib} di \texttt{p} e del \texttt{list\_head} \texttt{p\_child} di \texttt{prnt} (\texttt{p} diventa fratello dei figli di \texttt{prnt} e quindi figlio di \texttt{prnt}).
-    \item \texttt{pcb\_t *removeChild(pcb\_t *p):} il controllo sulla presenza o meno di figli avviene con la funzione \texttt{emptyChild}. Se ci sono figli, si sceglie il primo figlio tramite la macro \texttt{container\_of}, chiamata sull'elemento successivo al \texttt{list\_head} \texttt{p\_child}. In seguito il figlio viene eliminato tramite la funzione \texttt{list\_del} e viene troncato il legame con il padre, assegnando il valore NULL al puntatore \texttt{p\_parent} del figlio.
-    \item \texttt{pcb\_t *outChild(pcb\_t *p):} se \texttt{p} ha un padre, rimuovo \texttt{p} dalla lista dei suoi fratelli chiamando \texttt{list\_del} a cui passo come parametro l'indirizzo di \texttt{p\_sib} di \texttt{p}, in seguito rimuovo il legame con il padre assegnando NULL al puntatore \texttt{p\_parent} di \texttt{p}.
-\end{itemize}
-
-\subsubsection{Allocazione e deallocazione dei messaggi:}
-\begin{itemize}
-    \item \texttt{void freeMsg(msg\_t *m):} Inserisce l’elemento puntato da \texttt{m} in testa alla lista dei messaggi.
-    \item \texttt{msg\_t *allocMsg():} Ritorna \texttt{NULL} se la lista dei messaggi è vuota. Altrimenti rimuove un elemento dalla testa, imposta a 0 la variabile \texttt{m\_payload} di ogni messaggio presente nell’array \texttt{msgTable} e ritorna un puntatore all’elemento rimosso.
-    \item \texttt{void initMsgs():} Inserisce gli elementi presenti nell’array \texttt{msgTable} in coda alla lista dei messaggi.
-\end{itemize}
-
-\subsubsection{Message}
-\begin{itemize}
-    \item \texttt{void mkEmptyMessageQ(struct list\_head *head):}  Inizializza una una lista di messaggi vuota.
-    \item \texttt{int emptyMessageQ(struct list\_head *head):} Ritorna 1 se la lista puntata da head è vuota, altrimenti 0.
-    
-    \item \texttt{void insertMessage(struct list\_head *head, msg\_t *m):} Inserisce il messaggio puntato da \texttt{m} in coda alla lista puntata da \texttt{head}.
-    \item \texttt{void pushMessage(struct list\_head *head, msg\_t *m):} Inserisce il messaggio puntato da \texttt{m} in testa alla lista puntata da \texttt{head}.
-    \item \texttt{msg\_t *popMessage(struct list\_head *head, pcb\_t *p\_ptr):} Rimuove il primo messaggio trovato nella lista puntata da \texttt{head} che è stato inviato dal thread p\_ptr.\\
-    Se \texttt{p\_ptr} è NULL, ritorna il primo messaggio in coda. \\
-    Se \texttt{head} è vuota o se non viene trovato alcun elemento mandato dal thread \texttt{p\_ptr}, ritorna null.
-    \item \texttt{msg\_t *headMessage(struct list\_head *head):} Se la lista puntata da \texttt{head} è vuota ritorna NULL, altrimenti ritorna il messaggio in testa ad essa.
-\end{itemize}
-
-\newpage
-
-\section{Fase 2 - Definizione del Nucleo, Scheduler, SSI, Interrupt ed eccezioni}
-Di seguito sono riportate le scelte progettuali per quanto riguarda i moduli sviluppati:
-
-\subsection{Utility}
-\subsubsection{\texttt{\textbf{timer.c}}}
-In questo modulo abbiamo delle funzioni/procedure ausiliarie richiamate degli altri moduli per la gestione dei vari timer:
-\begin{itemize}
-  \item \texttt{\textbf{unsigned int getTOD()}}: ritorna il valore del time of day clock, che viene nel nostro caso salvato nella variabile globale \texttt{\textbf{start}}: utilizzata per il calcolo del CPU time.
-    \item \texttt{\textbf{void updateCPUtime(pcb\_t *p)}}: chiama la funzione qui sopra descritta per aggiornare il valore 
-      del campo \texttt{\textbf{p\_time}} del processo passato alla funzione.
-    \item \texttt{\textbf{void setIntervalTimer(unsigned int t)}}: funzione che imposta il valore dell'interval timer. 
-    \item \texttt{\textbf{void setPLT(unsigned int t)}}: funzione che imposta il valore del processor local timer.
-    \item \texttt{\textbf{unsigned int getPLT()}}: funzione che permette di ottenere il valore del processor local timer.
-\end{itemize}
-
-\subsection{Inizializzazione nucleo}
-\subsubsection{Dichiarazione e inizializzazione variabili globali}
-Nel modulo \texttt{\textbf{initial.c}} viene implementato il \textbf{main()}, la dichiarazione delle variabili globali:
-\begin{itemize}
-    \item \texttt{\textbf{int process\_count}} ossia il contatore dei processi attivi;
-    \item \texttt{\textbf{int soft\_blocked\_count}} ossia il contatore dei processi bloccati;
-    \item \texttt{\textbf{int start}}, variabile globale utilizzata per calcolare il CPU time di ogni processo che viene eseguito.
-    \item \texttt{\textbf{int pid\_counter}}, usato per assegnare in maniera sequenziale i PID ai processi man mano che vengono creati;
-    \item \texttt{\textbf{pcb\_t *current\_process}} ossia il puntatore al PCB del processo corrente;
-    \item \texttt{\textbf{pcb\_t *ssi\_pcb}}, che è il puntatore al PCB del SSI;
-    
-\end{itemize}
-
-\subsubsection{Dichiarazione e inizializzazione strutture dati}
-Vengono inoltre implementate le strutture dati principali: 
-\begin{itemize}
-    \item attraverso le funzioni  \texttt{\textbf{initPcbs()}} e \texttt{\textbf{initMsgs()}} vengono inizializzate le strutture della fase 1;
-    \item \texttt{\textbf{Ready\_Queue}}, ossia la lista dei proessi pronti ad essere eseguiti;
-    \item 8 liste per i processi bloccati in attesa dei device o per il terminale (una per input e una per output);
-    \item \texttt{\textbf{void initPassupVector()}} è una procedura che viene richiamata per definire il \texttt{pass up vector}, ossia è la struttura dati a livello hardware che indica a quale funzione passare il controllo quando si verifica un interrupt.
-\end{itemize}
-\subsubsection{Interval timer}
-Viene caricato l'interval timer a 100 ms attraverso la chiamata alla procedura ausiliaria \texttt{\textbf{setIntervalTimer(PSECOND)}} definita in \texttt{\textbf{timers.c}}
-
-\newpage
-
-\subsubsection{Processi SSI e Test}
-Infine, prima di richiamare lo \texttt{Scheduler}, attraverso la procedura \texttt{\textbf{void initFirstProcesses()}} vengono inseriti nella \texttt{Ready Queue} i processi del SSI e del test. Questi avranno lo status settato in modo da avere la maschera dell'interrupt abilitata, l'interval timer abilitato e che siano in modalità kernel. Avranno rispettivamente pid 1 e 2.
-
-
-\subsection{Scheduler}
-Lo Scheduler è il componente che gestisce la coda dei processi pronti ad essere eseguiti (\textbf{Ready Queue}); la procedura principale che svolge tutto ciò è \texttt{\textbf{void scheduler()}}; questa parte con un controllo iniziale sulla \texttt{\textbf{Ready Queue}} vedendo se è vuota (con \texttt{\textbf{emptyProcQ(\&Ready\_Queue)}}):
-\begin{itemize}
-    \item se non è vuota prendo il processo che deve essere preso in carico dalla CPU (\texttt{\textbf{current\_process}}) con la funzione \texttt{\textbf{removeProcQ(\&Ready\_Queue)}}, setto il Timer attraverso la funzione \texttt{\textbf{setPLT()}} a 5 ms (con la costante \textbf{TIMESLICE}) per implementare il Round Robin, e infine viene caricato lo stato del processo corrente nel processore (con \texttt{\textbf{LDST()}});
-    \item altrimenti (se vuota), si effettua la Deadlock detection; in particolare può decidere se effettuare un \texttt{\textbf{HALT()}} quando non ci sono più processi da eseguire; se ci sono altri PCB entrerà in \texttt{\textbf{WAIT()}}; se la ready queue è vuota e ci sono processi bloccati si entra in deadlock invocando \texttt{\textbf{PANIC()}} fermando così l'esecuzione;
-\end{itemize}
-
-\subsection{SSI}
-Essendo che \textmu PandOS è un microkernel, le uniche syscall implementate sono la Send e la Receive; queste vengono usate dai processi per chiedere al processo SSI risorse; quanto detto è implementato nell'apposito modulo \texttt{\textbf{ssi.c}}, in particolare nella funzione \texttt{\textbf{SSILoop()}}, che implementa il polling del processo SSI: questa è eternamente in attesa di ricevere un messaggio da un qualsiasi processo che necessità una risorsa, prova a soddisfarlo attraverso l'apposita funzione \texttt{\textbf{unsigned int SSIRequest(pcb\_t* sender, ssi\_payload\_t *payload)}} e se riesce viene inviato un riscontro al processo che ha effettuato la richiesta tramite la syscall send. Di seguito si forniranno maggiori dettagli riguardo quest'ultima funzione;
-
-\newpage
-
-\subsubsection{SSIRequest}
-All'interno di questa funzione vengono analizzati i parametri \texttt{\textbf{pcb\_t* sender, ssi\_payload\_t *payload}} che contengono rispettivamente il processo che ha richiesto il servizio e il messaggio mandato col servizio richiesto; in particolare nel messaggio è determinante il \texttt{\textbf{service\_code}}, che stabilisce l'oggetto della richiesta del sender. Attraverso l'utilizzo di uno switch su quest'ultimo parametro, la ssi fornisce il servizio richiesto.
-Si distinguono in particolare i casi:
-\begin{itemize}
-	\item 1 (\texttt{\textbf{CREATEPROCESS}}): viene richiesta la creazione di un processo; questa richiesta viene soddisfatta solo se c'è spazio nella tabella dei processi liberi; in caso affermativo viene invocata la funzione \texttt{\textbf{ssi\_new\_process()}} con parametri il sender, che fungerà da parent, e un puntatore a una variabile di tipo \texttt{\textbf{ssi\_create\_process}}, contenete i dati necessari alla creazione del nuovo processo; 
-   Nella funzione \texttt{\textbf{ssi\_new\_process}} viene chiamata \texttt{\textbf{allocPcb()}} per l'allocazione in memoria del nuovo processo e successivamente questo viene inserito nelle \texttt{\textbf{ready queue}} e nella lista child del pcb sender.
-   
-
-    \item 2 (\texttt{\textbf{TERMPROCESS}}), viene chiamata la procedura \texttt{\textbf{ssi\_terminate\_process()}} passando come parametro il processo da terminare.
-    In questa funzione avviene ricorsivamente la terminazione di tutti i processi figli del sender e dei realtivi fratelli.
-
-    \item 3 (\texttt{\textbf{DOIO}}), viene chiamata la procedura \texttt{\textbf{ssi\_doio}} con parametri il puntatore al pcb del sender e un puntatore a una variabile di tipo \texttt{\textbf{ssi\_do\_io\_t}} contenente i dati necessari a tale richiesta.
-    Viene successivamente chiamata la procedura \texttt{\textbf{addrToDevice()}} che, dato l'indirizzo del device passato con la richiesta di DOIO, ne determina i rispettivi numero di device e linea, per poi chiamare la funzione \texttt{\textbf{blockProcessOnDevice}}.
-    Quest'ultima, passati come argomenti il pcb del sender, il numero del device e un intero che indica se si sta facendo una lettura o una scrittura, rimuove il sender dalla \texttt{\textbf{ready queue}} e lo inserisce nella lista di processi bloccati del relativo device.
-    La funzione \texttt{\textbf{addrToDevice()}} invidua la corretta linea e il corretto numero di device confrontando il command\_address passato come argomento con tutti i campi di DEV\_REG\_ADDR[][]; per una maggiore efficienza questo viene prima confrontato con i campi relativi al terminale e successivamente, attraverso un ciclo for annidato, con i campi degli altri device.
-
-
-    \item 4 (\texttt{\textbf{GETTIME}}), viene restituito come \texttt{\textbf{unsigned int}} un puntatore alla variabile \texttt{\textbf{p\_time}} del processo sender.
-	
-    \item 5 (\texttt{\textbf{CLOCKWAIT}}), viene chiamata la funzione \texttt{\textbf{ssi\_clockwait}} con argomento il puntatore alla struct \texttt{\textbf{pcb\_t}} del processo sender.
-    Quest'ultima inserisce il sender nella lista dei processi bloccati da pseudo clock.
-    La procedura \texttt{\textbf{pseudoClockInterruptHandler()}} definita in \texttt{\textbf{interrupts.c}} si occupa della gestione di questa lista.
-
-    \item 6 (\texttt{\textbf{GETSUPPORTPTR}}), viene restituito come \texttt{\textbf{unsigned int}} un puntatore alla variabile \texttt{\textbf{p\_supportstruct}} del processo sender.
-
-    \item 7 (\texttt{\textbf{GETPROCESSID}}), viene invocata la funzione \texttt{\textbf{int ssi\_getprocessid}}. Quest'ultima prende come parametri il puntatore al pcb del sender e un puntatore generico arg, e ritorna il pid del sender se l'argomento è NULL, altrimenti il pid del processo padre del chiamante.
-
-    \item Se il service code non contiene nessuno dei seguenti codici viene terminato il sender con la funzione \texttt{\textbf{ssi\_terminate\_process()}}.
-\end{itemize} 
-
-In alcune delle funzioni menzionate vengono inoltre modificati i valori di variabili globali quali:
-\begin{itemize}
-	\item \texttt{\textbf{soft\_blocked\_count}}  : viene decrementata in \texttt{\textbf{ssi\_terminate\_process()}} se il processo viene rimosso da una delle liste di processi bloccati dei device, o incrementata in \texttt{\textbf{ssi\_clockwait()}} quando viene aggiunto.
-	\item \texttt{\textbf{process\_count}} : viene incrementata alla creazione di un nuovo processo in \texttt{\textbf{ssi\_create\_process}} e decrementata quando un processo viene terminato in \texttt{\textbf{ssi\_terminate\_process()}}. 
-\end{itemize}
-
-
-\newpage
-\subsection{Gestore delle eccezioni}
-La funzione che si occupa della gestione delle eccezioni è la funzione \texttt{\textbf{void exceptionHandler()}} dichiarata 
-nel file phase2/include/exceptions.h e definita nel file phase2/exceptions.c. Questa funzione salva lo stato al tempo dell'eccezione dalla \texttt{\textbf{BIOSDATAPAGE}} ed in seguito trova il codice dell'eccezione eseguendo operazioni di manipolazione dei bit sul registro cause, ottenuto con la funzione \texttt{\textbf{getCAUSE}}. In particolare si esegue l'operazione 
-\texttt{\textbf{cause \& GETEXECCODE}} che permette di mantenere solo i bit che definiscono il codice dell'eccezione, i quali vengono shiftati a destra di 2 posizioni (costante \texttt{\textbf{CAUSESHIFT}}). 
-\subsubsection{Interrupt Handler}
-Nel caso il codice dell'eccezione abbia valore 0 (costante \texttt{\textbf{IOINTERRUPTS}}) viene invocata la funzione per la 
-gestione degli interrupt \texttt{\textbf{void interruptHandler(int cause, state\_t* exception\_state)}}. Qui viene 
-utilizzata la macro \texttt{\textbf{CAUSE\_IP\_GET(cause, line)}}, grazie alla quale, passando il cause register e il 
-valore di una linea di interrupt, è possibile sapere se c'è un interrupt su quella linea. Il controllo viene fatto per tutte 
-le linee, seguendo l'ordine di priorità che va dall'interrupt causato dal processor local timer, all'interrupt causato da un 
-dispositivo terminale. In base alla linea su cui avviene l'interrupt viene invocato un'opportuna funzione per la gestione 
-di quello specifico interrupt.
-\subsubsubsection{Gestione Interrupt Processor Local Timer}
-L'interrupt causato dal processor local timer si verifica quando il tempo nella CPU per il processo corrente si esaurisce. 
-Per un'opportuna gestione di questo interrupt usiamo la funzione \texttt{\textbf{static void localTimerInterruptHandler(state\_t *exception\_state)}}. In questa routine viene riconosciuto l'interrupt con la chiamata \texttt{\textbf{setPLT(-1)}}, 
-in seguito si aggiorna il CPU time del processo corrente, si copia lo stato dell'eccezione nello stato del processo corrente, il quale infine viene inserito sulla ready queue. Dopo queste operazioni viene chiamato lo scheduler.
-\subsubsubsection{Gestione Interrupt Interval Timer}
-In questo caso l'ACK  dell'interrupt è eseguito con la chiamata \texttt{\textbf{setIntervalTimer(PSECOND)}}. Dopodiché avvienelo sblocco di tutti i processi che erano in attesa dell'interrupt, rimuovendo ciascuno di essi dalla lista \texttt{\textbf{Locked\_pseudo\_clock}}, inserendoli sulla ready queue, dopo aver inviato loro un messaggio che consentirà ai processi 
-interessati di sbloccarsi, quando rieseguiranno la SYS2 su cui si erano precedentemente bloccati. Ogni volta che viene rimosso un processo dalla lista dei processi in attesa dello pseudoclock tick, viene decrementata la variabile globale 
-\texttt{\textbf{soft\_blocked\_count}}. Infine, se il processo corrente è diverso da NULL, si esegue una LDST con lo stato 
-dell'eccezione, altrimente viene chiamato lo scheduler.
-\subsubsubsection{Gestione Interrupt Device}
-La gestione degli interrupt legati a tutti gli altri device viene affidata alla funzione \texttt{\textbf{static void deviceInterruptHandler(int line, int cause, state\_t *exception\_state)}}, 
-la quale ricava la bitmap degli interrupt per i dispositivi della linea d'interesse. Questo viene realizzato accedendo 
-all'area di memoria riservata ai device, all'inidirizzo \texttt{\textbf{BUS\_REG\_RAM\_BASE}}.
-In seguito si esegue l'and sui bit della bitmap con le costanti \texttt{\textbf{DEVXON}} con X $\in \{0, \ldots, 7\}$, 
-con questa operazione si ottiene il numero del device sulla line che ha causato l'interrupt, per l'ordine con cui queste 
-operazioni sono effettuate,il numero del device calcolato sarà sempre quello a priorità maggiore. 
-Calcolato il numero, data la linea si sblocca il processo dalla lista associata alla linea cercandolo tramite il device 
-number, grazie al campo aggiuntivo \texttt{\textbf{dev\_no}} che abbiamo messo ai pcb. Questo campo viene settato dall'ssi 
-quando viene bloccato il processo in attesa di interrupt durante il servizio DOIO. In caso di interrupt causato da un 
-dispositivo terminale verifichiamo che il codice dell'operazione di trasmissione sia uguale a 5 (interrupt in attesa di 
-essere riconosciuto), se così è allora significa che l'operazione è un'operazione di trasmissione di un carattere, altrimenti 
-si tratta di un'operazione di ricezione.
-Per accedere al registro del device usiamo la macro \texttt{\textbf{DEV\_REG\_ADDR}} nel modo seguente: \\
-\texttt{\textbf{dtpreg\_t *device\_register = (dtpreg\_t *)DEV\_REG\_ADDR(line, device\_number);}} \\
-In caso di dispositivi terminali, l'operazione è analoga: \\
-\texttt{\textbf{termreg\_t *device\_register = (termreg\_t *)DEV\_REG\_ADDR(line, device\_number);}} \\
-L'operazione di riconoscimento dell'interrupt avviene con l'istruzione\\ \texttt{\textbf{device\_register->command = ACK;}} 
-\\per i terminali a seconda di quale subdevice ha generato l'interrupt: \\ \texttt{\textbf{device\_register->transm\_command = ACK;}} \\ oppure \\ \texttt{\textbf{device\_register->recv\_command = ACK;}}.
-
-L'accesso allo status avviene con l'operazione seguente: 
-\texttt{\textbf{device\_register->status}}. \\
-Per i terminali: \\
-\texttt{\textbf{device\_register->recv\_status}}. \\
-\texttt{\textbf{device\_register->transm\_status}}.
-
-Infine se il processo sbloccato è diverso da NULL, si mette lo status nel suo registro v0, gli viene inviato un messaggio 
-avente la ssi come mittente e come payload lo status del device, si inserisce il processo sulla ready queue e si diminuisce di un'unità \texttt{\textbf{soft\_blocked\_count}}.
-In seguito, se il processso corrente è diverso da NULL, si chiama lo scheduler, altrimenti si esegue una LDST dello stato 
-ottenuto dalla \texttt{\textbf{BIOSDATAPAGE}}. 
-\subsubsection{Pass Up or Die}
-Tramite Pass Up or Die il kernel gestisce tutte le eccezione che non sono syscall o interrupt, abbiamo quindi implementato 
-un'apposita funzione \texttt{\textbf{static void passUpOrDie(int i, state\_t *exception\_state)}} che controlla che la 
-support struct del processo corrente sia diversa da NULL, se ciò è vero allora si salva lo stato dell'eccezione nello stato 
-corretto della struttura di supporto: \\ 
-\texttt{\textbf{saveState(\&(current\_process->p\_supportStruct->sup\_exceptState[i]), exception\_state);}}
-\\ ed in seguito si esegue LDCTX, passando come parametri i valori del giusto constesto 
-della struttura di supporto: \\ 
-\texttt{\textbf{
-      LDCXT(current\_process->p\_supportStruct->sup\_exceptContext[i].stackPtr, \\
-            current\_process->p\_supportStruct->sup\_exceptContext[i].status, \\
-            current\_process->p\_supportStruct->sup\_exceptContext[i].pc \\
-      );
- }} \\
- L'indice i, parametro della funzione, può assumere due valori a seconda del tipo di eccezione:
- \begin{itemize}
-    \item \texttt{\textbf{GENERALEXCEPT}}: per trap generiche, con codici 4...7 e 9...12;
-    \item \texttt{\textbf{PGFAULTEXCEPT}}: per eccezioni TLB, con codici 1...3;
-
-In caso di puntatore nullo, chiamiamo la funzione per la terminazione dei processi, che viene utilizzata dall'ssi per 
-     fornire il servizio \texttt{\textbf{TERMINATEPROCESS}}.
-\end{itemize}
-\newpage
-\subsubsection{Eccezioni causate da SYSCALL}
-L'eccezioni da SYSCALL sono quelle il cui codice ha valore \texttt{\textbf{SYSEXCEPTION}}. Quando queste si verificano, viene chiamata la 
-funzione \texttt{\textbf{static void syscallExceptionHandler(state\_t *exception\_state)}}. \\In primis la funzione controlla il valore 
-del bit KUc, se questo è 1 (user-mode) viene generata una trap generica, in cui il valore del codice dell'eccezione viene settato a 
-\texttt{\textbf{EXC\_RI}} (istruzione riservata).
-Se il processo è in kernel-mode allora si continua e si controlla il registro a0 per capire quale servizio è stato richiesto:
-\begin{itemize}
-  \item \texttt{\textbf{reg\_a0 = SENDMESSAGE}}: il processo corrente vuole eseguire una \texttt{\textbf{SYS1}}, dal registro a1 viene 
-    estratto l'indirizzo del PCB al quale si vuole inviare un messaggio, si controlla se il destinatario è nella ready queue o se è il 
-    processo corrente, in entrambi questi casi si inserisce il messaggio nell'inbox del destinatario. Se il destinatario è sulla lista dei 
-    processi liberi, allora esso è inesistente e si aggiorna solamente il registro v0 al valore \texttt{\textbf{DEST\_NOT\_EXISTS}}. 
-    Se il processo destinatario non si trova sulla ready e queue e nemmeno nella lista dei processi liberi, allora dopo l'invio del messaggio,    lo si inserisce nella ready queue (se il messaggio inviato non è quello per cui era in attesa, il processo si bloccherà di nuovo).
-    La funzione che invia i messaggi è \texttt{\textbf{int send(pcb\_t *sender, pcb\_t *dest, unsigned int payload)}}. In questo caso come 
-    payload viene passato il valore del registro a2. Infine si incrementa il \texttt{\textbf{PC}} e si esegue 
-    \texttt{\textbf{LDST(exception\_state)}}.
-  \item \texttt{\textbf{reg\_a0 = RECEIVEMESSAGE}}: il processo corrente vuole eseguire una \texttt{\textbf{SYS2}}, dal registro a1 si 
-    accede all'indirizzo del PCB dal quale il processo richiedente vuole ricevere un messaggio, questo valore viene passato, insieme
-    alla inbox del processo corrente, alla funzione \texttt{\textbf{popMessage}}, la quale restituirà il messaggio o \texttt{\textbf{NULL}} 
-    se non lo trova. Nel primo caso la SYS2 non è bloccante, quindi si assegna al registro v0 l'indirizzo di chi ha inviato il messaggio, 
-    e si mette nell'area di memoria puntata dal registro a2 il payload del messaggio. Si incrementa il \texttt{\textbf{PC}} e si esegue 
-    \texttt{\textbf{LDST(exception\_state)}}, poiché non è una syscall bloccante. Se invece la \texttt{\textbf{popMessage}} ha restituito 
-    \texttt{\textbf{NULL}}, allora la syscall sarà bloccante, lo stato dell'eccezione viene salvato nello stato del processo corrente, 
-    si aggiorna il CPU time del processo corrente ed infine si chiama lo scheduler. 
-  \item \texttt{\textbf{reg\_a0 >= 1}}: viene generata una trap generica.
-\end{itemize}
-
-
-\newpage
-
-\section{Fase 3 - Il livello di supporto}
-\subsection{Inizializzazione}
-L'inizializzazione viene realizzata nel file initProc.c, in questo file il primo processo si occupa di creare tutti i processi necessari e di inizializzare le strutture dati necessarie al  livello di supporto.  
-Il codice di inizializzazione si trova nel file phase3/initProc.c, l'header corrispondente
-si trove nel file phase3/include/initProc.h .
-\subsubsection{Inizializzazione Swap Pool Table}
-La funzione che si occupa di questa operazione impostra l'asid di ogni entry della tabella
-al valore costante \texttt{\textbf{NOPROC}}.
-\subsubsection{Inizializzazione U-proc}
-In seguito viene realizzata l'inizializzazione delle strutture di supporto per gli U-proc.
-Per farlo allochiamo consecutivamente blocchi di memoria di dimensione fissa \texttt{\textbf{PAGESIZE}}. 
-La memoria viene allocata a partire dall'indirizzo \texttt{\textbf{RAMTOP - 3 * PAGESIZE}}, 
-ovvero il primo indirizzo disponibile, poiché i primi tre frame sono occupati dal 
-processo ssi e dal processo test. In questa funzione, vengono assegnati alle support struct gli indirizzi dei gestori
-delle eccezioni del livello di support (\texttt{\textbf{pager}} e \texttt{\textbf{generalExceptionHandler}}).
-Nel frattempo anche gli stati dei vari u-proc vengono inizializzati, in particolare per questi processi si usa il 
-medesimo indirizzo per lo stack pointer(\texttt{\textbf{USERSTACKTOP}}) e il medesimo indirizzo per il program counter 
-(\texttt{\textbf{USERPROCSTARTADDR}}), in quanto essi fanno uso di 
-indirizzo logici. Le strutture di supporto e gli stati vengono memorizzati in array, affinché gli sst possano poi 
-creare gli u-proc, reperendo lo stato e la struttura di supporto corretti con facilità.
-Infine per ciascuna struttura di supporto avviene l'inizializzazione della rispettiva tabella delle pagine, impostando
-per ogni entry della tabella i valori per \texttt{\textbf{pte\_entryHI}} (calcolo indirizzo logico) e 
-\texttt{\textbf{pte\_entryLO}} (accesione dirty bit).
-\subsubsection{Processo swap mutex}
-Per mantenere mutua esclusione sulla swap pool table si utilizza un processo che realizza tramite message passing un 
-semaforo binario. Nella funzione \texttt{\textbf{initSwapMutex()}} viene allocata memoria per questo processo e 
-al suo program counter viene assegnando l'indirizzo della funzione \texttt{\textbf{swapMutex}}, che implementa il 
-semaforo eseguendo:
-\begin{enumerate}
-    \item Receive senza mittente specificato (in questo modo il semaforo riceve le richieste da tutti i processi) 
-    \item Send al mittente del messaggio ricevuto nel punto 1. (questo messaggio concede la mutua esclusione)
-    \item Receive dal mittente del messaggio ricevuto nel punto 1. (il semaforo attende il rilascio della mutua esclusione)
-\end{enumerate}
-\subsubsection{Inizializzazione processi device}
-Questi processi sono processi che ricevono dal rispettivo sst la stringa da stampare in output e questi 
-realizzano un loop in cui ad ogni iterazione viene inviata una richiesta alla ssi per il servizio 
-\texttt{\textbf{DOIO}} per la stampa del carattere della stringa in questione.
-Di questi processi ne sono stati realizzati 16 (8 terminali e altrettante stampanti). 
-Eseguono tutti lo stesso codice, consistente in una funzione con segnatura 
-\texttt{\textbf{void print(int device\_number, unsigned int *base\_address)}} che calcola i registri del 
-dispositivo partendo da \texttt{\textbf{base\_address}} (indirizzo della prima stampante o del primo 
-terminale) calcola l'indirizzo del dispositivo in questione utilizzando la seguente formula: \newline 
-\texttt{\textbf{base\_address + device\_number * 4}} \newline
-Poi dall'indirizzo calcolato si calcolano il registo di comando, e (nel caso delle stampanti) anche il 
-registro data0 nel quale andare ad inserire il carattere della stringa da stampare.
-Una volta realizzate queste operazioni preliminari può avvenire la ricezione della stringa e la conseguente 
-procedura di I/O. \newline
-In seguito per ciascun dispositivo si realizza una funzione wrapper che chiama la funzione parametrizzata 
-qui sopra discussa, in modo da conferire dei nomi chiari e che consentano il raccoglimento di queste 
-funzioni con un array di puntatori ad esse. Questo procedimento è stato implementato con il seguente codice:
-
-\texttt{\textbf{void print\_term0() \{ print(0, (unsigned int *)TERM0ADDR); \}}}
-\newline
-\texttt{\textbf{void print\_term1() \{ print(1, (unsigned int *)TERM0ADDR); \}}}
-\newline
-\texttt{\textbf{void print\_term2() \{ print(2, (unsigned int *)TERM0ADDR); \}}}
-\newline
-\texttt{\textbf{void print\_term3() \{ print(3, (unsigned int *)TERM0ADDR); \}}}
-\newline
-\texttt{\textbf{void print\_term4() \{ print(4, (unsigned int *)TERM0ADDR); \}}}
-\newline
-\texttt{\textbf{void print\_term5() \{ print(5, (unsigned int *)TERM0ADDR); \}}}
-\newline
-\texttt{\textbf{void print\_term6() \{ print(6, (unsigned int *)TERM0ADDR); \}}}
-\newline
-\texttt{\textbf{void print\_term7() \{ print(7, (unsigned int *)TERM0ADDR); \}}}
-\newline
-
-\texttt{\textbf{void printer0() \{ print(0, (unsigned int *)PRINTER0ADDR); \}}}
-\newline
-\texttt{\textbf{void printer1() \{ print(1, (unsigned int *)PRINTER0ADDR); \}}}
-\newline
-\texttt{\textbf{void printer2() \{ print(2, (unsigned int *)PRINTER0ADDR); \}}}
-\newline
-\texttt{\textbf{void printer3() \{ print(3, (unsigned int *)PRINTER0ADDR); \}}}
-\newline
-\texttt{\textbf{void printer4() \{ print(4, (unsigned int *)PRINTER0ADDR); \}}}
-\newline
-\texttt{\textbf{void printer5() \{ print(5, (unsigned int *)PRINTER0ADDR); \}}}
-\newline
-\texttt{\textbf{void printer6() \{ print(6, (unsigned int *)PRINTER0ADDR); \}}}
-\newline
-\texttt{\textbf{void printer7() \{ print(7, (unsigned int *)PRINTER0ADDR); \}}}\newline\newline
-\texttt{\textbf{
-void (*terminals[8])() = \{print\_term0, print\_term1, print\_term2, print\_term3,
-print\_term4, print\_term5, print\_term6, print\_term7\}; }}
-\newline
-\texttt{\textbf{
-void (*printers[8])() = \{printer0, printer1, printer2, printer3,
-printer4, printer5, printer6, printer7\};}}
-
-In questo modo nell'inizializzazione che seguirà sarà possibile assegnare il program counter 
-accedendo agli elementi di questi array.
-
-\subsubsection{Inizializzazione SST}
-Dopo i processi device l'inizializzazione continua, sempre allocando la memoria dalla RAM, decrementando 
-il valore di \texttt{\textbf{curr}} ad ogni iterazione. Anche qui si inizializza lo stato per ogni SST, in 
-particolare il program counter ha valore \texttt{\textbf{SST\_loop}}, che è la funzione che implementa 
-gli SST.
-
-\subsubsection{Terminazione}
-Dopo questa serie di inizializzazioni, il processo test rimane in attesa (tramite receive) che ciascun SST 
-comunichi ad esso la fine della propria esecuzione. Una volta che tutti gli SST hanno finito l'esecuzione, 
-il processo test richiede la propria terminazione all'SSI. In seguito l'SSI sarà l'unico processo nel 
-sistema e si avrà lo stato di HALT.
-
-\newpage
-\subsection{Gestore delle eccezione a livello di supporto}
-La funzioen che si occupa della gestione delle eccezioni a livello di supporto è la funzione 
-\texttt{\textbf{void generalExceptionHandler();}} che prima di poter realizzare una corretta gestione 
-della trap, deve ottenere dalla SSI (servizio \texttt{\textbf{GETSUPPORTPTR}}) la support struct 
-dell'u-proc interessato. Da questa si ottiene lo state nel modo seguente: \newline 
-\texttt{\textbf{state\_t* eception\_state = \&(sup\_struct\_ptr->sup\_exceptState[GENERALEXCEPT]);}}.
-Dopodiché si osserva il codice dell'eccezione dal cause register in questo modo: \newline
-\texttt{\textbf{int val = (exception\_state->cause \& GETEXECCODE) >> CAUSESHIFT;}} \newline
-In base al codice ricavato viene eseguito l'handler associato. Prima di ciò viene incrementato il program 
-counter dello state ottenuto in precedenza.
-
-\subsubsection{Gestore eccezioni causate da SYSCALL}
-In base al valore contenuto nel registro a0, uno dei due servizi sarà eseguito:
-\begin{itemize}
-  \item \texttt{\textbf{reg\_a0 = SENDMSG}}: il processo corrente vuole eseguire una \texttt{\textbf{SYS1}},
-    in questo caso serve controllare il registo a1 per verificare a chi inviare il messaggio:
-    \begin{itemize}
-      \item \texttt{\textbf{reg\_a1 = PARENT}}, in questo caso l'u-proc sta cercando di inviare 
-        un messaggio al suo SST, per farlo viene quindi eseguita l'istruzione seguente: 
-
-        \texttt{\textbf{SYSCALL(SENDMESSAGE, (unsigned int)current\_process->p\_parent, \newline 
-        exception\_state->reg\_a2, 0);}}
-      \item \texttt{\textbf{reg\_a1 != PARENT}}, in questo caso l'u-proc sta semplicemente inviando un 
-        messaggio a un altro processo, per farlo viene eseguita l'istruzione seguente: \newline
-        \texttt{\textbf{SYSCALL(SENDMESSAGE, exception\_state->reg\_a1, \newline 
-        exception\_state->reg\_a2, 0);}}
-    \end{itemize}
-  \item \texttt{\textbf{reg\_a0 = RECEIVEMSG}}: il processo corrente vuole eseguire una \texttt{\textbf{SYS2}}, viene quindi semplicemente eseguita questa istruzione: \newline 
-    \texttt{\textbf{SYSCALL(RECEIVEMESSAGE, exception\_state->reg\_a1, exception\_state->reg\_a2, 0);}}
-
-\end{itemize}
-\subsubsection{Gestore trap generiche a livello utente}
-Qualsiasi altro codice ricavato dal cause register viene interpretato come una trap inaspettata, di 
-conseguenza l'u-proc interessato verrà terminato, ma non prima di aver rilasciato la mutua esclusione 
-sulla swap pool, nel caso l'avesso precedentemente ottenuta.
-
-
-\newpage
-
-\subsection{Gestione memoria virtuale}
-In questa parte, i principali attori che rendono possibile il funzionamento della memoria virtuale sono:
-\begin{itemize}
-  \item Il TLB, una cache utilizzata dalle unità di gestione della memoria della CPU per velocizzare la traduzione degli indirizzi virtuali in indirizzi fisici;
-  \item Il TLB Refill Handler: quando un indirizzo virtuale non è presente nella TLB si verifica quello che in gergo è definito TLB Miss, ed entra in gioco proprio questo componente che sposta nel TLB la pagina che ha causato la trap per velocizzarne accessi futuri;
-  \item La swap pool table;
-  \item Il processo che permette di avere mutua esclusione (swap\_mutex, discusso prima).
-\end{itemize}
-
-Il codice che implementa il meccanismo di gestione della memoria virtuale è nel file \texttt{\textbf{vmSupport.c}}
-
-\subsubsection{Pager}
-Il pager è quel componente responsabile dell'avvicendamento della pagine in memoria, in particolare andando a esaminare nel dettaglio l'implementazione:
-\begin{itemize}
-  \item Come prima cosa, chiede la Support struct mandando un messaggio al processo SSI e attendendo una sua risposta; 
-  \item Una volta ottenuta, è necessario andare a vedere la causa dell'eccezione, in particolare se è una TLB-Modification exception procedo uccidendo il processo tramite la funzione apposita kill\_proc(), altrimenti proseguo;
-  \item è fondamentale per proseguire avere mutua esclusione, poichè queste sono operazioni sono molto delicate e non può essere che più di un processo entri nel pager; la mutua esclusione si ottiene mandando un messaggio al processo che se ne occupa e aspettando che questo risponda concedendola;
-  \item una volta ottenuta, prendo dalla support struct la pagina virtuale con la macro \texttt{\textbf{GET\_VPN()}}, e la pagina da rimpiazzare guardando prima fra quelle vuote e poi in caso facendo entrare in gioco l'algoritmo FIFO per selezionare una pagina vittima;
-  \item dato il numero della pagina vittima è necessario calcolare il suo indirizzo, tenendo conto della dimensione della singola pagina e dell'offset della swap area: 
-  
-  \begin{center}
-      \texttt{\textbf{memaddr victim\_addr = (memaddr)SWAP\_POOL\_AREA + (i * PAGESIZE)}}; 
-  \end{center}
-  
-  \item nel caso la pagina vittima fosse scelta dall'algoritmo di rimpiazzamento, è necessario aggiornarla poichè precedentemente occupata da un altro frame appartenente ad un altro processo; dunque serve "pulirla" poichè ormai obsoleta (ovviamente tutto ciò in modo atomico per evitare inconsistenza);
-
-  \item dopo aver letto il backing store del current\_process, modifico il contenuto della entryHI nella swap table per far si che sia aggiornata con nuovi contenuti; 
-
-  \item disabilito gli interrupt momentaneamente (per non essere disturbati durante questo procedimento) e aggiorno la tabella delle pagine del processo corrente per la pagina p, indicando che la pagina è presente (V bit) e occupa il frame i;
-
-  \item viene rilasciata la mutua esclusione restituendo il controllo al processo;
-\end{itemize}
-
-\newpage
-  
-\subsubsection{TLB Refill Handler}
-Quando avviene un cache-miss, il TLB ha come compito quello di inserire la voce mancante in tabella e far ripartire dall'ultima istruzione 
-
-\subsubsection{Algoritmo di rimpiazzamento}
-Nel caso in cui non ci siano pagine libere, (ossia scorrendo la swap table non troviamo nessuna pagina con asid -1 [\texttt{\textbf{NOPROC}}]), se serve caricarne una nuova in memoria è necessario trovare un modo per scegliere la pagina vittima da rimpiazzare; questa logica è implementata dalla funzione \texttt{\textbf{getPage()}}, che dopo aver verificato che tutte le pagine siano occupate, sceglie la pagina da rimpiazzare tramite l'algoritmo FIFO. Di seguito si riportano le righe di codice che implementano tale algoritmo:
-
-\begin{center}
-    \texttt{\textbf{static int i = -1;
-    return i = (i + 1) \% POOLSIZE;}}
-\end{center}
-
-\subsubsection{RWBackingStore} 
-Funzione ausiliaria che si occupa della DoIO sui vari flash device; fa ciò inserendo nel campo DATA0 del dispositivo flash l'indirizzo fisico iniziale del blocco da leggere o scrivere; successivamente utilizza il servizio DoIO del SSI per scrivere nel campo COMMAND del dispositivo flash; per capire se leggere o scrivere sulla pagina desiderata viene passato come parametro una variabile discreta (w, che prende come valori solo 0 e 1), in particolare è scrittura se [w = 1] o lettura se [w = 0].
-
-\subsubsection{kill\_proc}
-Funzione ausiliaria usata per gestire gli errori, che banalmente richiede la terminazione di un processo al SSI; prima di terminarlo libera tutte le pagine occupate da quest'ultimo.
-
-\subsubsection{cleanDirtyPage}
-Funzione ausiliaria usata dal pager che prende in input una pagina per invalidarla e aggiornare il TLB (in modo atomico disabilitando gli interrupt).
-
-\newpage
-\subsection{System Service Thread (SST)}
-Ogni System Service Thread (SST) ha lo scopo di creare il proprio processo figlio u-proc, e successivamente fornire a questo i servizi richiesti. Dopo la creazione del proprio figlio, sst rimane costantemente in attesa di richieste da parte di questo. Quanto detto è implementato nell'apposito modulo sst.c, in particolare nella funzione \texttt{\textbf{SST\_Loop()}}, che implementa il polling dei processi SST e chiama la funzione SSTRequest per soddisfare la richiesta del processo figlio.
-
- \subsubsection{\texttt{\textbf{SST\_loop()}}} 
- In particolare \texttt{\textbf{SST\_loop()}} contiene:
- \begin{itemize}
-     \item Inizializzazione delle strutture di supporto necessarie alla creazione del processo figlio;
-     \item Chiamata alla funzione \texttt{\textbf{create\_process()}} definita in \texttt{\textbf{initproc.c}}, la quale crea un nuovo processo facendo una richiesta alla \texttt{\textbf{SSI}};
-     \item While loop contente system call bloccante per l’attesa di nuove richieste, chiamata alla funzione \texttt{\textbf{SSTRequest}}, e system call per la restituzione al processo figlio di un eventuale valore di ritorno (utile per \texttt{\textbf{getTOD}}).
- \end{itemize}
-
-\subsubsection{\texttt{\textbf{SSTRequest()}}}
-Attraverso l'utilizzo di uno switch sulla variabile \texttt{\textbf{service\_code}}, che determina il tipo di servizio richiesto da u-proc e viene passata all’interno della struct payload, questa funzione soddisfa la richiesta chiamando a sua volta apposite funzioni.
-Si distinguono in particolare i casi:
-
-\begin{itemize}
-\item \texttt{\textbf{GET\_TOD}}
-Viene invocata la funzione getTOD(), la quale consente di recuperare il numero di microsecondi trascorsi dall'ultima operazione del sistema avviato/ripristinato. In questo caso viene impostato come valore di ritorno il numero di microsecondi.
-
-\item {\texttt{\textbf{TERMINATE}}
-Viene invocata la funzione \texttt{\textbf{sst\_terminate()}} la quale effettua una richiesta di terminazione di u-proc alla ssi e si occupa di mandare un messaggio al test per comunicare la terminazione del processo.
-
-\item {\texttt{\textbf{WRITEPRINTER e WRITETERMINAL}}}
-Viene invocata la funzione \texttt{\textbf{sst\_write()}} la quale attraverso una syscall manda la stringa da stampare alla stampante o al terminale con lo stesso ASID del mittente.
-A \texttt{\textbf{sst\_write()}} viene passato come argomento un parametro chiamato \texttt{\textbf{device\_type}}, il quale determina la tipologia del dispositivo su cui verrà stampata la stringa passata nel payload (stampante o terminale). Viene quindi utilizzato uno switch su quest’ultimo parametro per differenziare i due casi.
-\end{itemize}
-
-\newpage
-
-\section{Crediti}
-\subsection{Github}
-Il sorgente del progetto è reperibile nella seguente \href{https://github.com/aNdReA9111/PandOS.git}{\textcolor{blue}{repository}} su Github.
-
-\subsection{Autori}
-\begin{itemize}
-    \item Fiorellino Andrea, matricola: 0001089150, \href{mailto:andrea.fiorellino@studio.unibo.it}{\textcolor{blue}{andrea.fiorellino@studio.unibo.it}}
-    \item Po Leonardo, matricola: 0001069156, \href{mailto:leonardo.po@studio.unibo.it}{\textcolor{blue}{leonardo.po@studio.unibo.it}}
-    \item Silvestri Luca, matricola: 0001080369, \href{mailto:luca.silvestri9@studio.unibo.it}{\textcolor{blue}{luca.silvestri9@studio.unibo.it}}
-\end{itemize}
-
+	\maketitle
+
+	\tableofcontents
+	\newpage
+	\section{Cos'è?}
+	µPandOS è un sistema operativo microkernel sviluppato per fini didattici; in particolare
+	questa implementazione è fatta al fine di svolgere un progetto propedeutico all'esame
+	per il corso \texttt{08574 - Sistemi Operativi} (anno accademico 2023/24) per
+	l'università di Bologna.\\
+
+	\section{Fase 1 - Definizione operazioni su liste di pcb e messaggi}
+	\subsection{Obiettivi}
+	In questa fase andremo a scrivere le basi per quanto riguarda questo progetto,
+	ovvero definiremo i metodi di due strutture fondamentali per quanto riguarda
+	PandOS, ossia i messaggi e i PCB
+
+	\subsection{Prototipi delle funzioni}
+	\subsubsection{Allocazione e deallocazione dei PCB:}
+	\begin{itemize}
+		\item \texttt{void initPcbs():} tramite la funzione \texttt{freePcb},
+			vengono aggiunti in coda gli elementi della \texttt{pcbTable} (da 1 a
+			MAXPROC) nella lista dei processi liberi;
+
+		\item \texttt{void freePcb(pcb\_t *p):} mette l'elemento puntato da \texttt{p}
+			nella lista dei processi liberi;
+
+		\item \texttt{pcb\_t *allocPcb():} rimuove il primo elemento dei processi
+			liberi, inizializza tutti i campi e ritorna un puntatore ad esso.
+	\end{itemize}
+
+	\subsubsection{PCB Queue:}
+	\begin{itemize}
+		\item \texttt{void mkEmptyProcQ(struct list\_head *head):} inizializza una
+			variabile come puntatore alla testa della coda dei processi;
+
+		\item \texttt{int emptyProcQ(struct list\_head *head):} se la coda la cui
+			testa è puntata da \texttt{head} è vuota ritorna TRUE, altrimenti FALSE;
+
+		\item \texttt{void insertProcQ(struct list\_head *head, pcb\_t *p):}
+			inserisce il PCB puntato da \texttt{p} in fondo alla coda dei processi puntata
+			da \texttt{*head};
+
+		\item \texttt{pcb\_t *headProcQ(struct list\_head *head):} ritorna NULL se
+			la coda dei processi è vuota, altrimenti il PCB in testa;
+
+		\item \texttt{pcb\_t *removeProcQ(struct list\_head *head):} rimuove la
+			testa della coda dei processi puntata da \texttt{*head} e ritorna un puntatore
+			dell'elemento in questione; se la lista è vuota ritorna NULL;
+
+		\item \texttt{pcb\_t *outProcQ(struct list\_head *head, pcb\_t *p):} cerca
+			mediante un \texttt{for\_each} il PCB \texttt{p} nella lista puntata da
+			\texttt{head} e lo rimuove; se lo trova ritorna \texttt{p} stesso,
+			altrimenti NULL.
+	\end{itemize}
+	\newpage
+	\subsubsection{PCB Trees:}
+	\begin{itemize}
+		\item \texttt{int emptyChild(pcb\_t *p):} ritorna l'esito della chiamata
+			alla funzione \texttt{list\_empty}, alla quale viene passato come
+			parametro l'indirizzo del \texttt{list\_head} \texttt{p\_child} di \texttt{p};
+
+		\item \texttt{void insertChild(pcb\_t *prnt, pcb\_t *p):} si assegna \texttt{prnt}
+			al puntatore \texttt{p\_parent} di \texttt{p}. Dopo si aggiunge \texttt{p}
+			alla lista dei fratelli, tramite \texttt{list\_add} (se non ci sono altri
+			figli) e \texttt{list\_add\_tail} (per rispettare la FIFOness), alle quali
+			viene passato come parametro gli indirizzi del \texttt{list\_head} \texttt{p\_sib}
+			di \texttt{p} e del \texttt{list\_head} \texttt{p\_child} di \texttt{prnt}
+			(\texttt{p} diventa fratello dei figli di \texttt{prnt} e quindi figlio di
+			\texttt{prnt}).
+
+		\item \texttt{pcb\_t *removeChild(pcb\_t *p):} il controllo sulla presenza o
+			meno di figli avviene con la funzione \texttt{emptyChild}. Se ci sono
+			figli, si sceglie il primo figlio tramite la macro \texttt{container\_of},
+			chiamata sull'elemento successivo al \texttt{list\_head} \texttt{p\_child}.
+			In seguito il figlio viene eliminato tramite la funzione \texttt{list\_del}
+			e viene troncato il legame con il padre, assegnando il valore NULL al
+			puntatore \texttt{p\_parent} del figlio.
+
+		\item \texttt{pcb\_t *outChild(pcb\_t *p):} se \texttt{p} ha un padre,
+			rimuovo \texttt{p} dalla lista dei suoi fratelli chiamando \texttt{list\_del}
+			a cui passo come parametro l'indirizzo di \texttt{p\_sib} di \texttt{p}, in
+			seguito rimuovo il legame con il padre assegnando NULL al puntatore \texttt{p\_parent}
+			di \texttt{p}.
+	\end{itemize}
+
+	\subsubsection{Allocazione e deallocazione dei messaggi:}
+	\begin{itemize}
+		\item \texttt{void freeMsg(msg\_t *m):} Inserisce l’elemento puntato da
+			\texttt{m} in testa alla lista dei messaggi.
+
+		\item \texttt{msg\_t *allocMsg():} Ritorna \texttt{NULL} se la lista dei messaggi
+			è vuota. Altrimenti rimuove un elemento dalla testa, imposta a 0 la variabile
+			\texttt{m\_payload} di ogni messaggio presente nell’array \texttt{msgTable}
+			e ritorna un puntatore all’elemento rimosso.
+
+		\item \texttt{void initMsgs():} Inserisce gli elementi presenti nell’array
+			\texttt{msgTable} in coda alla lista dei messaggi.
+	\end{itemize}
+
+	\subsubsection{Message}
+	\begin{itemize}
+		\item \texttt{void mkEmptyMessageQ(struct list\_head *head):} Inizializza
+			una una lista di messaggi vuota.
+
+		\item \texttt{int emptyMessageQ(struct list\_head *head):} Ritorna 1 se la
+			lista puntata da head è vuota, altrimenti 0.
+
+		\item \texttt{void insertMessage(struct list\_head *head, msg\_t *m):}
+			Inserisce il messaggio puntato da \texttt{m} in coda alla lista puntata da
+			\texttt{head}.
+
+		\item \texttt{void pushMessage(struct list\_head *head, msg\_t *m):}
+			Inserisce il messaggio puntato da \texttt{m} in testa alla lista puntata da
+			\texttt{head}.
+
+		\item \texttt{msg\_t *popMessage(struct list\_head *head, pcb\_t *p\_ptr):}
+			Rimuove il primo messaggio trovato nella lista puntata da \texttt{head} che
+			è stato inviato dal thread p\_ptr.\\ Se \texttt{p\_ptr} è NULL, ritorna il
+			primo messaggio in coda. \\ Se \texttt{head} è vuota o se non viene trovato
+			alcun elemento mandato dal thread \texttt{p\_ptr}, ritorna null.
+
+		\item \texttt{msg\_t *headMessage(struct list\_head *head):} Se la lista
+			puntata da \texttt{head} è vuota ritorna NULL, altrimenti ritorna il
+			messaggio in testa ad essa.
+	\end{itemize}
+
+	\newpage
+
+	\section{Fase 2 - Definizione del Nucleo, Scheduler, SSI, Interrupt ed eccezioni}
+	Di seguito sono riportate le scelte progettuali per quanto riguarda i moduli sviluppati:
+
+	\subsection{Utility}
+	\subsubsection{\texttt{\textbf{timer.c}}}
+	In questo modulo abbiamo delle funzioni/procedure ausiliarie richiamate degli altri
+	moduli per la gestione dei vari timer:
+	\begin{itemize}
+		\item \texttt{\textbf{unsigned int getTOD()}}: ritorna il valore del time of
+			day clock, che viene nel nostro caso salvato nella variabile globale
+			\texttt{\textbf{start}}: utilizzata per il calcolo del CPU time.
+
+		\item \texttt{\textbf{void updateCPUtime(pcb\_t *p)}}: chiama la funzione qui
+			sopra descritta per aggiornare il valore del campo \texttt{\textbf{p\_time}}
+			del processo passato alla funzione.
+
+		\item \texttt{\textbf{void setIntervalTimer(unsigned int t)}}: funzione che imposta
+			il valore dell'interval timer.
+
+		\item \texttt{\textbf{void setPLT(unsigned int t)}}: funzione che imposta il
+			valore del processor local timer.
+
+		\item \texttt{\textbf{unsigned int getPLT()}}: funzione che permette di ottenere
+			il valore del processor local timer.
+	\end{itemize}
+
+	\subsection{Inizializzazione nucleo}
+	\subsubsection{Dichiarazione e inizializzazione variabili globali}
+	Nel modulo \texttt{\textbf{initial.c}} viene implementato il \textbf{main()},
+	la dichiarazione delle variabili globali:
+	\begin{itemize}
+		\item \texttt{\textbf{int process\_count}} ossia il contatore dei processi
+			attivi;
+
+		\item \texttt{\textbf{int soft\_blocked\_count}} ossia il contatore dei
+			processi bloccati;
+
+		\item \texttt{\textbf{int start}}, variabile globale utilizzata per calcolare
+			il CPU time di ogni processo che viene eseguito.
+
+		\item \texttt{\textbf{int pid\_counter}}, usato per assegnare in maniera sequenziale
+			i PID ai processi man mano che vengono creati;
+
+		\item \texttt{\textbf{pcb\_t *current\_process}} ossia il puntatore al PCB
+			del processo corrente;
+
+		\item \texttt{\textbf{pcb\_t *ssi\_pcb}}, che è il puntatore al PCB del SSI;
+	\end{itemize}
+
+	\subsubsection{Dichiarazione e inizializzazione strutture dati}
+	Vengono inoltre implementate le strutture dati principali:
+	\begin{itemize}
+		\item attraverso le funzioni \texttt{\textbf{initPcbs()}} e \texttt{\textbf{initMsgs()}}
+			vengono inizializzate le strutture della fase 1;
+
+		\item \texttt{\textbf{Ready\_Queue}}, ossia la lista dei proessi pronti ad essere
+			eseguiti;
+
+		\item 8 liste per i processi bloccati in attesa dei device o per il terminale
+			(una per input e una per output);
+
+		\item \texttt{\textbf{void initPassupVector()}} è una procedura che viene
+			richiamata per definire il \texttt{pass up vector}, ossia è la struttura
+			dati a livello hardware che indica a quale funzione passare il controllo
+			quando si verifica un interrupt.
+	\end{itemize}
+	\subsubsection{Interval timer}
+	Viene caricato l'interval timer a 100 ms attraverso la chiamata alla procedura
+	ausiliaria \texttt{\textbf{setIntervalTimer(PSECOND)}} definita in \texttt{\textbf{timers.c}}
+
+	\newpage
+
+	\subsubsection{Processi SSI e Test}
+	Infine, prima di richiamare lo \texttt{Scheduler}, attraverso la procedura
+	\texttt{\textbf{void initFirstProcesses()}} vengono inseriti nella \texttt{Ready
+	Queue} i processi del SSI e del test. Questi avranno lo status settato in modo
+	da avere la maschera dell'interrupt abilitata, l'interval timer abilitato e
+	che siano in modalità kernel. Avranno rispettivamente pid 1 e 2.
+
+	\subsection{Scheduler}
+	Lo Scheduler è il componente che gestisce la coda dei processi pronti ad
+	essere eseguiti (\textbf{Ready Queue}); la procedura principale che svolge
+	tutto ciò è \texttt{\textbf{void scheduler()}}; questa parte con un controllo
+	iniziale sulla \texttt{\textbf{Ready Queue}} vedendo se è vuota (con \texttt{\textbf{emptyProcQ(\&Ready\_Queue)}}):
+	\begin{itemize}
+		\item se non è vuota prendo il processo che deve essere preso in carico dalla
+			CPU (\texttt{\textbf{current\_process}}) con la funzione \texttt{\textbf{removeProcQ(\&Ready\_Queue)}},
+			setto il Timer attraverso la funzione \texttt{\textbf{setPLT()}} a 5 ms (con
+			la costante \textbf{TIMESLICE}) per implementare il Round Robin, e infine viene
+			caricato lo stato del processo corrente nel processore (con \texttt{\textbf{LDST()}});
+
+		\item altrimenti (se vuota), si effettua la Deadlock detection; in particolare
+			può decidere se effettuare un \texttt{\textbf{HALT()}} quando non ci sono
+			più processi da eseguire; se ci sono altri PCB entrerà in \texttt{\textbf{WAIT()}};
+			se la ready queue è vuota e ci sono processi bloccati si entra in deadlock
+			invocando \texttt{\textbf{PANIC()}} fermando così l'esecuzione;
+	\end{itemize}
+
+	\subsection{SSI}
+	Essendo che \textmu PandOS è un microkernel, le uniche syscall implementate sono
+	la Send e la Receive; queste vengono usate dai processi per chiedere al
+	processo SSI risorse; quanto detto è implementato nell'apposito modulo \texttt{\textbf{ssi.c}},
+	in particolare nella funzione \texttt{\textbf{SSILoop()}}, che implementa il polling
+	del processo SSI: questa è eternamente in attesa di ricevere un messaggio da
+	un qualsiasi processo che necessità una risorsa, prova a soddisfarlo attraverso
+	l'apposita funzione \texttt{\textbf{unsigned int SSIRequest(pcb\_t* sender,
+	ssi\_payload\_t *payload)}} e se riesce viene inviato un riscontro al processo
+	che ha effettuato la richiesta tramite la syscall send. Di seguito si forniranno
+	maggiori dettagli riguardo quest'ultima funzione;
+
+	\newpage
+
+	\subsubsection{SSIRequest}
+	All'interno di questa funzione vengono analizzati i parametri \texttt{\textbf{pcb\_t*
+	sender, ssi\_payload\_t *payload}} che contengono rispettivamente il processo che
+	ha richiesto il servizio e il messaggio mandato col servizio richiesto; in
+	particolare nel messaggio è determinante il \texttt{\textbf{service\_code}},
+	che stabilisce l'oggetto della richiesta del sender. Attraverso l'utilizzo di uno
+	switch su quest'ultimo parametro, la ssi fornisce il servizio richiesto. Si distinguono
+	in particolare i casi:
+	\begin{itemize}
+		\item 1 (\texttt{\textbf{CREATEPROCESS}}): viene richiesta la creazione di un
+			processo; questa richiesta viene soddisfatta solo se c'è spazio nella
+			tabella dei processi liberi; in caso affermativo viene invocata la funzione
+			\texttt{\textbf{ssi\_new\_process()}} con parametri il sender, che fungerà
+			da parent, e un puntatore a una variabile di tipo \texttt{\textbf{ssi\_create\_process}},
+			contenete i dati necessari alla creazione del nuovo processo; Nella funzione
+			\texttt{\textbf{ssi\_new\_process}} viene chiamata \texttt{\textbf{allocPcb()}}
+			per l'allocazione in memoria del nuovo processo e successivamente questo viene
+			inserito nelle \texttt{\textbf{ready queue}} e nella lista child del pcb
+			sender.
+
+		\item 2 (\texttt{\textbf{TERMPROCESS}}), viene chiamata la procedura \texttt{\textbf{ssi\_terminate\_process()}}
+			passando come parametro il processo da terminare. In questa funzione avviene
+			ricorsivamente la terminazione di tutti i processi figli del sender e dei realtivi
+			fratelli.
+
+		\item 3 (\texttt{\textbf{DOIO}}), viene chiamata la procedura \texttt{\textbf{ssi\_doio}}
+			con parametri il puntatore al pcb del sender e un puntatore a una
+			variabile di tipo \texttt{\textbf{ssi\_do\_io\_t}} contenente i dati necessari
+			a tale richiesta. Viene successivamente chiamata la procedura \texttt{\textbf{addrToDevice()}}
+			che, dato l'indirizzo del device passato con la richiesta di DOIO, ne determina
+			i rispettivi numero di device e linea, per poi chiamare la funzione
+			\texttt{\textbf{blockProcessOnDevice}}. Quest'ultima, passati come argomenti
+			il pcb del sender, il numero del device e un intero che indica se si sta
+			facendo una lettura o una scrittura, rimuove il sender dalla \texttt{\textbf{ready
+			queue}} e lo inserisce nella lista di processi bloccati del relativo
+			device. La funzione \texttt{\textbf{addrToDevice()}} invidua la corretta
+			linea e il corretto numero di device confrontando il command\_address
+			passato come argomento con tutti i campi di DEV\_REG\_ADDR[][]; per una maggiore
+			efficienza questo viene prima confrontato con i campi relativi al terminale
+			e successivamente, attraverso un ciclo for annidato, con i campi degli altri
+			device.
+
+		\item 4 (\texttt{\textbf{GETTIME}}), viene restituito come \texttt{\textbf{unsigned
+			int}} un puntatore alla variabile \texttt{\textbf{p\_time}} del processo sender.
+
+		\item 5 (\texttt{\textbf{CLOCKWAIT}}), viene chiamata la funzione \texttt{\textbf{ssi\_clockwait}}
+			con argomento il puntatore alla struct \texttt{\textbf{pcb\_t}} del processo
+			sender. Quest'ultima inserisce il sender nella lista dei processi bloccati
+			da pseudo clock. La procedura \texttt{\textbf{pseudoClockInterruptHandler()}}
+			definita in \texttt{\textbf{interrupts.c}} si occupa della gestione di questa
+			lista.
+
+		\item 6 (\texttt{\textbf{GETSUPPORTPTR}}), viene restituito come \texttt{\textbf{unsigned
+			int}} un puntatore alla variabile \texttt{\textbf{p\_supportstruct}} del processo
+			sender.
+
+		\item 7 (\texttt{\textbf{GETPROCESSID}}), viene invocata la funzione \texttt{\textbf{int
+			ssi\_getprocessid}}. Quest'ultima prende come parametri il puntatore al pcb
+			del sender e un puntatore generico arg, e ritorna il pid del sender se l'argomento
+			è NULL, altrimenti il pid del processo padre del chiamante.
+
+		\item Se il service code non contiene nessuno dei seguenti codici viene terminato
+			il sender con la funzione \texttt{\textbf{ssi\_terminate\_process()}}.
+	\end{itemize}
+
+	In alcune delle funzioni menzionate vengono inoltre modificati i valori di variabili
+	globali quali:
+	\begin{itemize}
+		\item \texttt{\textbf{soft\_blocked\_count}} : viene decrementata in \texttt{\textbf{ssi\_terminate\_process()}}
+			se il processo viene rimosso da una delle liste di processi bloccati dei device,
+			o incrementata in \texttt{\textbf{ssi\_clockwait()}} quando viene aggiunto.
+
+		\item \texttt{\textbf{process\_count}} : viene incrementata alla creazione
+			di un nuovo processo in \texttt{\textbf{ssi\_create\_process}} e decrementata
+			quando un processo viene terminato in \texttt{\textbf{ssi\_terminate\_process()}}.
+	\end{itemize}
+
+	\newpage
+	\subsection{Gestore delle eccezioni}
+	La funzione che si occupa della gestione delle eccezioni è la funzione \texttt{\textbf{void
+	exceptionHandler()}} dichiarata nel file phase2/include/exceptions.h e
+	definita nel file phase2/exceptions.c. Questa funzione salva lo stato al tempo
+	dell'eccezione dalla \texttt{\textbf{BIOSDATAPAGE}} ed in seguito trova il
+	codice dell'eccezione eseguendo operazioni di manipolazione dei bit sul
+	registro cause, ottenuto con la funzione \texttt{\textbf{getCAUSE}}. In particolare
+	si esegue l'operazione \texttt{\textbf{cause \& GETEXECCODE}} che permette di
+	mantenere solo i bit che definiscono il codice dell'eccezione, i quali vengono
+	shiftati a destra di 2 posizioni (costante \texttt{\textbf{CAUSESHIFT}}).
+	\subsubsection{Interrupt Handler}
+	Nel caso il codice dell'eccezione abbia valore 0 (costante \texttt{\textbf{IOINTERRUPTS}})
+	viene invocata la funzione per la gestione degli interrupt \texttt{\textbf{void
+	interruptHandler(int cause, state\_t* exception\_state)}}. Qui viene
+	utilizzata la macro \texttt{\textbf{CAUSE\_IP\_GET(cause, line)}}, grazie alla
+	quale, passando il cause register e il valore di una linea di interrupt, è
+	possibile sapere se c'è un interrupt su quella linea. Il controllo viene fatto
+	per tutte le linee, seguendo l'ordine di priorità che va dall'interrupt
+	causato dal processor local timer, all'interrupt causato da un dispositivo terminale.
+	In base alla linea su cui avviene l'interrupt viene invocato un'opportuna
+	funzione per la gestione di quello specifico interrupt. \subsubsubsection{Gestione Interrupt Processor Local Timer}
+	L'interrupt causato dal processor local timer si verifica quando il tempo
+	nella CPU per il processo corrente si esaurisce. Per un'opportuna gestione di questo
+	interrupt usiamo la funzione \texttt{\textbf{static void
+	localTimerInterruptHandler(state\_t *exception\_state)}}. In questa routine viene
+	riconosciuto l'interrupt con la chiamata \texttt{\textbf{setPLT(-1)}}, in seguito
+	si aggiorna il CPU time del processo corrente, si copia lo stato dell'eccezione
+	nello stato del processo corrente, il quale infine viene inserito sulla ready queue.
+	Dopo queste operazioni viene chiamato lo scheduler. \subsubsubsection{Gestione Interrupt Interval Timer}
+	In questo caso l'ACK dell'interrupt è eseguito con la chiamata \texttt{\textbf{setIntervalTimer(PSECOND)}}.
+	Dopodiché avvienelo sblocco di tutti i processi che erano in attesa dell'interrupt,
+	rimuovendo ciascuno di essi dalla lista \texttt{\textbf{Locked\_pseudo\_clock}},
+	inserendoli sulla ready queue, dopo aver inviato loro un messaggio che
+	consentirà ai processi interessati di sbloccarsi, quando rieseguiranno la SYS2
+	su cui si erano precedentemente bloccati. Ogni volta che viene rimosso un
+	processo dalla lista dei processi in attesa dello pseudoclock tick, viene decrementata
+	la variabile globale \texttt{\textbf{soft\_blocked\_count}}. Infine, se il
+	processo corrente è diverso da NULL, si esegue una LDST con lo stato dell'eccezione,
+	altrimente viene chiamato lo scheduler. \subsubsubsection{Gestione Interrupt Device}
+	La gestione degli interrupt legati a tutti gli altri device viene affidata
+	alla funzione \texttt{\textbf{static void deviceInterruptHandler(int line, int
+	cause, state\_t *exception\_state)}}, la quale ricava la bitmap degli
+	interrupt per i dispositivi della linea d'interesse. Questo viene realizzato accedendo
+	all'area di memoria riservata ai device, all'inidirizzo \texttt{\textbf{BUS\_REG\_RAM\_BASE}}.
+	In seguito si esegue l'and sui bit della bitmap con le costanti \texttt{\textbf{DEVXON}}
+	con X $\in \{0, \ldots, 7\}$, con questa operazione si ottiene il numero del
+	device sulla line che ha causato l'interrupt, per l'ordine con cui queste operazioni
+	sono effettuate,il numero del device calcolato sarà sempre quello a priorità maggiore.
+	Calcolato il numero, data la linea si sblocca il processo dalla lista associata
+	alla linea cercandolo tramite il device number, grazie al campo aggiuntivo
+	\texttt{\textbf{dev\_no}} che abbiamo messo ai pcb. Questo campo viene settato
+	dall'ssi quando viene bloccato il processo in attesa di interrupt durante il
+	servizio DOIO. In caso di interrupt causato da un dispositivo terminale verifichiamo
+	che il codice dell'operazione di trasmissione sia uguale a 5 (interrupt in
+	attesa di essere riconosciuto), se così è allora significa che l'operazione è
+	un'operazione di trasmissione di un carattere, altrimenti si tratta di un'operazione
+	di ricezione. Per accedere al registro del device usiamo la macro \texttt{\textbf{DEV\_REG\_ADDR}}
+	nel modo seguente: \\ \texttt{\textbf{dtpreg\_t *device\_register = (dtpreg\_t
+	*)DEV\_REG\_ADDR(line, device\_number);}} \\ In caso di dispositivi terminali,
+	l'operazione è analoga: \\ \texttt{\textbf{termreg\_t *device\_register = (termreg\_t
+	*)DEV\_REG\_ADDR(line, device\_number);}} \\ L'operazione di riconoscimento
+	dell'interrupt avviene con l'istruzione\\ \texttt{\textbf{device\_register->command
+	= ACK;}} \\per i terminali a seconda di quale subdevice ha generato l'interrupt:
+	\\ \texttt{\textbf{device\_register->transm\_command = ACK;}} \\ oppure \\ \texttt{\textbf{device\_register->recv\_command
+	= ACK;}}.
+
+	L'accesso allo status avviene con l'operazione seguente: \texttt{\textbf{device\_register->status}}.
+	\\ Per i terminali: \\ \texttt{\textbf{device\_register->recv\_status}}. \\
+	\texttt{\textbf{device\_register->transm\_status}}.
+
+	Infine se il processo sbloccato è diverso da NULL, si mette lo status nel suo
+	registro v0, gli viene inviato un messaggio avente la ssi come mittente e come
+	payload lo status del device, si inserisce il processo sulla ready queue e si
+	diminuisce di un'unità \texttt{\textbf{soft\_blocked\_count}}. In seguito, se il
+	processso corrente è diverso da NULL, si chiama lo scheduler, altrimenti si esegue
+	una LDST dello stato ottenuto dalla \texttt{\textbf{BIOSDATAPAGE}}.
+	\subsubsection{Pass Up or Die}
+	Tramite Pass Up or Die il kernel gestisce tutte le eccezione che non sono syscall
+	o interrupt, abbiamo quindi implementato un'apposita funzione \texttt{\textbf{static
+	void passUpOrDie(int i, state\_t *exception\_state)}} che controlla che la support
+	struct del processo corrente sia diversa da NULL, se ciò è vero allora si
+	salva lo stato dell'eccezione nello stato corretto della struttura di supporto:
+	\\ \texttt{\textbf{saveState(\&(current\_process->p\_supportStruct->sup\_exceptState[i]),
+	exception\_state);}} \\ ed in seguito si esegue LDCTX, passando come parametri
+	i valori del giusto constesto della struttura di supporto: \\ \texttt{\textbf{
+	LDCXT(current\_process->p\_supportStruct->sup\_exceptContext[i].stackPtr, \\ current\_process->p\_supportStruct->sup\_exceptContext[i].status,
+	\\ current\_process->p\_supportStruct->sup\_exceptContext[i].pc \\ ); }} \\ L'indice
+	i, parametro della funzione, può assumere due valori a seconda del tipo di eccezione:
+	\begin{itemize}
+		\item \texttt{\textbf{GENERALEXCEPT}}: per trap generiche, con codici 4...7
+			e 9...12;
+
+		\item \texttt{\textbf{PGFAULTEXCEPT}}: per eccezioni TLB, con codici 1...3;
+
+			In caso di puntatore nullo, chiamiamo la funzione per la terminazione dei processi,
+			che viene utilizzata dall'ssi per fornire il servizio \texttt{\textbf{TERMINATEPROCESS}}.
+	\end{itemize}
+	\newpage
+	\subsubsection{Eccezioni causate da SYSCALL}
+	L'eccezioni da SYSCALL sono quelle il cui codice ha valore \texttt{\textbf{SYSEXCEPTION}}.
+	Quando queste si verificano, viene chiamata la funzione \texttt{\textbf{static
+	void syscallExceptionHandler(state\_t *exception\_state)}}. \\In primis la
+	funzione controlla il valore del bit KUc, se questo è 1 (user-mode) viene generata
+	una trap generica, in cui il valore del codice dell'eccezione viene settato a
+	\texttt{\textbf{EXC\_RI}} (istruzione riservata). Se il processo è in kernel-mode
+	allora si continua e si controlla il registro a0 per capire quale servizio è
+	stato richiesto:
+	\begin{itemize}
+		\item \texttt{\textbf{reg\_a0 = SENDMESSAGE}}: il processo corrente vuole eseguire
+			una \texttt{\textbf{SYS1}}, dal registro a1 viene estratto l'indirizzo del
+			PCB al quale si vuole inviare un messaggio, si controlla se il
+			destinatario è nella ready queue o se è il processo corrente, in entrambi questi
+			casi si inserisce il messaggio nell'inbox del destinatario. Se il
+			destinatario è sulla lista dei processi liberi, allora esso è inesistente e
+			si aggiorna solamente il registro v0 al valore \texttt{\textbf{DEST\_NOT\_EXISTS}}.
+			Se il processo destinatario non si trova sulla ready e queue e nemmeno nella
+			lista dei processi liberi, allora dopo l'invio del messaggio, lo si inserisce
+			nella ready queue (se il messaggio inviato non è quello per cui era in
+			attesa, il processo si bloccherà di nuovo). La funzione che invia i messaggi
+			è \texttt{\textbf{int send(pcb\_t *sender, pcb\_t *dest, unsigned int
+			payload)}}. In questo caso come payload viene passato il valore del registro
+			a2. Infine si incrementa il \texttt{\textbf{PC}} e si esegue \texttt{\textbf{LDST(exception\_state)}}.
+
+		\item \texttt{\textbf{reg\_a0 = RECEIVEMESSAGE}}: il processo corrente vuole
+			eseguire una \texttt{\textbf{SYS2}}, dal registro a1 si accede all'indirizzo
+			del PCB dal quale il processo richiedente vuole ricevere un messaggio,
+			questo valore viene passato, insieme alla inbox del processo corrente,
+			alla funzione \texttt{\textbf{popMessage}}, la quale restituirà il
+			messaggio o \texttt{\textbf{NULL}} se non lo trova. Nel primo caso la SYS2
+			non è bloccante, quindi si assegna al registro v0 l'indirizzo di chi ha inviato
+			il messaggio, e si mette nell'area di memoria puntata dal registro a2 il
+			payload del messaggio. Si incrementa il \texttt{\textbf{PC}} e si esegue
+			\texttt{\textbf{LDST(exception\_state)}}, poiché non è una syscall
+			bloccante. Se invece la \texttt{\textbf{popMessage}} ha restituito \texttt{\textbf{NULL}},
+			allora la syscall sarà bloccante, lo stato dell'eccezione viene salvato nello
+			stato del processo corrente, si aggiorna il CPU time del processo corrente
+			ed infine si chiama lo scheduler.
+
+		\item \texttt{\textbf{reg\_a0 >= 1}}: viene generata una trap generica.
+	\end{itemize}
+
+	\newpage
+
+	\section{Fase 3 - Il livello di supporto}
+	\subsection{Inizializzazione}
+	L'inizializzazione viene realizzata nel file initProc.c, in questo file il
+	primo processo si occupa di creare tutti i processi necessari e di
+	inizializzare le strutture dati necessarie al livello di supporto. Il codice di
+	inizializzazione si trova nel file phase3/initProc.c, l'header corrispondente
+	si trove nel file phase3/include/initProc.h .
+	\subsubsection{Inizializzazione Swap Pool Table}
+	La funzione che si occupa di questa operazione impostra l'asid di ogni entry
+	della tabella al valore costante \texttt{\textbf{NOPROC}}.
+	\subsubsection{Inizializzazione U-proc}
+	In seguito viene realizzata l'inizializzazione delle strutture di supporto per
+	gli U-proc. Per farlo allochiamo consecutivamente blocchi di memoria di dimensione
+	fissa \texttt{\textbf{PAGESIZE}}. La memoria viene allocata a partire dall'indirizzo
+	\texttt{\textbf{RAMTOP - 3 * PAGESIZE}}, ovvero il primo indirizzo disponibile,
+	poiché i primi tre frame sono occupati dal processo ssi e dal processo test. In
+	questa funzione, vengono assegnati alle support struct gli indirizzi dei
+	gestori delle eccezioni del livello di support (\texttt{\textbf{pager}} e
+	\texttt{\textbf{generalExceptionHandler}}). Nel frattempo anche gli stati dei vari
+	u-proc vengono inizializzati, in particolare per questi processi si usa il
+	medesimo indirizzo per lo stack pointer(\texttt{\textbf{USERSTACKTOP}}) e il
+	medesimo indirizzo per il program counter (\texttt{\textbf{USERPROCSTARTADDR}}),
+	in quanto essi fanno uso di indirizzo logici. Le strutture di supporto e gli stati
+	vengono memorizzati in array, affinché gli sst possano poi creare gli u-proc, reperendo
+	lo stato e la struttura di supporto corretti con facilità. Infine per ciascuna
+	struttura di supporto avviene l'inizializzazione della rispettiva tabella
+	delle pagine, impostando per ogni entry della tabella i valori per \texttt{\textbf{pte\_entryHI}}
+	(calcolo indirizzo logico) e \texttt{\textbf{pte\_entryLO}} (accesione dirty
+	bit).
+	\subsubsection{Processo swap mutex}
+	Per mantenere mutua esclusione sulla swap pool table si utilizza un processo
+	che realizza tramite message passing un semaforo binario. Nella funzione \texttt{\textbf{initSwapMutex()}}
+	viene allocata memoria per questo processo e al suo program counter viene
+	assegnando l'indirizzo della funzione \texttt{\textbf{swapMutex}}, che
+	implementa il semaforo eseguendo:
+	\begin{enumerate}
+		\item Receive senza mittente specificato (in questo modo il semaforo riceve
+			le richieste da tutti i processi)
+
+		\item Send al mittente del messaggio ricevuto nel punto 1. (questo messaggio
+			concede la mutua esclusione)
+
+		\item Receive dal mittente del messaggio ricevuto nel punto 1. (il semaforo
+			attende il rilascio della mutua esclusione)
+	\end{enumerate}
+	\subsubsection{Inizializzazione processi device}
+	Questi processi sono processi che ricevono dal rispettivo sst la stringa da stampare
+	in output e questi realizzano un loop in cui ad ogni iterazione viene inviata una
+	richiesta alla ssi per il servizio \texttt{\textbf{DOIO}} per la stampa del
+	carattere della stringa in questione. Di questi processi ne sono stati realizzati
+	16 (8 terminali e altrettante stampanti). Eseguono tutti lo stesso codice, consistente
+	in una funzione con segnatura \texttt{\textbf{void print(int device\_number, unsigned
+	int *base\_address)}} che calcola i registri del dispositivo partendo da
+	\texttt{\textbf{base\_address}} (indirizzo della prima stampante o del primo
+	terminale) calcola l'indirizzo del dispositivo in questione utilizzando la seguente
+	formula:
+	\newline
+	\texttt{\textbf{base\_address + device\_number * 4}}
+	\newline
+	Poi dall'indirizzo calcolato si calcolano il registo di comando, e (nel caso delle
+	stampanti) anche il registro data0 nel quale andare ad inserire il carattere
+	della stringa da stampare. Una volta realizzate queste operazioni preliminari può
+	avvenire la ricezione della stringa e la conseguente procedura di I/O.
+	\newline
+	In seguito per ciascun dispositivo si realizza una funzione wrapper che chiama
+	la funzione parametrizzata qui sopra discussa, in modo da conferire dei nomi chiari
+	e che consentano il raccoglimento di queste funzioni con un array di puntatori
+	ad esse. Questo procedimento è stato implementato con il seguente codice:
+
+	\texttt{\textbf{void print\_term0() \{ print(0, (unsigned int *)TERM0ADDR); \}}}
+	\newline
+	\texttt{\textbf{void print\_term1() \{ print(1, (unsigned int *)TERM0ADDR); \}}}
+	\newline
+	\texttt{\textbf{void print\_term2() \{ print(2, (unsigned int *)TERM0ADDR); \}}}
+	\newline
+	\texttt{\textbf{void print\_term3() \{ print(3, (unsigned int *)TERM0ADDR); \}}}
+	\newline
+	\texttt{\textbf{void print\_term4() \{ print(4, (unsigned int *)TERM0ADDR); \}}}
+	\newline
+	\texttt{\textbf{void print\_term5() \{ print(5, (unsigned int *)TERM0ADDR); \}}}
+	\newline
+	\texttt{\textbf{void print\_term6() \{ print(6, (unsigned int *)TERM0ADDR); \}}}
+	\newline
+	\texttt{\textbf{void print\_term7() \{ print(7, (unsigned int *)TERM0ADDR); \}}}
+	\newline
+
+	\texttt{\textbf{void printer0() \{ print(0, (unsigned int *)PRINTER0ADDR); \}}}
+	\newline
+	\texttt{\textbf{void printer1() \{ print(1, (unsigned int *)PRINTER0ADDR); \}}}
+	\newline
+	\texttt{\textbf{void printer2() \{ print(2, (unsigned int *)PRINTER0ADDR); \}}}
+	\newline
+	\texttt{\textbf{void printer3() \{ print(3, (unsigned int *)PRINTER0ADDR); \}}}
+	\newline
+	\texttt{\textbf{void printer4() \{ print(4, (unsigned int *)PRINTER0ADDR); \}}}
+	\newline
+	\texttt{\textbf{void printer5() \{ print(5, (unsigned int *)PRINTER0ADDR); \}}}
+	\newline
+	\texttt{\textbf{void printer6() \{ print(6, (unsigned int *)PRINTER0ADDR); \}}}
+	\newline
+	\texttt{\textbf{void printer7() \{ print(7, (unsigned int *)PRINTER0ADDR); \}}}
+	\newline
+	\newline
+	\texttt{\textbf{ void (*terminals[8])() = \{print\_term0, print\_term1, print\_term2,
+	print\_term3, print\_term4, print\_term5, print\_term6, print\_term7\}; }}
+	\newline
+	\texttt{\textbf{ void (*printers[8])() = \{printer0, printer1, printer2, printer3,
+	printer4, printer5, printer6, printer7\};}}
+
+	In questo modo nell'inizializzazione che seguirà sarà possibile assegnare il
+	program counter accedendo agli elementi di questi array.
+
+	\subsubsection{Inizializzazione SST}
+	Dopo i processi device l'inizializzazione continua, sempre allocando la memoria
+	dalla RAM, decrementando il valore di \texttt{\textbf{curr}} ad ogni iterazione.
+	Anche qui si inizializza lo stato per ogni SST, in particolare il program counter
+	ha valore \texttt{\textbf{SST\_loop}}, che è la funzione che implementa gli SST.
+
+	\subsubsection{Terminazione}
+	Dopo questa serie di inizializzazioni, il processo test rimane in attesa (tramite
+	receive) che ciascun SST comunichi ad esso la fine della propria esecuzione. Una
+	volta che tutti gli SST hanno finito l'esecuzione, il processo test richiede
+	la propria terminazione all'SSI. In seguito l'SSI sarà l'unico processo nel sistema
+	e si avrà lo stato di HALT.
+
+	\newpage
+	\subsection{Gestore delle eccezione a livello di supporto}
+	La funzioen che si occupa della gestione delle eccezioni a livello di supporto
+	è la funzione \texttt{\textbf{void generalExceptionHandler();}} che prima di
+	poter realizzare una corretta gestione della trap, deve ottenere dalla SSI (servizio
+	\texttt{\textbf{GETSUPPORTPTR}}) la support struct dell'u-proc interessato. Da
+	questa si ottiene lo state nel modo seguente:
+	\newline
+	\texttt{\textbf{state\_t* eception\_state = \&(sup\_struct\_ptr->sup\_exceptState[GENERALEXCEPT]);}}.
+	Dopodiché si osserva il codice dell'eccezione dal cause register in questo
+	modo:
+	\newline
+	\texttt{\textbf{int val = (exception\_state->cause \& GETEXECCODE) >>
+	CAUSESHIFT;}}
+	\newline
+	In base al codice ricavato viene eseguito l'handler associato. Prima di ciò viene
+	incrementato il program counter dello state ottenuto in precedenza.
+
+	\subsubsection{Gestore eccezioni causate da SYSCALL}
+	In base al valore contenuto nel registro a0, uno dei due servizi sarà eseguito:
+	\begin{itemize}
+		\item \texttt{\textbf{reg\_a0 = SENDMSG}}: il processo corrente vuole eseguire
+			una \texttt{\textbf{SYS1}}, in questo caso serve controllare il registo a1
+			per verificare a chi inviare il messaggio:
+			\begin{itemize}
+				\item \texttt{\textbf{reg\_a1 = PARENT}}, in questo caso l'u-proc sta cercando
+					di inviare un messaggio al suo SST, per farlo viene quindi eseguita l'istruzione
+					seguente:
+
+					\texttt{\textbf{SYSCALL(SENDMESSAGE, (unsigned int)current\_process->p\_parent,
+					\newline
+					exception\_state->reg\_a2, 0);}}
+
+				\item \texttt{\textbf{reg\_a1 != PARENT}}, in questo caso l'u-proc sta semplicemente
+					inviando un messaggio a un altro processo, per farlo viene eseguita l'istruzione
+					seguente:
+					\newline
+					\texttt{\textbf{SYSCALL(SENDMESSAGE, exception\_state->reg\_a1,
+					\newline
+					exception\_state->reg\_a2, 0);}}
+			\end{itemize}
+
+		\item \texttt{\textbf{reg\_a0 = RECEIVEMSG}}: il processo corrente vuole eseguire
+			una \texttt{\textbf{SYS2}}, viene quindi semplicemente eseguita questa istruzione:
+			\newline
+			\texttt{\textbf{SYSCALL(RECEIVEMESSAGE, exception\_state->reg\_a1, exception\_state->reg\_a2,
+			0);}}
+	\end{itemize}
+	\subsubsection{Gestore trap generiche a livello utente}
+	Qualsiasi altro codice ricavato dal cause register viene interpretato come una
+	trap inaspettata, di conseguenza l'u-proc interessato verrà terminato, ma non prima
+	di aver rilasciato la mutua esclusione sulla swap pool, nel caso l'avesso
+	precedentemente ottenuta.
+
+	\newpage
+
+	\subsection{Gestione memoria virtuale}
+	In questa parte, i principali attori che rendono possibile il funzionamento
+	della memoria virtuale sono:
+	\begin{itemize}
+		\item Il TLB, una cache utilizzata dalle unità di gestione della memoria
+			della CPU per velocizzare la traduzione degli indirizzi virtuali in
+			indirizzi fisici;
+
+		\item Il TLB Refill Handler: quando un indirizzo virtuale non è presente
+			nella TLB si verifica quello che in gergo è definito TLB Miss, ed entra in
+			gioco proprio questo componente che sposta nel TLB la pagina che ha causato
+			la trap per velocizzarne accessi futuri;
+
+		\item La swap pool table;
+
+		\item Il processo che permette di avere mutua esclusione (swap\_mutex, discusso
+			prima).
+	\end{itemize}
+
+	Il codice che implementa il meccanismo di gestione della memoria virtuale è
+	nel file \texttt{\textbf{vmSupport.c}}
+
+	\subsubsection{Pager}
+	Il pager è quel componente responsabile dell'avvicendamento della pagine in
+	memoria, in particolare andando a esaminare nel dettaglio l'implementazione:
+	\begin{itemize}
+		\item Come prima cosa, chiede la Support struct mandando un messaggio al
+			processo SSI e attendendo una sua risposta;
+
+		\item Una volta ottenuta, è necessario andare a vedere la causa dell'eccezione,
+			in particolare se è una TLB-Modification exception procedo uccidendo il processo
+			tramite la funzione apposita kill\_proc(), altrimenti proseguo;
+
+		\item è fondamentale per proseguire avere mutua esclusione, poichè queste
+			sono operazioni sono molto delicate e non può essere che più di un
+			processo entri nel pager; la mutua esclusione si ottiene mandando un messaggio
+			al processo che se ne occupa e aspettando che questo risponda concedendola;
+
+		\item una volta ottenuta, prendo dalla support struct la pagina virtuale con
+			la macro \texttt{\textbf{GET\_VPN()}}, e la pagina da rimpiazzare
+			guardando prima fra quelle vuote e poi in caso facendo entrare in gioco l'algoritmo
+			FIFO per selezionare una pagina vittima;
+
+		\item dato il numero della pagina vittima è necessario calcolare il suo indirizzo,
+			tenendo conto della dimensione della singola pagina e dell'offset della
+			swap area:
+
+			\begin{center}
+				\texttt{\textbf{memaddr victim\_addr = (memaddr)SWAP\_POOL\_AREA + (i *
+				PAGESIZE)}};
+			\end{center}
+
+		\item nel caso la pagina vittima fosse scelta dall'algoritmo di rimpiazzamento,
+			è necessario aggiornarla poichè precedentemente occupata da un altro frame
+			appartenente ad un altro processo; dunque serve "pulirla" poichè ormai obsoleta
+			(ovviamente tutto ciò in modo atomico per evitare inconsistenza);
+
+		\item dopo aver letto il backing store del current\_process, modifico il
+			contenuto della entryHI nella swap table per far si che sia aggiornata con
+			nuovi contenuti;
+
+		\item disabilito gli interrupt momentaneamente (per non essere disturbati
+			durante questo procedimento) e aggiorno la tabella delle pagine del processo
+			corrente per la pagina p, indicando che la pagina è presente (V bit) e
+			occupa il frame i;
+
+		\item viene rilasciata la mutua esclusione restituendo il controllo al processo;
+	\end{itemize}
+
+	\newpage
+
+	\subsubsection{TLB Refill Handler}
+	Quando avviene un cache-miss, il TLB ha come compito quello di inserire la voce
+	mancante in tabella e far ripartire dall'ultima istruzione
+
+	\subsubsection{Algoritmo di rimpiazzamento}
+	Nel caso in cui non ci siano pagine libere, (ossia scorrendo la swap table non
+	troviamo nessuna pagina con asid -1 [\texttt{\textbf{NOPROC}}]), se serve
+	caricarne una nuova in memoria è necessario trovare un modo per scegliere la
+	pagina vittima da rimpiazzare; questa logica è implementata dalla funzione \texttt{\textbf{getPage()}},
+	che dopo aver verificato che tutte le pagine siano occupate, sceglie la pagina
+	da rimpiazzare tramite l'algoritmo FIFO. Di seguito si riportano le righe di codice
+	che implementano tale algoritmo:
+
+	\begin{center}
+		\texttt{\textbf{static int i = -1; return i = (i + 1) \% POOLSIZE;}}
+	\end{center}
+
+	\subsubsection{RWBackingStore}
+	Funzione ausiliaria che si occupa della DoIO sui vari flash device; fa ciò inserendo
+	nel campo DATA0 del dispositivo flash l'indirizzo fisico iniziale del blocco da
+	leggere o scrivere; successivamente utilizza il servizio DoIO del SSI per
+	scrivere nel campo COMMAND del dispositivo flash; per capire se leggere o scrivere
+	sulla pagina desiderata viene passato come parametro una variabile discreta (w,
+	che prende come valori solo 0 e 1), in particolare è scrittura se [w = 1] o lettura
+	se [w = 0].
+
+	\subsubsection{kill\_proc}
+	Funzione ausiliaria usata per gestire gli errori, che banalmente richiede la
+	terminazione di un processo al SSI; prima di terminarlo libera tutte le pagine
+	occupate da quest'ultimo.
+
+	\subsubsection{cleanDirtyPage}
+	Funzione ausiliaria usata dal pager che prende in input una pagina per invalidarla
+	e aggiornare il TLB (in modo atomico disabilitando gli interrupt).
+
+	\newpage
+	\subsection{System Service Thread (SST)}
+	Ogni System Service Thread (SST) ha lo scopo di creare il proprio processo figlio
+	u-proc, e successivamente fornire a questo i servizi richiesti. Dopo la creazione
+	del proprio figlio, sst rimane costantemente in attesa di richieste da parte
+	di questo. Quanto detto è implementato nell'apposito modulo sst.c, in
+	particolare nella funzione \texttt{\textbf{SST\_Loop()}}, che implementa il
+	polling dei processi SST e chiama la funzione SSTRequest per soddisfare la
+	richiesta del processo figlio.
+
+	\subsubsection{\texttt{\textbf{SST\_loop()}}}
+	In particolare \texttt{\textbf{SST\_loop()}} contiene:
+	\begin{itemize}
+		\item Inizializzazione delle strutture di supporto necessarie alla creazione
+			del processo figlio;
+
+		\item Chiamata alla funzione \texttt{\textbf{create\_process()}} definita in
+			\texttt{\textbf{initproc.c}}, la quale crea un nuovo processo facendo una
+			richiesta alla \texttt{\textbf{SSI}};
+
+		\item While loop contente system call bloccante per l’attesa di nuove richieste,
+			chiamata alla funzione \texttt{\textbf{SSTRequest}}, e system call per la
+			restituzione al processo figlio di un eventuale valore di ritorno (utile per
+			\texttt{\textbf{getTOD}}).
+	\end{itemize}
+
+	\subsubsection{\texttt{\textbf{SSTRequest()}}}
+	Attraverso l'utilizzo di uno switch sulla variabile \texttt{\textbf{service\_code}},
+	che determina il tipo di servizio richiesto da u-proc e viene passata all’interno
+	della struct payload, questa funzione soddisfa la richiesta chiamando a sua
+	volta apposite funzioni. Si distinguono in particolare i casi:
+
+	\begin{itemize}
+		\item \texttt{\textbf{GET\_TOD}} Viene invocata la funzione getTOD(), la quale
+			consente di recuperare il numero di microsecondi trascorsi dall'ultima operazione
+			del sistema avviato/ripristinato. In questo caso viene impostato come
+			valore di ritorno il numero di microsecondi.
+
+		\item {\texttt{\textbf{TERMINATE}} Viene invocata la funzione \texttt{\textbf{sst\_terminate()}}
+			la quale effettua una richiesta di terminazione di u-proc alla ssi e si
+			occupa di mandare un messaggio al test per comunicare la terminazione del
+			processo.
+
+		\item {\texttt{\textbf{WRITEPRINTER e WRITETERMINAL}}} Viene invocata la funzione
+			\texttt{\textbf{sst\_write()}} la quale attraverso una syscall manda la
+			stringa da stampare alla stampante o al terminale con lo stesso ASID del
+			mittente. A \texttt{\textbf{sst\_write()}} viene passato come argomento un
+			parametro chiamato \texttt{\textbf{device\_type}}, il quale determina la
+			tipologia del dispositivo su cui verrà stampata la stringa passata nel
+			payload (stampante o terminale). Viene quindi utilizzato uno switch su quest’ultimo
+			parametro per differenziare i due casi.
+	\end{itemize}
+
+	\newpage
+	\section{Crediti}
+	\subsection{Github}
+	Il sorgente del progetto è reperibile nella seguente
+	\href{https://github.com/aNdReA9111/PandOS.git}{\textcolor{blue}{repository}}
+	su Github.
+
+	\subsection{Autori}
+	\begin{itemize}
+		\item Fiorellino Andrea, matricola: 0001089150,
+			\href{mailto:andrea.fiorellino@studio.unibo.it}{\textcolor{blue}{andrea.fiorellino@studio.unibo.it}}
+
+		\item Po Leonardo, matricola: 0001069156,
+			\href{mailto:leonardo.po@studio.unibo.it}{\textcolor{blue}{leonardo.po@studio.unibo.it}}
+
+		\item Silvestri Luca, matricola: 0001080369,
+			\href{mailto:luca.silvestri9@studio.unibo.it}{\textcolor{blue}{luca.silvestri9@studio.unibo.it}}
+	\end{itemize}
 \end{document}
