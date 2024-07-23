@@ -25,7 +25,7 @@ static void updateTLB(pteEntry_t p) {
   // Se la voce non e' presente nel TLB, aggiorna il registro ENTRYLO e scrivilo
   // nel TLB
   if ((getINDEX() & PRESENTFLAG) == 0) {
-    setENTRYHI(p.pte_entryHI);
+    // setENTRYHI(p.pte_entryHI);
     setENTRYLO(p.pte_entryLO);
 
     /**
@@ -38,9 +38,9 @@ static void updateTLB(pteEntry_t p) {
 }
 
 /**
- * @brief Funzione ausiliaria usata per invalidare una pagina e aggiornare 
+ * @brief Funzione ausiliaria usata per invalidare una pagina e aggiornare
  * il TLB (in modo atomico disabilitando gli interrupt)
- * 
+ *
  * @param sp_index indizio della pagina da invalidare
  */
 static void cleanDirtyPage(int sp_index) {
@@ -81,12 +81,11 @@ static int RWBackingStore(int page_no, int asid, memaddr addr, int w) {
 }
 
 static void kill_proc() {
-  for(int i = 0; i < POOLSIZE; i++){
-      if(swap_pool_table[i].sw_asid == current_process->p_supportStruct->sup_asid)
-          swap_pool_table[i].sw_asid = NOPROC;
+  for (int i = 0; i < POOLSIZE; i++) {
+    if (swap_pool_table[i].sw_asid ==
+        current_process->p_supportStruct->sup_asid)
+      swap_pool_table[i].sw_asid = NOPROC;
   }
-
-  SYSCALL(SENDMESSAGE, (unsigned int)swap_mutex_process, 0, 0);
 
   ssi_payload_t term_process_payload = {
       .service_code = TERMPROCESS,
@@ -151,6 +150,7 @@ void pager() {
                               swap_pool_entry->sw_asid, victim_addr, WRITE);
 
       if (status != 1) {
+        SYSCALL(SENDMESSAGE, (unsigned int)swap_mutex_process, 0, 0);
         kill_proc(); // tratto gli errori come se fossere program trap
       }
     }
@@ -158,6 +158,7 @@ void pager() {
     // read backing store/flash
     status = RWBackingStore(p, sup_st->sup_asid, victim_addr, READ);
     if (status != 1) {
+      SYSCALL(SENDMESSAGE, (unsigned int)swap_mutex_process, 0, 0);
       kill_proc(); // tratto gli errori come se fossere program trap
     }
 
