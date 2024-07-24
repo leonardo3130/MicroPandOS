@@ -1,4 +1,4 @@
-# PandOS
+# MicroPandOS
 µPandOS is an educational microkernel operating system
 
 ## Installation and usage
