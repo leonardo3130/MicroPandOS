@@ -90,7 +90,7 @@ void SST_loop() {
     unsigned int sender;
 
     sender = SYSCALL(RECEIVEMESSAGE, ANYMESSAGE, (unsigned int)(&payload),
-                     0); // SI BLOCCA QUI IN ATTESA DELLA SECONDA RECEVE
+                     0);
 
     // Tentativo di soddisfare la richiesta
     unsigned int ret = SSTRequest(sup, payload);
